@@ -1,6 +1,7 @@
 import { defineConfig } from 'vite';
 
 export default defineConfig({
+  base: './', 
   build: {
     lib: {
       entry: './src/index.js',
@@ -13,6 +14,6 @@ export default defineConfig({
     minify: true
   },
   server: {
-    open: '/debug.html'
+    open: './dev/debug.html'
   }
 });

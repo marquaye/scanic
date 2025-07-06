@@ -299,10 +299,10 @@
     <div class="debug-steps" id="stepsGridOriginal"></div>
   </div>
   
-  <!-- Import our library via Vite (GitHub Pages compatible path) -->
-  <script src="/scanic/dist/scanic.umd.cjs"></script>
-  <!-- Import original jscanify (GitHub Pages compatible path) -->
-  <script src="/scanic/src/jscanify.js" defer></script>
+  <!-- Import our library from dist -->
+  <script type="module" src="./dist/scanic.js"></script>
+  <!-- Import original jscanify -->
+  <script src="./src/jscanify.js"></script>
   
   <script>
     // Global flag and scanner instances
@@ -894,16 +894,16 @@
 
     function loadSampleImages() {
       const testImagePaths = [
-        '/scanic/testImages/test.png',
-        '/scanic/testImages/test2.png',
-        '/scanic/testImages/test3.jpg',
-        '/scanic/testImages/test4.JPG',
-        '/scanic/testImages/test5.JPG',
-        '/scanic/testImages/test6.JPG',
-        '/scanic/testImages/test7.JPG',
-        '/scanic/testImages/test8.JPG',
-        '/scanic/testImages/test9.jpg',
-        '/scanic/testImages/test10.jpg',
+        './testImages/test.png',
+        './testImages/test2.png',
+        './testImages/test3.jpg',
+        './testImages/test4.JPG',
+        './testImages/test5.JPG',
+        './testImages/test6.JPG',
+        './testImages/test7.JPG',
+        './testImages/test8.JPG',
+        './testImages/test9.jpg',
+        './testImages/test10.jpg',
       ];
       sampleImagesContainer.innerHTML = '';
       testImagePaths.forEach((path, index) => {
@@ -957,7 +957,11 @@
     };
 
   </script>
-  <!-- The rewrite API is set by the UMD bundle via window.setRewriteApi -->
-
+  
+   <script type="module">
+    // Import Scanic from dist and expose to global scope
+    import * as scanic from './dist/scanic.js';
+    window.setRewriteApi(scanic);
+  </script>
 </body>
 </html>
