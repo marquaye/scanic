@@ -1,0 +1,10 @@
+version: '3.8'
+services:
+  wasm-build:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      - .:/code
+    working_dir: /code/wasm_blur
+    command: ["wasm-pack", "build", "--target", "web", "--out-dir", "./pkg"]

@@ -1,0 +1,7 @@
+notes.md
+.project
+docs/images/private
+docs/private
+node_modules
+test/output
+wasm_blur/target
