@@ -184,24 +184,31 @@ function getPerspectiveTransform(srcPoints, dstPoints) {
   // Use Gaussian elimination or Cramer's rule for 8x8
   // For simplicity, use numeric.js if available, else implement basic solver
   function solve(A, b) {
-    // Gaussian elimination for 8x8
+    // Gaussian elimination for 8x8 with partial pivoting
     const m = A.length;
     const n = A[0].length;
     const M = A.map(row => row.slice());
     const B = b.slice();
 
     for (let i = 0; i < n; i++) {
-      // Find max row
+      // Find max row for partial pivoting
       let maxRow = i;
       for (let k = i + 1; k < m; k++) {
         if (Math.abs(M[k][i]) > Math.abs(M[maxRow][i])) maxRow = k;
       }
+      
+      // Check for numerical issues
+      if (Math.abs(M[maxRow][i]) < 1e-12) {
+        console.warn('Matrix is nearly singular, perspective transform may be inaccurate');
+      }
+      
       // Swap rows
       [M[i], M[maxRow]] = [M[maxRow], M[i]];
       [B[i], B[maxRow]] = [B[maxRow], B[i]];
 
       // Eliminate
       for (let k = i + 1; k < m; k++) {
+        if (Math.abs(M[i][i]) < 1e-12) continue; // Skip if pivot is too small
         const c = M[k][i] / M[i][i];
         for (let j = i; j < n; j++) {
           M[k][j] -= c * M[i][j];
@@ -217,7 +224,12 @@ function getPerspectiveTransform(srcPoints, dstPoints) {
       for (let j = i + 1; j < n; j++) {
         sum -= M[i][j] * x[j];
       }
-      x[i] = sum / M[i][i];
+      if (Math.abs(M[i][i]) < 1e-12) {
+        console.warn('Singular matrix encountered during back substitution');
+        x[i] = 0;
+      } else {
+        x[i] = sum / M[i][i];
+      }
     }
     return x;
   }
@@ -236,8 +248,23 @@ function getPerspectiveTransform(srcPoints, dstPoints) {
 
 
 function unwarpImage(ctx, image, corners) {
-  // get perspective transform matrix
+  // Calculate the output dimensions based on the corner distances
   const { topLeft, topRight, bottomRight, bottomLeft } = corners;
+  
+  // Calculate width and height of the corrected document
+  const topWidth = Math.sqrt(Math.pow(topRight.x - topLeft.x, 2) + Math.pow(topRight.y - topLeft.y, 2));
+  const bottomWidth = Math.sqrt(Math.pow(bottomRight.x - bottomLeft.x, 2) + Math.pow(bottomRight.y - bottomLeft.y, 2));
+  const leftHeight = Math.sqrt(Math.pow(bottomLeft.x - topLeft.x, 2) + Math.pow(bottomLeft.y - topLeft.y, 2));
+  const rightHeight = Math.sqrt(Math.pow(bottomRight.x - topRight.x, 2) + Math.pow(bottomRight.y - topRight.y, 2));
+  
+  // Use the maximum dimensions to preserve detail
+  const outputWidth = Math.max(topWidth, bottomWidth);
+  const outputHeight = Math.max(leftHeight, rightHeight);
+  
+  // Resize canvas to fit the corrected document
+  ctx.canvas.width = Math.round(outputWidth);
+  ctx.canvas.height = Math.round(outputHeight);
+  
   const srcPoints = [
     [topLeft.x, topLeft.y],
     [topRight.x, topRight.y],
@@ -246,54 +273,98 @@ function unwarpImage(ctx, image, corners) {
   ];
   const dstPoints = [
     [0, 0],
-    [image.width, 0],
-    [image.width, image.height],
-    [0, image.height]
+    [outputWidth, 0],
+    [outputWidth, outputHeight],
+    [0, outputHeight]
   ];
-  const perspectiveMatrix = getPerspectiveTransform(dstPoints,srcPoints);
+  
+  // Get perspective transform matrix (correct parameter order: src -> dst)
+  const perspectiveMatrix = getPerspectiveTransform(srcPoints, dstPoints);
   console.log('Perspective Matrix:', perspectiveMatrix);
-  // apply the perspective transform to the image data
-  ctx.setTransform(
-    perspectiveMatrix[0][0], perspectiveMatrix[0][1],
-    perspectiveMatrix[1][0], perspectiveMatrix[1][1],
-    perspectiveMatrix[2][0], perspectiveMatrix[2][1]
-  );
-  ctx.drawImage(image, 0, 0, image.width, image.height);
-  warpTransform(ctx, image, perspectiveMatrix);
+  
+  // Apply the perspective transform using manual pixel mapping
+  warpTransform(ctx, image, perspectiveMatrix, outputWidth, outputHeight);
 }
 
-function warpTransform(ctx, image, matrix){
-  // manual implementation of perspective warp
-  const { width, height } = image;
-  const imageData = ctx.getImageData(0, 0, width, height);
-  const out = ctx.createImageData(width, height);
-  console.log('Image Data:', imageData);
-  // for each pixel in the output image, calculate the corresponding pixel in the input image
-  for (let y = 0; y < height; y++) {
-    for (let x = 0; x < width; x++) {
-      const dstIdx = y * width + x;
-      // Calculate the corresponding point in the input image
-      let srcX = (matrix[0][0] * x + matrix[0][1] * y + matrix[0][2]) / (matrix[2][0] * x + matrix[2][1] * y + matrix[2][2]);
-      let srcY = (matrix[1][0] * x + matrix[1][1] * y + matrix[1][2]) / (matrix[2][0] * x + matrix[2][1] * y + matrix[2][2]);
-      // Clamp srcX and srcY to be within the bounds of the image
-      srcX = Math.max(0, Math.min(width - 1, srcX));
-      srcY = Math.max(0, Math.min(height - 1, srcY));
-      const srcIdx = Math.floor(srcY) * image.width + Math.floor(srcX);
-      // console.log(`Mapping pixel (${x}, ${y}) to source pixel (${srcX}, ${srcY})`);
-      out.data[dstIdx * 4] = imageData.data[srcIdx * 4];     // R
-      out.data[dstIdx * 4 + 1] = imageData.data[srcIdx * 4 + 1]; // G
-      out.data[dstIdx * 4 + 2] = imageData.data[srcIdx * 4 + 2]; // B
-      out.data[dstIdx * 4 + 3] = imageData.data[srcIdx * 4 + 3]; // A
-      // // Get pixel color from the source image
-      // const pixel = ctx.getImageData(srcX, srcY, 1, 1).data;
+function warpTransform(ctx, image, matrix, outputWidth, outputHeight) {
+  // Create a temporary canvas to draw the original image
+  const tempCanvas = document.createElement('canvas');
+  tempCanvas.width = image.width || image.naturalWidth;
+  tempCanvas.height = image.height || image.naturalHeight;
+  const tempCtx = tempCanvas.getContext('2d');
+  tempCtx.drawImage(image, 0, 0, tempCanvas.width, tempCanvas.height);
+  
+  // Get the source image data
+  const sourceImageData = tempCtx.getImageData(0, 0, tempCanvas.width, tempCanvas.height);
+  const sourceData = sourceImageData.data;
+  const sourceWidth = tempCanvas.width;
+  const sourceHeight = tempCanvas.height;
+  
+  // Create output image data
+  const outputImageData = ctx.createImageData(outputWidth, outputHeight);
+  const outputData = outputImageData.data;
+  
+  console.log(`Transforming from ${sourceWidth}x${sourceHeight} to ${outputWidth}x${outputHeight}`);
+  
+  // For each pixel in the output image, find the corresponding pixel in the source
+  for (let y = 0; y < outputHeight; y++) {
+    for (let x = 0; x < outputWidth; x++) {
+      // Apply inverse perspective transform to find source coordinates
+      const denominator = matrix[2][0] * x + matrix[2][1] * y + matrix[2][2];
       
-      // // Set pixel color in the output image
-      // ctx.fillStyle = `rgba(${pixel[0]}, ${pixel[1]}, ${pixel[2]}, ${pixel[3] / 255})`;
-      // ctx.fillRect(x, y, 1, 1);
+      if (Math.abs(denominator) < 1e-10) continue; // Skip if denominator is too small
+      
+      let srcX = (matrix[0][0] * x + matrix[0][1] * y + matrix[0][2]) / denominator;
+      let srcY = (matrix[1][0] * x + matrix[1][1] * y + matrix[1][2]) / denominator;
+      
+      // Check if source coordinates are within bounds
+      if (srcX >= 0 && srcX < sourceWidth - 1 && srcY >= 0 && srcY < sourceHeight - 1) {
+        // Use bilinear interpolation for better quality
+        const x1 = Math.floor(srcX);
+        const y1 = Math.floor(srcY);
+        const x2 = x1 + 1;
+        const y2 = y1 + 1;
+        
+        const dx = srcX - x1;
+        const dy = srcY - y1;
+        
+        // Get the four neighboring pixels
+        const getPixel = (px, py) => {
+          const idx = (py * sourceWidth + px) * 4;
+          return [
+            sourceData[idx],     // R
+            sourceData[idx + 1], // G
+            sourceData[idx + 2], // B
+            sourceData[idx + 3]  // A
+          ];
+        };
+        
+        const p1 = getPixel(x1, y1); // top-left
+        const p2 = getPixel(x2, y1); // top-right
+        const p3 = getPixel(x1, y2); // bottom-left
+        const p4 = getPixel(x2, y2); // bottom-right
+        
+        // Bilinear interpolation
+        const outputIdx = (y * outputWidth + x) * 4;
+        for (let c = 0; c < 4; c++) {
+          const top = p1[c] * (1 - dx) + p2[c] * dx;
+          const bottom = p3[c] * (1 - dx) + p4[c] * dx;
+          const interpolated = top * (1 - dy) + bottom * dy;
+          outputData[outputIdx + c] = Math.round(interpolated);
+        }
+      } else {
+        // Fill with transparent black for out-of-bounds pixels
+        const outputIdx = (y * outputWidth + x) * 4;
+        outputData[outputIdx] = 0;     // R
+        outputData[outputIdx + 1] = 0; // G
+        outputData[outputIdx + 2] = 0; // B
+        outputData[outputIdx + 3] = 0; // A
+      }
     }
   }
-  return ctx.putImageData(out, 0, 0);
-
+  
+  // Put the transformed image data onto the canvas
+  ctx.putImageData(outputImageData, 0, 0);
 }
 
 // Function to highlight document in an image element or canvas
