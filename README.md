@@ -32,7 +32,7 @@ Performance-wise, I'm working to match OpenCV solutions while maintaining the li
 
 ## Demo
 
-Try the live demo: [Open Demo](/debug.html)
+Try the live demo: [Open Demo](/demo.html)
 
 ## Installation
 
@@ -218,6 +218,7 @@ Please ensure your code follows the existing style and includes appropriate test
 ## Sponsors
 
 [zeugnisprofi](https://zeugnisprofi.com)
+
 [verlingo](https://www.verlingo.de)
 
 ## Roadmap
