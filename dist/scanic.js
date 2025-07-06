@@ -1,8 +1,8 @@
-const p = {
+const v = {
   // Contour detection params
   MIN_CONTOUR_AREA: 1e3,
   MIN_CONTOUR_POINTS: 10
-}, V = 0, _ = 1, b = 2, H = [
+}, V = 0, _ = 1, q = 2, H = [
   { dx: 0, dy: -1 },
   // 0: Top
   { dx: 1, dy: -1 },
@@ -21,59 +21,59 @@ const p = {
   // 7: Top-left
 ];
 function $(I, A = {}) {
-  const g = A.width || Math.sqrt(I.length), Q = A.height || I.length / g, C = A.mode !== void 0 ? A.mode : _, B = A.method !== void 0 ? A.method : b, E = A.minArea || p.MIN_CONTOUR_AREA, i = g + 2, e = Q + 2, t = new Int32Array(i * e);
-  for (let a = 0; a < Q; a++)
+  const g = A.width || Math.sqrt(I.length), C = A.height || I.length / g, Q = A.mode !== void 0 ? A.mode : _, B = A.method !== void 0 ? A.method : q, E = A.minArea || v.MIN_CONTOUR_AREA, i = g + 2, o = C + 2, t = new Int32Array(i * o);
+  for (let a = 0; a < C; a++)
     for (let D = 0; D < g; D++)
       I[a * g + D] > 0 && (t[(a + 1) * i + (D + 1)] = 1);
-  const o = [];
+  const e = [];
   let n = 2;
-  for (let a = 1; a <= Q; a++)
+  for (let a = 1; a <= C; a++)
     for (let D = 1; D <= g; D++) {
-      const c = t[a * i + D], y = t[a * i + (D - 1)];
-      let h = null, r = !1, w = -1;
-      if (c === 1 && y === 0 ? (r = !0, h = { x: D, y: a }, w = 2) : c === 0 && y >= 1 && y !== -1 && y === 1 && (r = !1, h = { x: D - 1, y: a }, w = 6), h) {
-        if (C === V && !r) {
+      const c = t[a * i + D], r = t[a * i + (D - 1)];
+      let h = null, y = !1, w = -1;
+      if (c === 1 && r === 0 ? (y = !0, h = { x: D, y: a }, w = 2) : c === 0 && r >= 1 && r !== -1 && r === 1 && (y = !1, h = { x: D - 1, y: a }, w = 6), h) {
+        if (Q === V && !y) {
           t[h.y * i + h.x] = -1;
           continue;
         }
-        const F = n++, G = AA(t, i, e, h, w, F);
+        const F = n++, G = AA(t, i, o, h, w, F);
         if (G && G.length > 0) {
-          let d = G;
-          B === b && (d = IA(G));
-          const k = d.map((R) => ({ x: R.x - 1, y: R.y - 1 }));
-          if (k.length >= (B === b ? 4 : p.MIN_CONTOUR_POINTS)) {
+          let k = G;
+          B === q && (k = IA(G));
+          const d = k.map((R) => ({ x: R.x - 1, y: R.y - 1 }));
+          if (d.length >= (B === q ? 4 : v.MIN_CONTOUR_POINTS)) {
             const R = {
               id: F,
-              points: k,
-              isOuter: r
+              points: d,
+              isOuter: y
               // Calculate area and bounding box later if needed for filtering/sorting
             };
-            o.push(R);
+            e.push(R);
           }
         } else
           t[h.y * i + h.x] === 1 && (t[h.y * i + h.x] = F);
       }
     }
-  o.forEach((a) => {
+  e.forEach((a) => {
     a.area = gA(a.points), a.boundingBox = BA(a.points);
   });
-  const s = o.filter((a) => a.area >= E);
-  return s.sort((a, D) => D.area - a.area), A.debug && (A.debug.labels = t, A.debug.rawContours = o, A.debug.finalContours = s), s;
+  const s = e.filter((a) => a.area >= E);
+  return s.sort((a, D) => D.area - a.area), A.debug && (A.debug.labels = t, A.debug.rawContours = e, A.debug.finalContours = s), s;
 }
-function AA(I, A, g, Q, C, B) {
+function AA(I, A, g, C, Q, B) {
   const E = [], i = /* @__PURE__ */ new Set();
-  let e = { ...Q }, t = -1;
-  I[Q.y * A + Q.x] = B;
-  let o = 0;
+  let o = { ...C }, t = -1;
+  I[C.y * A + C.x] = B;
+  let e = 0;
   const n = A * g;
-  for (; o++ < n; ) {
+  for (; e++ < n; ) {
     let s;
     if (t === -1) {
       let c = !1;
-      for (let y = 0; y < 8; y++) {
-        s = (C + y) % 8;
-        const h = e.x + H[s].dx, r = e.y + H[s].dy;
-        if (h >= 0 && h < A && r >= 0 && r < g && I[r * A + h] > 0) {
+      for (let r = 0; r < 8; r++) {
+        s = (Q + r) % 8;
+        const h = o.x + H[s].dx, y = o.y + H[s].dy;
+        if (h >= 0 && h < A && y >= 0 && y < g && I[y * A + h] > 0) {
           c = !0;
           break;
         }
@@ -83,42 +83,42 @@ function AA(I, A, g, Q, C, B) {
       s = (t + 2) % 8;
     let a = null;
     for (let c = 0; c < 8; c++) {
-      const y = (s + c) % 8, h = e.x + H[y].dx, r = e.y + H[y].dy;
-      if (h >= 0 && h < A && r >= 0 && r < g && I[r * A + h] > 0) {
-        a = { x: h, y: r }, t = (y + 4) % 8;
+      const r = (s + c) % 8, h = o.x + H[r].dx, y = o.y + H[r].dy;
+      if (h >= 0 && h < A && y >= 0 && y < g && I[y * A + h] > 0) {
+        a = { x: h, y }, t = (r + 4) % 8;
         break;
       }
     }
     if (!a) {
-      E.length === 0 && E.push({ ...e }), console.warn(`Contour tracing stopped unexpectedly at (${e.x - 1}, ${e.y - 1}) for contour ${B}`);
+      E.length === 0 && E.push({ ...o }), console.warn(`Contour tracing stopped unexpectedly at (${o.x - 1}, ${o.y - 1}) for contour ${B}`);
       break;
     }
-    const D = `${e.x},${e.y}`;
+    const D = `${o.x},${o.y}`;
     if (i.has(D))
       return E;
-    if (E.push({ ...e }), i.add(D), I[a.y * A + a.x] === 1 && (I[a.y * A + a.x] = B), e = a, e.x === Q.x && e.y === Q.y)
+    if (E.push({ ...o }), i.add(D), I[a.y * A + a.x] === 1 && (I[a.y * A + a.x] = B), o = a, o.x === C.x && o.y === C.y)
       break;
   }
-  return o >= n ? (console.warn(`Contour tracing exceeded max steps for contour ${B}`), null) : E;
+  return e >= n ? (console.warn(`Contour tracing exceeded max steps for contour ${B}`), null) : E;
 }
 function IA(I) {
   if (I.length <= 2)
     return I;
   const A = [], g = I.length;
-  for (let Q = 0; Q < g; Q++) {
-    const C = I[(Q + g - 1) % g], B = I[Q], E = I[(Q + 1) % g], i = B.x - C.x, e = B.y - C.y, t = E.x - B.x, o = E.y - B.y;
-    i * o !== e * t && A.push(B);
+  for (let C = 0; C < g; C++) {
+    const Q = I[(C + g - 1) % g], B = I[C], E = I[(C + 1) % g], i = B.x - Q.x, o = B.y - Q.y, t = E.x - B.x, e = E.y - B.y;
+    i * e !== o * t && A.push(B);
   }
   if (A.length === 0 && g > 0) {
     if (g === 1) return [I[0]];
     if (g === 2) return I;
-    let Q = 0, C = 1;
+    let C = 0, Q = 1;
     const B = I[0];
     for (let E = 1; E < g; E++) {
-      const i = I[E], e = (i.x - B.x) ** 2 + (i.y - B.y) ** 2;
-      e > Q && (Q = e, C = E);
+      const i = I[E], o = (i.x - B.x) ** 2 + (i.y - B.y) ** 2;
+      o > C && (C = o, Q = E);
     }
-    return [I[0], I[C]];
+    return [I[0], I[Q]];
   }
   return A;
 }
@@ -126,67 +126,67 @@ function gA(I) {
   let A = 0;
   const g = I.length;
   if (g < 3) return 0;
-  for (let Q = 0; Q < g; Q++) {
-    const C = (Q + 1) % g;
-    A += I[Q].x * I[C].y, A -= I[C].x * I[Q].y;
+  for (let C = 0; C < g; C++) {
+    const Q = (C + 1) % g;
+    A += I[C].x * I[Q].y, A -= I[Q].x * I[C].y;
   }
   return Math.abs(A) / 2;
 }
 function BA(I) {
   if (I.length === 0)
     return { minX: 0, minY: 0, maxX: 0, maxY: 0 };
-  let A = I[0].x, g = I[0].y, Q = I[0].x, C = I[0].y;
+  let A = I[0].x, g = I[0].y, C = I[0].x, Q = I[0].y;
   for (let B = 1; B < I.length; B++) {
     const E = I[B];
-    A = Math.min(A, E.x), g = Math.min(g, E.y), Q = Math.max(Q, E.x), C = Math.max(C, E.y);
+    A = Math.min(A, E.x), g = Math.min(g, E.y), C = Math.max(C, E.x), Q = Math.max(Q, E.y);
   }
-  return { minX: A, minY: g, maxX: Q, maxY: C };
+  return { minX: A, minY: g, maxX: C, maxY: Q };
 }
 function x(I, A = 1) {
   if (I.length <= 2)
     return I;
-  let g = 0, Q = 0;
-  const C = I[0], B = I[I.length - 1];
+  let g = 0, C = 0;
+  const Q = I[0], B = I[I.length - 1];
   for (let E = 1; E < I.length - 1; E++) {
-    const i = QA(I[E], C, B);
-    i > g && (g = i, Q = E);
+    const i = QA(I[E], Q, B);
+    i > g && (g = i, C = E);
   }
   if (g > A) {
-    const E = x(I.slice(0, Q + 1), A), i = x(I.slice(Q), A);
+    const E = x(I.slice(0, C + 1), A), i = x(I.slice(C), A);
     return E.slice(0, -1).concat(i);
   } else
-    return [C, B];
+    return [Q, B];
 }
 function QA(I, A, g) {
-  const Q = g.x - A.x, C = g.y - A.y, B = Q * Q + C * C;
+  const C = g.x - A.x, Q = g.y - A.y, B = C * C + Q * Q;
   if (B === 0)
     return Math.sqrt(
       Math.pow(I.x - A.x, 2) + Math.pow(I.y - A.y, 2)
     );
-  const E = ((I.x - A.x) * Q + (I.y - A.y) * C) / B;
-  let i, e;
-  E < 0 ? (i = A.x, e = A.y) : E > 1 ? (i = g.x, e = g.y) : (i = A.x + E * Q, e = A.y + E * C);
-  const t = I.x - i, o = I.y - e;
-  return Math.sqrt(t * t + o * o);
+  const E = ((I.x - A.x) * C + (I.y - A.y) * Q) / B;
+  let i, o;
+  E < 0 ? (i = A.x, o = A.y) : E > 1 ? (i = g.x, o = g.y) : (i = A.x + E * C, o = A.y + E * Q);
+  const t = I.x - i, e = I.y - o;
+  return Math.sqrt(t * t + e * e);
 }
 function CA(I, A = 0.02) {
-  const g = EA(I), Q = A * g;
-  return x(I, Q);
+  const g = EA(I), C = A * g;
+  return x(I, C);
 }
 function EA(I) {
   let A = 0;
   const g = I.length;
   if (g < 2) return 0;
-  for (let Q = 0; Q < g; Q++) {
-    const C = (Q + 1) % g, B = I[Q].x - I[C].x, E = I[Q].y - I[C].y;
+  for (let C = 0; C < g; C++) {
+    const Q = (C + 1) % g, B = I[C].x - I[Q].x, E = I[C].y - I[Q].y;
     A += Math.sqrt(B * B + E * E);
   }
   return A;
 }
 function iA(I) {
   let A = 0, g = 0;
-  for (const Q of I)
-    A += Q.x, g += Q.y;
+  for (const C of I)
+    A += C.x, g += C.y;
   return {
     x: A / I.length,
     y: g / I.length
@@ -195,41 +195,41 @@ function iA(I) {
 function tA(I, A = {}) {
   if (!I || !I.points || I.points.length < 4)
     return console.warn("Contour does not have enough points for corner detection"), null;
-  const g = A.epsilon || 0.02, Q = CA(I, g);
-  let C;
-  return Q && Q.length === 4 ? C = oA(Q) : C = eA(I.points), !C || !C.topLeft || !C.topRight || !C.bottomRight || !C.bottomLeft ? (console.warn("Failed to find all four corners.", C), null) : (console.log("Corner points:", C), C);
+  const g = A.epsilon || 0.02, C = CA(I, g);
+  let Q;
+  return C && C.length === 4 ? Q = eA(C) : Q = oA(I.points), !Q || !Q.topLeft || !Q.topRight || !Q.bottomRight || !Q.bottomLeft ? (console.warn("Failed to find all four corners.", Q), null) : (console.log("Corner points:", Q), Q);
 }
-function eA(I) {
+function oA(I) {
   if (!I || I.length === 0) return null;
-  let A = I[0], g = I[0], Q = I[0], C = I[0], B = A.x + A.y, E = g.x - g.y, i = Q.x + Q.y, e = C.x - C.y;
+  let A = I[0], g = I[0], C = I[0], Q = I[0], B = A.x + A.y, E = g.x - g.y, i = C.x + C.y, o = Q.x - Q.y;
   for (let t = 1; t < I.length; t++) {
-    const o = I[t], n = o.x + o.y, s = o.x - o.y;
-    n < B && (B = n, A = o), n > i && (i = n, Q = o), s > E && (E = s, g = o), s < e && (e = s, C = o);
+    const e = I[t], n = e.x + e.y, s = e.x - e.y;
+    n < B && (B = n, A = e), n > i && (i = n, C = e), s > E && (E = s, g = e), s < o && (o = s, Q = e);
   }
   return {
     topLeft: A,
     topRight: g,
-    bottomRight: Q,
-    bottomLeft: C
+    bottomRight: C,
+    bottomLeft: Q
   };
 }
-function oA(I) {
+function eA(I) {
   if (I.length !== 4)
     return console.warn(`Expected 4 points, got ${I.length}`), null;
   const A = iA(I), g = [...I].sort((E, i) => {
-    const e = Math.atan2(E.y - A.y, E.x - A.x), t = Math.atan2(i.y - A.y, i.x - A.x);
-    return e - t;
+    const o = Math.atan2(E.y - A.y, E.x - A.x), t = Math.atan2(i.y - A.y, i.x - A.x);
+    return o - t;
   });
-  let Q = 1 / 0, C = 0;
+  let C = 1 / 0, Q = 0;
   for (let E = 0; E < 4; E++) {
     const i = g[E].x + g[E].y;
-    i < Q && (Q = i, C = E);
+    i < C && (C = i, Q = E);
   }
   const B = [
-    g[C],
-    g[(C + 1) % 4],
-    g[(C + 2) % 4],
-    g[(C + 3) % 4]
+    g[Q],
+    g[(Q + 1) % 4],
+    g[(Q + 2) % 4],
+    g[(Q + 3) % 4]
   ];
   return {
     topLeft: B[0],
@@ -238,40 +238,40 @@ function oA(I) {
     bottomLeft: B[3]
   };
 }
-let N, m = null;
-function T() {
-  return (m === null || m.byteLength === 0) && (m = new Uint8Array(N.memory.buffer)), m;
+let N, Y = null;
+function P() {
+  return (Y === null || Y.byteLength === 0) && (Y = new Uint8Array(N.memory.buffer)), Y;
 }
-let f = 0;
-function P(I, A) {
+let J = 0;
+function Z(I, A) {
   const g = A(I.length * 1, 1) >>> 0;
-  return T().set(I, g / 1), f = I.length, g;
+  return P().set(I, g / 1), J = I.length, g;
 }
 function K(I, A) {
-  return I = I >>> 0, T().subarray(I / 1, I / 1 + A);
+  return I = I >>> 0, P().subarray(I / 1, I / 1 + A);
 }
-function sA(I, A, g, Q) {
-  const C = P(I, N.__wbindgen_malloc), B = f, E = N.dilate(C, B, A, g, Q);
+function sA(I, A, g, C) {
+  const Q = Z(I, N.__wbindgen_malloc), B = J, E = N.dilate(Q, B, A, g, C);
   var i = K(E[0], E[1]).slice();
   return N.__wbindgen_free(E[0], E[1] * 1, 1), i;
 }
 let U = null;
-function Z() {
+function X() {
   return (U === null || U.byteLength === 0) && (U = new Float32Array(N.memory.buffer)), U;
 }
 function aA(I, A) {
   const g = A(I.length * 4, 4) >>> 0;
-  return Z().set(I, g / 4), f = I.length, g;
+  return X().set(I, g / 4), J = I.length, g;
 }
-function nA(I, A, g, Q, C) {
-  const B = aA(I, N.__wbindgen_malloc), E = f, i = N.hysteresis_thresholding(B, E, A, g, Q, C);
-  var e = K(i[0], i[1]).slice();
-  return N.__wbindgen_free(i[0], i[1] * 1, 1), e;
+function nA(I, A, g, C, Q) {
+  const B = aA(I, N.__wbindgen_malloc), E = J, i = N.hysteresis_thresholding(B, E, A, g, C, Q);
+  var o = K(i[0], i[1]).slice();
+  return N.__wbindgen_free(i[0], i[1] * 1, 1), o;
 }
-function DA(I, A, g, Q, C) {
-  const B = P(I, N.__wbindgen_malloc), E = f, i = N.blur(B, E, A, g, Q, C);
-  var e = K(i[0], i[1]).slice();
-  return N.__wbindgen_free(i[0], i[1] * 1, 1), e;
+function DA(I, A, g, C, Q) {
+  const B = Z(I, N.__wbindgen_malloc), E = J, i = N.blur(B, E, A, g, C, Q);
+  var o = K(i[0], i[1]).slice();
+  return N.__wbindgen_free(i[0], i[1] * 1, 1), o;
 }
 let u = null;
 function cA() {
@@ -279,26 +279,26 @@ function cA() {
 }
 function W(I, A) {
   const g = A(I.length * 2, 2) >>> 0;
-  return cA().set(I, g / 2), f = I.length, g;
+  return cA().set(I, g / 2), J = I.length, g;
 }
 function hA(I, A) {
-  return I = I >>> 0, Z().subarray(I / 4, I / 4 + A);
+  return I = I >>> 0, X().subarray(I / 4, I / 4 + A);
 }
-function yA(I, A, g, Q, C) {
-  const B = W(I, N.__wbindgen_malloc), E = f, i = W(A, N.__wbindgen_malloc), e = f, t = N.non_maximum_suppression(B, E, i, e, g, Q, C);
-  var o = hA(t[0], t[1]).slice();
-  return N.__wbindgen_free(t[0], t[1] * 4, 4), o;
+function rA(I, A, g, C, Q) {
+  const B = W(I, N.__wbindgen_malloc), E = J, i = W(A, N.__wbindgen_malloc), o = J, t = N.non_maximum_suppression(B, E, i, o, g, C, Q);
+  var e = hA(t[0], t[1]).slice();
+  return N.__wbindgen_free(t[0], t[1] * 4, 4), e;
 }
-async function rA(I, A) {
+async function yA(I, A) {
   if (typeof Response == "function" && I instanceof Response) {
     if (typeof WebAssembly.instantiateStreaming == "function")
       try {
         return await WebAssembly.instantiateStreaming(I, A);
-      } catch (Q) {
+      } catch (C) {
         if (I.headers.get("Content-Type") != "application/wasm")
-          console.warn("`WebAssembly.instantiateStreaming` failed because your server does not serve Wasm with `application/wasm` MIME type. Falling back to `WebAssembly.instantiate` which is slower. Original error:\n", Q);
+          console.warn("`WebAssembly.instantiateStreaming` failed because your server does not serve Wasm with `application/wasm` MIME type. Falling back to `WebAssembly.instantiate` which is slower. Original error:\n", C);
         else
-          throw Q;
+          throw C;
       }
     const g = await I.arrayBuffer();
     return await WebAssembly.instantiate(g, A);
@@ -315,214 +315,214 @@ function wA() {
   }, I;
 }
 function NA(I, A) {
-  return N = I.exports, X.__wbindgen_wasm_module = A, U = null, u = null, m = null, N.__wbindgen_start(), N;
+  return N = I.exports, j.__wbindgen_wasm_module = A, U = null, u = null, Y = null, N.__wbindgen_start(), N;
 }
-async function X(I) {
+async function j(I) {
   if (N !== void 0) return N;
   typeof I < "u" && (Object.getPrototypeOf(I) === Object.prototype ? { module_or_path: I } = I : console.warn("using deprecated parameters for the initialization function; pass a single object instead")), typeof I > "u" && (I = new URL("data:application/wasm;base64,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QQhqIAIQKQALaAIBfwF+IwBBMGsiAyQAIAMgADYCACADIAE2AgQgA0ECNgIMIANBuJbAADYCCCADQgI3AhQgA0KAgICAICIEIANBBGqthDcDKCADIAQgA62ENwMgIAMgA0EgajYCECADQQhqIAIQKQALaAIBfwF+IwBBMGsiAyQAIAMgADYCACADIAE2AgQgA0ECNgIMIANB7JbAADYCCCADQgI3AhQgA0KAgICAICIEIANBBGqthDcDKCADIAQgA62ENwMgIAMgA0EgajYCECADQQhqIAIQKQALZQAjAEEwayIAJABBxJfAAC0AAARAIABBAjYCDCAAQbCSwAA2AgggAEIBNwIUIAAgATYCLCAAIABBLGqtQoCAgIAghDcDICAAIABBIGo2AhAgAEEIakHQksAAECkACyAAQTBqJAALQQEBfyACIAAoAgAgACgCCCIDa0sEQCAAIAMgAhAPIAAoAgghAwsgACgCBCADaiABIAIQCxogACACIANqNgIIQQALTQECf0HFl8AALQAAGiABKAIEIQIgASgCACEDQQhBBBAzIgFFBEBBBEEIED0ACyABIAI2AgQgASADNgIAIABB8JLAADYCBCAAIAE2AgALQQEBfyMAQSBrIgMkACADQQA2AhAgA0EBNgIEIANCBDcCCCADIAE2AhwgAyAANgIYIAMgA0EYajYCACADIAIQKQALrhIBEn8jAEEQayIXJAAgCCEMIwBB0ABrIgskACALQQhqIAAiCCABIhkgAiIRIAMgBiAHEAQgC0EUaiALKAIMIhwgCygCECACIAMQByACIANsIgBBAXQhBgJAAkACQCAAQQBIIAZB/v///wdLckUEQCAGRQ0BQcWXwAAtAAAaQQIhDSAGQQIQMyIBDQILIA0gBhAvAAtBACEGIAtBADYCKCALQoCAgIAgNwIgIAtBADYCNCALQoCAgIAgNwIsQQIhAUEBIRhBAiECDAELIAtBADYCKCALIAE2AiQgCyAANgIgQcWXwAAtAAAaAkACQAJAIAZBAhAzIgIEQEEAIQYgC0EANgI0IAsgAjYCMCALIAA2AiwgAEUEQEEBIRhBACENDAULIABFIRggCygCGCEBIAsoAhwhEiAAIQIDQCAGIBJPDQMgAS8BACENIAsoAigiECALKAIgRgRAIAtBIGoQEgsgCygCJCAQQQF0aiANOwEAIAsgEEEBajYCKCAGQQFqIBJPDQIgAUECai8BACENIAsoAjQiECALKAIsRgRAIAtBLGoQEgsgCygCMCAQQQF0aiANOwEAIAsgEEEBaiINNgI0IAFBBGohASAGQQJqIQYgAkEBayICDQALDAMLQQIgBhAvAAsgBkEBaiASQeCCwAAQGQALIAYgEkHQgsAAEBkACyALKAIoIQYgCygCJCEBIAsoAjAhAgsgC0E4aiABIAYgAiANIBEgAyAMQQBHEAMgCygCQCETIAsoAjwhGgJAAkACfyAYBEBBASEOQQAMAQtBxZfAAC0AABogAEEBEDQiDkUNASAACyEbIAtBADYCTCALQoCAgIDAADcCRAJAAkACQAJAAkACQCADQQFrIhJBAkkNACARQQFrIhBBAkkNACAFIAWUIAUgDBshByAEIASUIAQgDBshBUEBIQIDQCACIBFsIQ0gAkEBakEBIQYDQCAGIA1qIgwgE08NBgJAIAcgGiAMQQJ0aioCACIEXwRAIAAgDE0NBiAMIA5qQQI6AAAgCygCTCIPIAsoAkRGBEAgC0HEAGoQEAsgCygCSCAPQQN0aiIMIAI2AgQgDCAGNgIAIAsgD0EBajYCTAwBCyAEIAVgRQ0AIAAgDE0NBiAMIA5qQQE6AAALIAZBAWoiBiAQRw0ACyICIBJHDQALIAsoAkwiBkUNAANAIAsgBkEBayIGNgJMIAsoAkggBkEDdGoiASgCACIURSARIBRNciENIBRBAWoiFUEARyARIBVLcSESIBRBAWsiFkEARyARIBZLcSEQAkAgASgCBCITQQFrIg8gA08gD0VyDQAgDyARbCEMAkAgEEUNACAMIBZqIgIgAE8NBCACIA5qIgEtAABBAUcNACABQQI6AAAgCygCTCICIAsoAkRGBEAgC0HEAGoQEAsgCygCSCACQQN0aiIBIA82AgQgASAWNgIAIAsgAkEBaiIGNgJMCwJAIA0NACAMIBRqIgIgAE8NBCACIA5qIgEtAABBAUcNACABQQI6AAAgCygCTCICIAsoAkRGBEAgC0HEAGoQEAsgCygCSCACQQN0aiIBIA82AgQgASAUNgIAIAsgAkEBaiIGNgJMCyASRQ0AIAwgFWoiAiAATw0DIAIgDmoiAS0AAEEBRw0AIAFBAjoAACALKAJMIgIgCygCREYEQCALQcQAahAQCyALKAJIIAJBA3RqIgEgDzYCBCABIBU2AgAgCyACQQFqIgY2AkwLAkAgE0UgAyATTXINACARIBNsIQwCQCAQRQ0AIAwgFmoiAiAATw0EIAIgDmoiAS0AAEEBRw0AIAFBAjoAACALKAJMIgIgCygCREYEQCALQcQAahAQCyALKAJIIAJBA3RqIgEgEzYCBCABIBY2AgAgCyACQQFqIgY2AkwLIBJFDQAgDCAVaiICIABPDQMgAiAOaiIBLQAAQQFHDQAgAUECOgAAIAsoAkwiAiALKAJERgRAIAtBxABqEBALIAsoAkggAkEDdGoiASATNgIEIAEgFTYCACALIAJBAWoiBjYCTAsCQCATQQFqIg8gA08gD0VyDQAgDyARbCEMAkAgEEUNACAMIBZqIgIgAE8NBCACIA5qIgEtAABBAUcNACABQQI6AAAgCygCTCICIAsoAkRGBEAgC0HEAGoQEAsgCygCSCACQQN0aiIBIA82AgQgASAWNgIAIAsgAkEBaiIGNgJMCwJAIA0NACAMIBRqIgIgAE8NBCACIA5qIgEtAABBAUcNACABQQI6AAAgCygCTCICIAsoAkRGBEAgC0HEAGoQEAsgCygCSCACQQN0aiIBIA82AgQgASAUNgIAIAsgAkEBaiIGNgJMCyASRQ0AIAwgFWoiAiAATw0DIAIgDmoiAS0AAEEBRw0AIAFBAjoAACALKAJMIgIgCygCREYEQCALQcQAahAQCyALKAJIIAJBA3RqIgEgDzYCBCABIBU2AgAgCyACQQFqIgY2AkwLIAYNAAsLIBgEQEEAIQFBASENDAULQQAhBkHFl8AALQAAGiAAQQEQNCINBEAgAEEBRwRAIABB/v///wdxIQIDQCAGIA5qIgEtAABBAkYEQCAGIA1qQf8BOgAACyABQQFqLQAAQQJGBEAgBiANakEBakH/AToAAAsgAiAGQQJqIgZHDQALCwJAIABBAXFFDQAgBiAOai0AAEECRw0AIAYgDWpB/wE6AAALIAAhAQwFCwwFCyACIABBkILAABAZAAsgDCAAQcCCwAAQGQALIAwgAEGwgsAAEBkACyAMIBNBoILAABAZAAsgCygCRCICBEAgCygCSCACQQN0EDkLIBsEQCAOIBsQOQsCQCAJBEBBASEGIBhFBEBBxZfAAC0AABogAEEBEDQiBkUNAgsgDSAAIBEgAyAKIAYgABACIAEEQCANIAEQOQsgBiENCyALKAI4IgEEQCAaIAFBAnQQOQsgCygCLCIBBEAgCygCMCABQQF0EDkLIAsoAiAiAQRAIAsoAiQgAUEBdBA5CyALKAIUIgEEQCALKAIYIAFBAXQQOQsgCygCCCIBBEAgHCABEDkLIBkEQCAIIBkQOQsgFyAANgIEIBcgDTYCACALQdAAaiQADAILC0EBIAAQLwALIBcoAgAgFygCBCAXQRBqJAALOAACQCACQYCAxABGDQAgACACIAEoAhARAgBFDQBBAQ8LIANFBEBBAA8LIAAgA0EAIAEoAgwRAwALOAACQCABaUEBRkGAgICAeCABayAAT3FFDQAgAARAQcWXwAAtAAAaIAAgARAzIgFFDQELIAEPCwALNgEBfyMAQSBrIgEkACABQQA2AhggAUEBNgIMIAFBmJfAADYCCCABQgQ3AhAgAUEIaiAAECkAC8gBAQJ/IwBBEGsiCCQAIwBBEGsiByQAIAdBBGogACABIAIgAyAEIAUgBkEARxADIAMEQCACIANBAXQQOQsgAQRAIAAgAUEBdBA5CwJAIAcoAgQiASAHKAIMIgBNBEAgBygCCCEBDAELIAFBAnQhAiAHKAIIIQMgAEUEQEEEIQEgAyACEDkMAQsgAyACQQQgAEECdCICEDAiAQ0AQQQgAhAvAAsgCCAANgIEIAggATYCACAHQRBqJAAgCCgCACAIKAIEIAhBEGokAAuNFgIVfwF9IwBBEGsiFCQAIAAhFSABIRNBACEAIwBBEGsiBiQAAkACQAJAAkACQAJAAkACQAJAAkACQCADIAIiB2wiCEEASA0AQQEhAiAIBEBBxZfAAC0AABpBASEAIAhBARAzIgJFDQELIAJBASAIEBMhCkHFl8AALQAAGkGAwABBBBAzIgAEQCAGQQA2AgwgBiAANgIIIAZBgAg2AgQgA0EBayIZQQJJDQsgB0EBayEWIAdBAmsiC0F8cSEXIAtBBEkNAkEBIAtBAnYiACAAQQFNGyERIAdBAnQiGCAAQQR0aiAVakEEaiEJIBdBAWohDyAHIApqIQEgFSAYaiEMQQEhEgNAIBIiECAHbCIAIBZqIgMgAEEBaiIASQ0KIAMgE0sNCCADIAhLDQYgEEEBaiESQQAhAyARIQIgDCEAAkACQAJAAkACQANAIAMgC08NAyADQQFqIRoCQCAAQQRqKgIAIhsgBWBFBEAgBCAbX0UNASABIANqQQFqQQA6AAAMAQsgASADakEBakECOgAAIAYoAgwiDSAGKAIERgRAIAZBBGoQEAsgBigCCCANQQN0aiIOIBA2AgQgDiAaNgIAIAYgDUEBajYCDAsCQAJAIAsgGksEQCAAQQhqKgIAIhsgBWBFDQEgASADakECakECOgAAIAYoAgwiDSAGKAIERgRAIAZBBGoQEAsgBigCCCANQQN0aiIOIBA2AgQgDiADQQJqNgIAIAYgDUEBajYCDAwCCyADQQFqIQMMBQsgBCAbX0UNACABIANqQQJqQQA6AAALIANBAmogC08NAQJAIAUgAEEMaioCACIbXwRAIAEgA2pBA2pBAjoAACAGKAIMIg0gBigCBEYEQCAGQQRqEBALIAYoAgggDUEDdGoiDiAQNgIEIA4gA0EDajYCACAGIA1BAWo2AgwMAQsgBCAbX0UNACABIANqQQNqQQA6AAALIANBA2ogC08NAgJAIAUgAEEQaiIAKgIAIhtfBEAgASADakEEakECOgAAIAYoAgwiDSAGKAIERgRAIAZBBGoQEAsgBigCCCANQQN0aiIOIBA2AgQgDiADQQRqNgIAIAYgDUEBajYCDAwBCyAEIBtfRQ0AIAEgA2pBBGpBADoAAAsgA0EEaiEDIAJBAWsiAg0ACyAJIQAgDyEDIAsgF0YNBAwDCyADQQJqIQMMAQsgA0EDaiEDCyADIAtBtIPAABAZAAsDQCADIQICQCAAKgIAIhsgBWBFBEAgBCAbX0UNASABIANqQQA6AAAMAQsgASACakECOgAAIAYoAgwiDiAGKAIERgRAIAZBBGoQEAsgBigCCCAOQQN0aiIDIBA2AgQgAyACNgIAIAYgDkEBajYCDAsgAEEEaiEAIAJBAWohAyACIAtJDQALCyAJIBhqIQkgASAHaiEBIAwgGGohDCASIBlHDQALDAMLQQRBgMAAEC8ACyAAIAgQLwALIAsgF0cEQCAHQQJ0IgkgC0ECdEFwcWogFWpBBGohESAXQQFqIQ8gByAKaiESQQEhAgNAIAIgB2wiACAWaiIDIABBAWoiAEkNCCADIBNLDQYgAyAISw0EIAJBAWogESEAIA8hAQNAIAEhDAJAIAUgACoCACIbXwRAIAEgEmpBAjoAACAGKAIMIhAgBigCBEYEQCAGQQRqEBALIAYoAgggEEEDdGoiASACNgIEIAEgDDYCACAGIBBBAWo2AgwMAQsgBCAbX0UNACAMIBJqQQA6AAALIABBBGohACAMQQFqIQEgCyAMSw0ACyAJIBFqIREgByASaiESIgIgGUcNAAsMAQsgA0ECayEAIAdBAWohAiAHQQF0QQFrIQFBACEDA0AgASADaiIPIAIgA2pJDQYgDyATSw0EIAggD0kNAiADIAdqIQMgAEEBayIADQALCyAGKAIMIgJFDQcgB0EBaiEMQQEgB2shESAHQX9zIQ8gB0UNBgNAIAYgAkEBayICNgIMAkAgBigCCCACQQN0aiIAKAIEIAdsIAAoAgBqIgkgD2oiASAITw0AIAEgCmoiAC0AAA0AIABBAjoAACABIAEgB24iAiAHbGshASAGKAIMIgMgBigCBEYEQCAGQQRqEBALIAYoAgggA0EDdGoiACACNgIEIAAgATYCACAGIANBAWoiAjYCDAsCQCAJIAdrIgEgCE8NACABIApqIgAtAAANACAAQQI6AAAgASABIAduIgIgB2xrIQEgBigCDCIDIAYoAgRGBEAgBkEEahAQCyAGKAIIIANBA3RqIgAgAjYCBCAAIAE2AgAgBiADQQFqIgI2AgwLAkAgCSARaiIBIAhPDQAgASAKaiIALQAADQAgAEECOgAAIAEgASAHbiICIAdsayEBIAYoAgwiAyAGKAIERgRAIAZBBGoQEAsgBigCCCADQQN0aiIAIAI2AgQgACABNgIAIAYgA0EBaiICNgIMCwJAIAlBAWsiASAITw0AIAEgCmoiAC0AAA0AIABBAjoAACABIAEgB24iAiAHbGshASAGKAIMIgMgBigCBEYEQCAGQQRqEBALIAYoAgggA0EDdGoiACACNgIEIAAgATYCACAGIANBAWoiAjYCDAsCQCAJQQFqIgEgCE8NACABIApqIgAtAAANACAAQQI6AAAgASABIAduIgIgB2xrIQEgBigCDCIDIAYoAgRGBEAgBkEEahAQCyAGKAIIIANBA3RqIgAgAjYCBCAAIAE2AgAgBiADQQFqIgI2AgwLAkAgCSAWaiIBIAhPDQAgASAKaiIALQAADQAgAEECOgAAIAEgASAHbiICIAdsayEBIAYoAgwiAyAGKAIERgRAIAZBBGoQEAsgBigCCCADQQN0aiIAIAI2AgQgACAB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AAAPAAAAEwAAAExhenkgaW5zdGFuY2UgaGFzIHByZXZpb3VzbHkgYmVlbiBwb2lzb25lZAAAhAcQACoAAAAvdXNyL2xvY2FsL2NhcmdvL3JlZ2lzdHJ5L3NyYy9pbmRleC5jcmF0ZXMuaW8tNmYxN2QyMmJiYTE1MDAxZi9vbmNlX2NlbGwtMS4yMS4zL3NyYy9saWIucnMAALgHEABaAAAACAMAABkAAAByZWVudHJhbnQgaW5pdAAAJAgQAA4AAAC4BxAAWgAAAHoCAAANAAAABAAAAAwAAAAEAAAABQAAAAYAAAAHAAAAL3J1c3QvZGVwcy9kbG1hbGxvYy0wLjIuNi9zcmMvZGxtYWxsb2MucnNhc3NlcnRpb24gZmFpbGVkOiBwc2l6ZSA+PSBzaXplICsgbWluX292ZXJoZWFkAGQIEAApAAAAqAQAAAkAAABhc3NlcnRpb24gZmFpbGVkOiBwc2l6ZSA8PSBzaXplICsgbWF4X292ZXJoZWFkAABkCBAAKQAAAK4EAAANAAAAbWVtb3J5IGFsbG9jYXRpb24gb2YgIGJ5dGVzIGZhaWxlZAAADAkQABUAAAAhCRAADQAAAHN0ZC9zcmMvYWxsb2MucnNACRAAEAAAAGMBAAAJAAAABAAAAAwAAAAEAAAACAAAAAAAAAAIAAAABAAAAAkAAAAAAAAACAAAAAQAAAAKAAAACwAAAAwAAAANAAAADgAAABAAAAAEAAAADwAAABAAAAARAAAAEgAAAGNhcGFjaXR5IG92ZXJmbG93AAAAuAkQABEAAABhbGxvYy9zcmMvcmF3X3ZlYy5yc9QJEAAUAAAAGAAAAAUAAABpbmRleCBvdXQgb2YgYm91bmRzOiB0aGUgbGVuIGlzICBidXQgdGhlIGluZGV4IGlzIAAA+AkQACAAAAAYChAAEgAAADAwMDEwMjAzMDQwNTA2MDcwODA5MTAxMTEyMTMxNDE1MTYxNzE4MTkyMDIxMjIyMzI0MjUyNjI3MjgyOTMwMzEzMjMzMzQzNTM2MzczODM5NDA0MTQyNDM0NDQ1NDY0NzQ4NDk1MDUxNTI1MzU0NTU1NjU3NTg1OTYwNjE2MjYzNjQ2NTY2Njc2ODY5NzA3MTcyNzM3NDc1NzY3Nzc4Nzk4MDgxODI4Mzg0ODU4Njg3ODg4OTkwOTE5MjkzOTQ5NTk2OTc5ODk5IG91dCBvZiByYW5nZSBmb3Igc2xpY2Ugb2YgbGVuZ3RoIHJhbmdlIGVuZCBpbmRleCAAACYLEAAQAAAABAsQACIAAABzbGljZSBpbmRleCBzdGFydHMgYXQgIGJ1dCBlbmRzIGF0IABICxAAFgAAAF4LEAANAAAAYXR0ZW1wdCB0byBkaXZpZGUgYnkgemVybwAAAHwLEAAZAAAAAAAAPwAAAL8AQcCXwAALAQEAfAlwcm9kdWNlcnMCCGxhbmd1YWdlAQRSdXN0AAxwcm9jZXNzZWQtYnkDBXJ1c3RjHTEuODMuMCAoOTBiMzVhNjIzIDIwMjQtMTEtMjYpBndhbHJ1cwYwLjIzLjMMd2FzbS1iaW5kZ2VuEzAuMi4xMDAgKDI0MDVlYzJiNCkAUg90YXJnZXRfZmVhdHVyZXMFKw9tdXRhYmxlLWdsb2JhbHMrB3NpbWQxMjgrCHNpZ24tZXh0Kw9yZWZlcmVuY2UtdHlwZXMrCm11bHRpdmFsdWU=", import.meta.url));
   const A = wA();
   (typeof I == "string" || typeof Request == "function" && I instanceof Request || typeof URL == "function" && I instanceof URL) && (I = fetch(I));
-  const { instance: g, module: Q } = await rA(await I, A);
-  return NA(g, Q);
+  const { instance: g, module: C } = await yA(await I, A);
+  return NA(g, C);
 }
-const q = X();
+const b = j();
 function FA(I) {
-  const { width: A, height: g, data: Q } = I, C = new Uint8ClampedArray(A * g);
-  for (let B = 0, E = 0; B < Q.length; B += 4, E++)
-    C[E] = Q[B] * 54 + Q[B + 1] * 183 + Q[B + 2] * 19 >> 8;
-  return C;
+  const { width: A, height: g, data: C } = I, Q = new Uint8ClampedArray(A * g);
+  for (let B = 0, E = 0; B < C.length; B += 4, E++)
+    Q[E] = C[B] * 54 + C[B + 1] * 183 + C[B + 2] * 19 >> 8;
+  return Q;
 }
-function lA(I, A, g, Q = 5, C = 0) {
-  C === 0 && (C = 0.3 * ((Q - 1) * 0.5 - 1) + 0.8);
-  const B = Math.floor(Q / 2), E = RA(Q, C), i = new Uint8ClampedArray(A * g), e = new Uint8ClampedArray(A * g);
+function lA(I, A, g, C = 5, Q = 0) {
+  Q === 0 && (Q = 0.3 * ((C - 1) * 0.5 - 1) + 0.8);
+  const B = Math.floor(C / 2), E = RA(C, Q), i = new Uint8ClampedArray(A * g), o = new Uint8ClampedArray(A * g);
   for (let t = 0; t < g; t++) {
-    const o = t * A;
+    const e = t * A;
     for (let n = 0; n < A; n++) {
       let s = 0;
       for (let a = -B; a <= B; a++) {
         const D = Math.min(A - 1, Math.max(0, n + a));
-        s += I[o + D] * E[B + a];
+        s += I[e + D] * E[B + a];
       }
-      i[o + n] = s;
+      i[e + n] = s;
     }
   }
   for (let t = 0; t < A; t++)
-    for (let o = 0; o < g; o++) {
+    for (let e = 0; e < g; e++) {
       let n = 0;
       for (let s = -B; s <= B; s++) {
-        const a = Math.min(g - 1, Math.max(0, o + s));
+        const a = Math.min(g - 1, Math.max(0, e + s));
         n += i[a * A + t] * E[B + s];
       }
-      e[o * A + t] = Math.round(n);
+      o[e * A + t] = Math.round(n);
     }
-  return e;
+  return o;
 }
 function RA(I, A) {
-  const g = new Float32Array(I), Q = Math.floor(I / 2);
-  let C = 0;
+  const g = new Float32Array(I), C = Math.floor(I / 2);
+  let Q = 0;
   for (let B = 0; B < I; B++) {
-    const E = B - Q;
-    g[B] = Math.exp(-(E * E) / (2 * A * A)), C += g[B];
+    const E = B - C;
+    g[B] = Math.exp(-(E * E) / (2 * A * A)), Q += g[B];
   }
   for (let B = 0; B < I; B++)
-    g[B] /= C;
+    g[B] /= Q;
   return g;
 }
 function GA(I, A, g) {
-  const Q = new Int16Array(A * g), C = new Int16Array(A * g);
+  const C = new Int16Array(A * g), Q = new Int16Array(A * g);
   for (let B = 1; B < g - 1; B++) {
-    const E = B * A, i = (B - 1) * A, e = (B + 1) * A;
+    const E = B * A, i = (B - 1) * A, o = (B + 1) * A;
     for (let t = 1; t < A - 1; t++) {
-      const o = E + t, n = I[i + t - 1], s = I[i + t], a = I[i + t + 1], D = I[E + t - 1], c = I[E + t + 1], y = I[e + t - 1], h = I[e + t], r = I[e + t + 1], w = a - n + 2 * (c - D) + (r - y), F = y + 2 * h + r - (n + 2 * s + a);
-      Q[o] = w, C[o] = F;
+      const e = E + t, n = I[i + t - 1], s = I[i + t], a = I[i + t + 1], D = I[E + t - 1], c = I[E + t + 1], r = I[o + t - 1], h = I[o + t], y = I[o + t + 1], w = a - n + 2 * (c - D) + (y - r), F = r + 2 * h + y - (n + 2 * s + a);
+      C[e] = w, Q[e] = F;
     }
   }
-  return { dx: Q, dy: C };
+  return { dx: C, dy: Q };
 }
-function kA(I, A, g, Q, C) {
-  const B = new Float32Array(g * Q), E = new Float32Array(g * Q);
+function dA(I, A, g, C, Q) {
+  const B = new Float32Array(g * C), E = new Float32Array(g * C);
   for (let i = 0; i < I.length; i++) {
-    const e = I[i], t = A[i];
-    C ? B[i] = Math.sqrt(e * e + t * t) : B[i] = Math.abs(e) + Math.abs(t);
+    const o = I[i], t = A[i];
+    Q ? B[i] = Math.sqrt(o * o + t * t) : B[i] = Math.abs(o) + Math.abs(t);
   }
-  for (let i = 1; i < Q - 1; i++)
-    for (let e = 1; e < g - 1; e++) {
-      const t = i * g + e, o = B[t];
-      if (o === 0) {
+  for (let i = 1; i < C - 1; i++)
+    for (let o = 1; o < g - 1; o++) {
+      const t = i * g + o, e = B[t];
+      if (e === 0) {
         E[t] = 0;
         continue;
       }
       const n = I[t], s = A[t];
       let a = 0, D = 0;
-      const c = Math.abs(n), y = Math.abs(s);
-      if (y > c * 2.4142)
+      const c = Math.abs(n), r = Math.abs(s);
+      if (r > c * 2.4142)
         a = B[t - g], D = B[t + g];
-      else if (c > y * 2.4142)
+      else if (c > r * 2.4142)
         a = B[t - 1], D = B[t + 1];
       else {
         const h = (n ^ s) < 0 ? -1 : 1;
-        s > 0 ? (a = B[(i - 1) * g + (e - h)], D = B[(i + 1) * g + (e + h)]) : (a = B[(i + 1) * g + (e - h)], D = B[(i - 1) * g + (e + h)]), n > 0 && s > 0 || n < 0 && s < 0 ? (a = B[(i - 1) * g + (e + 1)], D = B[(i + 1) * g + (e - 1)]) : (a = B[(i - 1) * g + (e - 1)], D = B[(i + 1) * g + (e + 1)]);
+        s > 0 ? (a = B[(i - 1) * g + (o - h)], D = B[(i + 1) * g + (o + h)]) : (a = B[(i + 1) * g + (o - h)], D = B[(i - 1) * g + (o + h)]), n > 0 && s > 0 || n < 0 && s < 0 ? (a = B[(i - 1) * g + (o + 1)], D = B[(i + 1) * g + (o - 1)]) : (a = B[(i - 1) * g + (o - 1)], D = B[(i + 1) * g + (o + 1)]);
       }
-      o >= a && o >= D ? E[t] = o : E[t] = 0;
+      e >= a && e >= D ? E[t] = e : E[t] = 0;
     }
   return E;
 }
-function v(I, A, g, Q, C) {
+function T(I, A, g, C, Q) {
   const B = new Uint8Array(A * g), E = [];
   for (let t = 1; t < g - 1; t++)
-    for (let o = 1; o < A - 1; o++) {
-      const n = t * A + o, s = I[n];
-      s >= C ? (B[n] = 2, E.push({ x: o, y: t })) : s >= Q ? B[n] = 0 : B[n] = 1;
+    for (let e = 1; e < A - 1; e++) {
+      const n = t * A + e, s = I[n];
+      s >= Q ? (B[n] = 2, E.push({ x: e, y: t })) : s >= C ? B[n] = 0 : B[n] = 1;
     }
   for (let t = 0; t < A; t++)
     B[t] = 1, B[(g - 1) * A + t] = 1;
   for (let t = 1; t < g - 1; t++)
     B[t * A] = 1, B[t * A + A - 1] = 1;
-  const i = [-1, 0, 1, -1, 1, -1, 0, 1], e = [-1, -1, -1, 0, 0, 1, 1, 1];
+  const i = [-1, 0, 1, -1, 1, -1, 0, 1], o = [-1, -1, -1, 0, 0, 1, 1, 1];
   for (; E.length > 0; ) {
-    const { x: t, y: o } = E.pop();
+    const { x: t, y: e } = E.pop();
     for (let n = 0; n < 8; n++) {
-      const s = t + i[n], a = o + e[n], D = a * A + s;
+      const s = t + i[n], a = e + o[n], D = a * A + s;
       B[D] === 0 && (B[D] = 2, E.push({ x: s, y: a }));
     }
   }
   return B;
 }
-function dA(I, A, g, Q = 5) {
-  const C = Math.floor(Q / 2), B = new Uint8ClampedArray(A * g), E = new Uint8ClampedArray(A * g);
+function kA(I, A, g, C = 5) {
+  const Q = Math.floor(C / 2), B = new Uint8ClampedArray(A * g), E = new Uint8ClampedArray(A * g);
   for (let i = 0; i < g; i++) {
-    const e = i * A;
+    const o = i * A;
     for (let t = 0; t < A; t++) {
-      let o = 0;
-      for (let n = -C; n <= C; n++) {
+      let e = 0;
+      for (let n = -Q; n <= Q; n++) {
         const s = t + n;
         if (s >= 0 && s < A) {
-          const a = I[e + s];
-          a > o && (o = a);
+          const a = I[o + s];
+          a > e && (e = a);
         }
       }
-      B[e + t] = o;
+      B[o + t] = e;
     }
   }
   for (let i = 0; i < A; i++)
-    for (let e = 0; e < g; e++) {
+    for (let o = 0; o < g; o++) {
       let t = 0;
-      for (let o = -C; o <= C; o++) {
-        const n = e + o;
+      for (let e = -Q; e <= Q; e++) {
+        const n = o + e;
         if (n >= 0 && n < g) {
           const s = B[n * A + i];
           s > t && (t = s);
         }
       }
-      E[e * A + i] = t;
+      E[o * A + i] = t;
     }
   return E;
 }
 async function SA(I, A = {}) {
-  const g = [], Q = performance.now(), { width: C, height: B } = I;
+  const g = [], C = performance.now(), { width: Q, height: B } = I;
   let E = A.lowThreshold !== void 0 ? A.lowThreshold : 75, i = A.highThreshold !== void 0 ? A.highThreshold : 200;
-  const e = A.kernelSize || 5, t = A.sigma || 0, o = A.L2gradient === void 0 ? !1 : A.L2gradient, n = A.applyDilation !== void 0 ? A.applyDilation : !0, s = A.dilationKernelSize || 5, a = A.useWasmHysteresis !== void 0 ? A.useWasmHysteresis : !1;
+  const o = A.kernelSize || 5, t = A.sigma || 0, e = A.L2gradient === void 0 ? !1 : A.L2gradient, n = A.applyDilation !== void 0 ? A.applyDilation : !0, s = A.dilationKernelSize || 5, a = A.useWasmHysteresis !== void 0 ? A.useWasmHysteresis : !1;
   E >= i && (console.warn(`Canny Edge Detector: lowThreshold (${E}) should be lower than highThreshold (${i}). Swapping them.`), [E, i] = [i, E]);
   let D = performance.now();
   const c = FA(I);
-  let y = performance.now();
-  g.push({ step: "Grayscale", ms: (y - D).toFixed(2) }), A.debug && (A.debug.grayscale = c);
+  let r = performance.now();
+  g.push({ step: "Grayscale", ms: (r - D).toFixed(2) }), A.debug && (A.debug.grayscale = c);
   let h;
   D = performance.now();
   try {
-    await q, h = DA(c, C, B, e, t);
+    await b, h = DA(c, Q, B, o, t);
   } catch {
-    h = lA(c, C, B, e, t);
+    h = lA(c, Q, B, o, t);
   }
-  y = performance.now(), g.push({ step: "Gaussian Blur", ms: (y - D).toFixed(2) }), A.debug && (A.debug.blurred = h), D = performance.now();
-  let r, w;
+  r = performance.now(), g.push({ step: "Gaussian Blur", ms: (r - D).toFixed(2) }), A.debug && (A.debug.blurred = h), D = performance.now();
+  let y, w;
   {
-    const l = GA(h, C, B);
-    r = l.dx, w = l.dy;
+    const l = GA(h, Q, B);
+    y = l.dx, w = l.dy;
   }
-  y = performance.now(), g.push({ step: "Gradients", ms: (y - D).toFixed(2) }), D = performance.now();
+  r = performance.now(), g.push({ step: "Gradients", ms: (r - D).toFixed(2) }), D = performance.now();
   let F;
   try {
-    await q, F = await yA(r, w, C, B, o);
+    await b, F = await rA(y, w, Q, B, e);
   } catch {
-    F = kA(r, w, C, B, o);
+    F = dA(y, w, Q, B, e);
   }
-  y = performance.now(), g.push({ step: "Non-Max Suppression", ms: (y - D).toFixed(2) }), D = performance.now();
-  const G = o ? E * E : E, d = o ? i * i : i;
-  let k;
+  r = performance.now(), g.push({ step: "Non-Max Suppression", ms: (r - D).toFixed(2) }), D = performance.now();
+  const G = e ? E * E : E, k = e ? i * i : i;
+  let d;
   if (a)
     try {
-      await q, k = nA(F, C, B, G, d);
+      await b, d = nA(F, Q, B, G, k);
     } catch (l) {
-      console.warn("WASM hysteresis failed, falling back to JS:", l), k = v(F, C, B, G, d);
+      console.warn("WASM hysteresis failed, falling back to JS:", l), d = T(F, Q, B, G, k);
     }
   else
-    k = v(F, C, B, G, d);
-  y = performance.now(), g.push({ step: "Hysteresis", ms: (y - D).toFixed(2) }), D = performance.now();
-  const R = new Uint8ClampedArray(C * B);
-  for (let l = 0; l < k.length; l++)
-    R[l] = k[l] === 2 ? 255 : 0;
-  y = performance.now(), g.push({ step: "Binary Image", ms: (y - D).toFixed(2) }), D = performance.now();
+    d = T(F, Q, B, G, k);
+  r = performance.now(), g.push({ step: "Hysteresis", ms: (r - D).toFixed(2) }), D = performance.now();
+  const R = new Uint8ClampedArray(Q * B);
+  for (let l = 0; l < d.length; l++)
+    R[l] = d[l] === 2 ? 255 : 0;
+  r = performance.now(), g.push({ step: "Binary Image", ms: (r - D).toFixed(2) }), D = performance.now();
   let S = R;
   if (n)
     try {
-      await q, S = sA(R, C, B, s);
+      await b, S = sA(R, Q, B, s);
     } catch {
-      S = dA(R, C, B, s);
+      S = kA(R, Q, B, s);
     }
-  if (y = performance.now(), g.push({ step: "Dilation", ms: (y - D).toFixed(2) }), A.debug) {
-    A.debug.dx = r, A.debug.dy = w;
-    const l = new Float32Array(C * B);
-    for (let J = 0; J < r.length; J++) {
-      const L = r[J], Y = w[J];
-      l[J] = o ? Math.sqrt(L * L + Y * Y) : Math.abs(L) + Math.abs(Y);
+  if (r = performance.now(), g.push({ step: "Dilation", ms: (r - D).toFixed(2) }), A.debug) {
+    A.debug.dx = y, A.debug.dy = w;
+    const l = new Float32Array(Q * B);
+    for (let f = 0; f < y.length; f++) {
+      const L = y[f], m = w[f];
+      l[f] = e ? Math.sqrt(L * L + m * m) : Math.abs(L) + Math.abs(m);
     }
-    A.debug.magnitude = l, A.debug.suppressed = F, A.debug.edgeMap = k, A.debug.cannyEdges = R, A.debug.finalEdges = S, A.debug.timings = g;
+    A.debug.magnitude = l, A.debug.suppressed = F, A.debug.edgeMap = d, A.debug.cannyEdges = R, A.debug.finalEdges = S, A.debug.timings = g;
   }
   const M = performance.now();
-  return g.unshift({ step: "Total", ms: (M - Q).toFixed(2) }), console.table(g), S;
+  return g.unshift({ step: "Total", ms: (M - C).toFixed(2) }), console.table(g), S;
 }
-class mA {
+class fA {
   constructor(A = {}) {
     this.options = {
       targetFPS: A.targetFPS || 10,
@@ -531,7 +531,7 @@ class mA {
       // ms between detections
       confidenceThreshold: A.confidenceThreshold || 0.7,
       stabilizationFrames: A.stabilizationFrames || 3,
-      maxProcessingDimension: A.maxProcessingDimension || 600,
+      maxProcessingDimension: A.maxProcessingDimension || 500,
       // Lower for live processing
       ...A
     }, this.isRunning = !1, this.stream = null, this.video = null, this.canvas = null, this.ctx = null, this.outputCanvas = null, this.outputCtx = null, this.lastDetectionTime = 0, this.frameCount = 0, this.detectionCount = 0, this.lastFPSUpdate = 0, this.currentFPS = 0, this.lastResult = null, this.stableResults = [], this.currentCorners = null, this.onDetection = null, this.onFPSUpdate = null, this.onError = null;
@@ -544,7 +544,7 @@ class mA {
   async init(A, g = {}) {
     try {
       this.outputCanvas = A, this.outputCtx = this.outputCanvas.getContext("2d"), this.video = document.createElement("video"), this.video.style.display = "none", this.video.autoplay = !0, this.video.muted = !0, this.video.playsInline = !0, document.body.appendChild(this.video), this.canvas = document.createElement("canvas"), this.ctx = this.canvas.getContext("2d");
-      const C = { ...{
+      const Q = { ...{
         video: {
           width: { ideal: 1280, max: 1920 },
           height: { ideal: 720, max: 1080 },
@@ -553,11 +553,11 @@ class mA {
         },
         audio: !1
       }, ...g };
-      this.stream = await navigator.mediaDevices.getUserMedia(C), this.video.srcObject = this.stream, await new Promise((B) => {
+      this.stream = await navigator.mediaDevices.getUserMedia(Q), this.video.srcObject = this.stream, await new Promise((B) => {
         this.video.addEventListener("loadedmetadata", B, { once: !0 });
       }), this.canvas.width = this.video.videoWidth, this.canvas.height = this.video.videoHeight, this.outputCanvas.width = this.video.videoWidth, this.outputCanvas.height = this.video.videoHeight, console.log(`Live scanner initialized: ${this.video.videoWidth}x${this.video.videoHeight}`);
-    } catch (Q) {
-      throw console.error("Failed to initialize live scanner:", Q), this.onError && this.onError(Q), Q;
+    } catch (C) {
+      throw console.error("Failed to initialize live scanner:", C), this.onError && this.onError(C), C;
     }
   }
   /**
@@ -588,9 +588,9 @@ class mA {
       const g = A - this.lastDetectionTime;
       if (g >= this.options.detectionInterval) {
         this.lastDetectionTime = A, this.detectionCount++, this.ctx.drawImage(this.video, 0, 0, this.canvas.width, this.canvas.height);
-        const Q = this.ctx.getImageData(0, 0, this.canvas.width, this.canvas.height);
-        this.detectDocumentAsync(Q).catch((C) => {
-          console.error("Detection error:", C), this.onError && this.onError(C);
+        const C = this.ctx.getImageData(0, 0, this.canvas.width, this.canvas.height);
+        this.detectDocumentAsync(C).catch((Q) => {
+          console.error("Detection error:", Q), this.onError && this.onError(Q);
         });
       }
       this.currentCorners && this.drawDocumentOverlay(this.currentCorners), A - this.lastFPSUpdate >= 1e3 && (this.currentFPS = Math.round(this.frameCount * 1e3 / (A - this.lastFPSUpdate)), this.frameCount = 0, this.lastFPSUpdate = A, this.onFPSUpdate && this.onFPSUpdate({
@@ -608,7 +608,7 @@ class mA {
    */
   async detectDocumentAsync(A) {
     try {
-      const g = await j(A, {
+      const g = await p(A, {
         ...this.options,
         debug: !1
         // Disable debug for performance
@@ -638,26 +638,33 @@ class mA {
       bottomRight: { x: 0, y: 0 },
       bottomLeft: { x: 0, y: 0 }
     };
-    A.forEach((C) => {
+    A.forEach((Q) => {
       Object.keys(g).forEach((B) => {
-        g[B].x += C[B].x, g[B].y += C[B].y;
+        g[B].x += Q[B].x, g[B].y += Q[B].y;
       });
     });
-    const Q = A.length;
-    return Object.keys(g).forEach((C) => {
-      g[C].x = Math.round(g[C].x / Q), g[C].y = Math.round(g[C].y / Q);
+    const C = A.length;
+    return Object.keys(g).forEach((Q) => {
+      g[Q].x = Math.round(g[Q].x / C), g[Q].y = Math.round(g[Q].y / C);
     }), g;
   }
   /**
    * Draw document overlay on output canvas
    */
-  drawDocumentOverlay(A, g = null) {
-    const Q = g || this.outputCtx;
-    Q.save(), Q.strokeStyle = "#00FF00", Q.lineWidth = 3, Q.setLineDash([5, 5]), Q.beginPath(), Q.moveTo(A.topLeft.x, A.topLeft.y), Q.lineTo(A.topRight.x, A.topRight.y), Q.lineTo(A.bottomRight.x, A.bottomRight.y), Q.lineTo(A.bottomLeft.x, A.bottomLeft.y), Q.closePath(), Q.stroke(), Q.fillStyle = "#00FF00", Q.setLineDash([]);
-    const C = 8;
-    Object.values(A).forEach((B) => {
-      Q.beginPath(), Q.arc(B.x, B.y, C, 0, 2 * Math.PI), Q.fill();
-    }), Q.restore();
+  drawDocumentOverlay(A, g = null, C = 1, Q = 1) {
+    const B = g || this.outputCtx;
+    B.save();
+    const E = {
+      topLeft: { x: A.topLeft.x * C, y: A.topLeft.y * Q },
+      topRight: { x: A.topRight.x * C, y: A.topRight.y * Q },
+      bottomRight: { x: A.bottomRight.x * C, y: A.bottomRight.y * Q },
+      bottomLeft: { x: A.bottomLeft.x * C, y: A.bottomLeft.y * Q }
+    };
+    B.strokeStyle = "#00FF00", B.lineWidth = 3, B.setLineDash([5, 5]), B.beginPath(), B.moveTo(E.topLeft.x, E.topLeft.y), B.lineTo(E.topRight.x, E.topRight.y), B.lineTo(E.bottomRight.x, E.bottomRight.y), B.lineTo(E.bottomLeft.x, E.bottomLeft.y), B.closePath(), B.stroke(), B.fillStyle = "#00FF00", B.setLineDash([]);
+    const i = 8 * Math.max(C, Q);
+    Object.values(E).forEach((o) => {
+      B.beginPath(), B.arc(o.x, o.y, i, 0, 2 * Math.PI), B.fill();
+    }), B.restore();
   }
   /**
    * Calculate detection confidence (placeholder - can be enhanced)
@@ -666,15 +673,32 @@ class mA {
     return 0.8;
   }
   /**
-   * Capture current frame as document
+   * Capture current frame as document with perspective transform
    */
   async captureDocument() {
     if (!this.currentCorners || !this.video)
       throw new Error("No stable document detected");
-    const A = document.createElement("canvas");
-    A.width = this.video.videoWidth, A.height = this.video.videoHeight;
-    const g = A.getContext("2d");
-    return g.drawImage(this.video, 0, 0), this.drawDocumentOverlay(this.currentCorners, g), A;
+    const { extractDocument: A } = await Promise.resolve().then(() => bA), g = document.createElement("canvas");
+    g.width = this.video.videoWidth, g.height = this.video.videoHeight, g.getContext("2d").drawImage(this.video, 0, 0);
+    const Q = this.video.videoWidth / this.outputCanvas.width, B = this.video.videoHeight / this.outputCanvas.height, E = {
+      topLeft: {
+        x: this.currentCorners.topLeft.x * Q,
+        y: this.currentCorners.topLeft.y * B
+      },
+      topRight: {
+        x: this.currentCorners.topRight.x * Q,
+        y: this.currentCorners.topRight.y * B
+      },
+      bottomRight: {
+        x: this.currentCorners.bottomRight.x * Q,
+        y: this.currentCorners.bottomRight.y * B
+      },
+      bottomLeft: {
+        x: this.currentCorners.bottomLeft.x * Q,
+        y: this.currentCorners.bottomLeft.y * B
+      }
+    };
+    return A(g, E);
   }
   /**
    * Get current scanner statistics
@@ -689,7 +713,7 @@ class mA {
     };
   }
 }
-async function UA() {
+async function JA() {
   try {
     const A = (await navigator.mediaDevices.enumerateDevices()).filter((g) => g.kind === "videoinput");
     return {
@@ -701,45 +725,45 @@ async function UA() {
     return console.error("Error checking webcam availability:", I), { available: !1, error: I.message };
   }
 }
-function JA(I, A = 800) {
-  const { width: g, height: Q } = I, C = Math.max(g, Q);
-  if (C <= A)
+function MA(I, A = 800) {
+  const { width: g, height: C } = I, Q = Math.max(g, C);
+  if (Q <= A)
     return {
       scaledImageData: I,
       scaleFactor: 1,
-      originalDimensions: { width: g, height: Q },
-      scaledDimensions: { width: g, height: Q }
+      originalDimensions: { width: g, height: C },
+      scaledDimensions: { width: g, height: C }
     };
-  const B = A / C, E = Math.round(g * B), i = Math.round(Q * B);
-  console.log(`Smart downscale: ${g}x${Q} -> ${E}x${i} (factor: ${B.toFixed(3)})`);
-  const e = document.createElement("canvas");
-  e.width = g, e.height = Q, e.getContext("2d").putImageData(I, 0, 0);
+  const B = A / Q, E = Math.round(g * B), i = Math.round(C * B);
+  console.log(`Smart downscale: ${g}x${C} -> ${E}x${i} (factor: ${B.toFixed(3)})`);
   const o = document.createElement("canvas");
-  o.width = E, o.height = i;
-  const n = o.getContext("2d");
-  return n.imageSmoothingEnabled = !0, n.imageSmoothingQuality = "high", n.drawImage(e, 0, 0, g, Q, 0, 0, E, i), {
+  o.width = g, o.height = C, o.getContext("2d").putImageData(I, 0, 0);
+  const e = document.createElement("canvas");
+  e.width = E, e.height = i;
+  const n = e.getContext("2d");
+  return n.imageSmoothingEnabled = !0, n.imageSmoothingQuality = "high", n.drawImage(o, 0, 0, g, C, 0, 0, E, i), {
     scaledImageData: n.getImageData(0, 0, E, i),
     scaleFactor: 1 / B,
     // Return inverse for compatibility with existing code
-    originalDimensions: { width: g, height: Q },
+    originalDimensions: { width: g, height: C },
     scaledDimensions: { width: E, height: i }
   };
 }
-const uA = function(I, A) {
-  const g = I.width || I.naturalWidth, Q = I.height || I.naturalHeight, C = document.createElement("canvas");
-  C.width = g, C.height = Q;
-  const B = C.getContext("2d");
-  return B.drawImage(I, 0, 0, g, Q), MA(B, I, A), C;
+const LA = function(I, A) {
+  const g = I.width || I.naturalWidth, C = I.height || I.naturalHeight, Q = document.createElement("canvas");
+  Q.width = g, Q.height = C;
+  const B = Q.getContext("2d");
+  return B.drawImage(I, 0, 0, g, C), YA(B, I, A), Q;
 };
-async function j(I, A = {}) {
-  const g = A.debug ? {} : null, Q = A.maxProcessingDimension || 800, { scaledImageData: C, scaleFactor: B, originalDimensions: E, scaledDimensions: i } = JA(I, Q);
+async function p(I, A = {}) {
+  const g = A.debug ? {} : null, C = A.maxProcessingDimension || 800, { scaledImageData: Q, scaleFactor: B, originalDimensions: E, scaledDimensions: i } = MA(I, C);
   g && (g.preprocessing = {
     originalDimensions: E,
     scaledDimensions: i,
     scaleFactor: B,
-    maxProcessingDimension: Q
+    maxProcessingDimension: C
   });
-  const { width: e, height: t } = C, o = await SA(C, {
+  const { width: o, height: t } = Q, e = await SA(Q, {
     lowThreshold: A.lowThreshold || 75,
     // Match OpenCV values
     highThreshold: A.highThreshold || 200,
@@ -748,11 +772,11 @@ async function j(I, A = {}) {
     // Match OpenCV value 
     dilationIterations: A.dilationIterations || 1,
     debug: g
-  }), n = $(o, {
+  }), n = $(e, {
     minArea: (A.minArea || 1e3) / (B * B),
     // Adjust minArea for scaled image
     debug: g,
-    width: e,
+    width: o,
     height: t
   });
   if (!n || n.length === 0)
@@ -778,16 +802,16 @@ async function j(I, A = {}) {
     debug: g
   };
 }
-function fA(I, A) {
-  function g(e) {
+function mA(I, A) {
+  function g(o) {
     const t = [];
-    for (let o = 0; o < 4; o++) {
-      const [n, s] = e[o];
-      t.push([n, s, 1, 0, 0, 0, -n * A[o][0], -s * A[o][0]]), t.push([0, 0, 0, n, s, 1, -n * A[o][1], -s * A[o][1]]);
+    for (let e = 0; e < 4; e++) {
+      const [n, s] = o[e];
+      t.push([n, s, 1, 0, 0, 0, -n * A[e][0], -s * A[e][0]]), t.push([0, 0, 0, n, s, 1, -n * A[e][1], -s * A[e][1]]);
     }
     return t;
   }
-  const Q = g(I), C = [
+  const C = g(I), Q = [
     A[0][0],
     A[0][1],
     A[1][0],
@@ -797,68 +821,75 @@ function fA(I, A) {
     A[3][0],
     A[3][1]
   ];
-  function B(e, t) {
-    const o = e.length, n = e[0].length, s = e.map((c) => c.slice()), a = t.slice();
+  function B(o, t) {
+    const e = o.length, n = o[0].length, s = o.map((c) => c.slice()), a = t.slice();
     for (let c = 0; c < n; c++) {
-      let y = c;
-      for (let h = c + 1; h < o; h++)
-        Math.abs(s[h][c]) > Math.abs(s[y][c]) && (y = h);
-      [s[c], s[y]] = [s[y], s[c]], [a[c], a[y]] = [a[y], a[c]];
-      for (let h = c + 1; h < o; h++) {
-        const r = s[h][c] / s[c][c];
+      let r = c;
+      for (let h = c + 1; h < e; h++)
+        Math.abs(s[h][c]) > Math.abs(s[r][c]) && (r = h);
+      [s[c], s[r]] = [s[r], s[c]], [a[c], a[r]] = [a[r], a[c]];
+      for (let h = c + 1; h < e; h++) {
+        const y = s[h][c] / s[c][c];
         for (let w = c; w < n; w++)
-          s[h][w] -= r * s[c][w];
-        a[h] -= r * a[c];
+          s[h][w] -= y * s[c][w];
+        a[h] -= y * a[c];
       }
     }
     const D = new Array(n);
     for (let c = n - 1; c >= 0; c--) {
-      let y = a[c];
+      let r = a[c];
       for (let h = c + 1; h < n; h++)
-        y -= s[c][h] * D[h];
-      D[c] = y / s[c][c];
+        r -= s[c][h] * D[h];
+      D[c] = r / s[c][c];
     }
     return D;
   }
-  const E = B(Q, C);
+  const E = B(C, Q);
   return [
     [E[0], E[1], E[2]],
     [E[3], E[4], E[5]],
     [E[6], E[7], 1]
   ];
 }
-function MA(I, A, g) {
-  const { topLeft: Q, topRight: C, bottomRight: B, bottomLeft: E } = g, i = [
-    [Q.x, Q.y],
+function YA(I, A, g) {
+  const { topLeft: C, topRight: Q, bottomRight: B, bottomLeft: E } = g, i = [
     [C.x, C.y],
+    [Q.x, Q.y],
     [B.x, B.y],
     [E.x, E.y]
-  ], e = [
+  ], o = [
     [0, 0],
     [A.width, 0],
     [A.width, A.height],
     [0, A.height]
-  ], t = fA(e, i);
-  console.log("Perspective Matrix:", t), LA(I, A, t);
+  ], t = mA(o, i);
+  console.log("Perspective Matrix:", t), I.setTransform(
+    t[0][0],
+    t[0][1],
+    t[1][0],
+    t[1][1],
+    t[2][0],
+    t[2][1]
+  ), I.drawImage(A, 0, 0, A.width, A.height), UA(I, A, t);
 }
-function LA(I, A, g) {
-  const { width: Q, height: C } = A, B = I.getImageData(0, 0, Q, C), E = I.createImageData(Q, C);
+function UA(I, A, g) {
+  const { width: C, height: Q } = A, B = I.getImageData(0, 0, C, Q), E = I.createImageData(C, Q);
   console.log("Image Data:", B);
-  for (let i = 0; i < C; i++)
-    for (let e = 0; e < Q; e++) {
-      const t = i * Q + e;
-      let o = (g[0][0] * e + g[0][1] * i + g[0][2]) / (g[2][0] * e + g[2][1] * i + g[2][2]), n = (g[1][0] * e + g[1][1] * i + g[1][2]) / (g[2][0] * e + g[2][1] * i + g[2][2]);
-      o = Math.max(0, Math.min(Q - 1, o)), n = Math.max(0, Math.min(C - 1, n));
-      const s = Math.floor(n) * A.width + Math.floor(o);
+  for (let i = 0; i < Q; i++)
+    for (let o = 0; o < C; o++) {
+      const t = i * C + o;
+      let e = (g[0][0] * o + g[0][1] * i + g[0][2]) / (g[2][0] * o + g[2][1] * i + g[2][2]), n = (g[1][0] * o + g[1][1] * i + g[1][2]) / (g[2][0] * o + g[2][1] * i + g[2][2]);
+      e = Math.max(0, Math.min(C - 1, e)), n = Math.max(0, Math.min(Q - 1, n));
+      const s = Math.floor(n) * A.width + Math.floor(e);
       E.data[t * 4] = B.data[s * 4], E.data[t * 4 + 1] = B.data[s * 4 + 1], E.data[t * 4 + 2] = B.data[s * 4 + 2], E.data[t * 4 + 3] = B.data[s * 4 + 3];
     }
-  I.putImageData(E, 0, 0);
+  return I.putImageData(E, 0, 0);
 }
-async function HA(I, A = {}) {
-  const g = document.createElement("canvas"), Q = g.getContext("2d");
-  g.width = I.width || I.naturalWidth, g.height = I.height || I.naturalHeight, console.log(`Canvas size: ${g.width}x${g.height}`), Q.drawImage(I, 0, 0, g.width, g.height);
-  const C = Q.getImageData(0, 0, g.width, g.height), B = await j(C, A);
-  return B.success && B.corners && YA(Q, B.corners, g.width, g.height, {
+async function uA(I, A = {}) {
+  const g = document.createElement("canvas"), C = g.getContext("2d");
+  g.width = I.width || I.naturalWidth, g.height = I.height || I.naturalHeight, console.log(`Canvas size: ${g.width}x${g.height}`), C.drawImage(I, 0, 0, g.width, g.height);
+  const Q = C.getImageData(0, 0, g.width, g.height), B = await p(Q, A);
+  return B.success && B.corners && HA(C, B.corners, g.width, g.height, {
     cornerRadius: A.cornerRadius || 15,
     cornerLineLength: A.cornerLineLength || 25,
     cornerLineWidth: A.cornerLineWidth || 4,
@@ -868,22 +899,30 @@ async function HA(I, A = {}) {
     darkenOpacity: A.darkenOpacity || 0.4
   }), A.debug && (g.debugInfo = B.debug), g;
 }
-function YA(I, A, g, Q, C = {}) {
-  const { topLeft: B, topRight: E, bottomRight: i, bottomLeft: e } = A;
-  C.cornerRadius;
-  const t = C.cornerLineLength || 25, o = C.cornerLineWidth || 4, n = C.borderWidth || 2, s = C.cornerColor || "#FFFFFF", a = C.borderColor || "#4A90E2", D = C.darkenOpacity || 0.4;
-  I.save(), I.beginPath(), I.rect(0, 0, g, Q), I.moveTo(B.x, B.y), I.lineTo(E.x, E.y), I.lineTo(i.x, i.y), I.lineTo(e.x, e.y), I.closePath(), I.fillStyle = `rgba(0, 0, 0, ${D})`, I.fill("evenodd"), I.beginPath(), I.moveTo(B.x, B.y), I.lineTo(E.x, E.y), I.lineTo(i.x, i.y), I.lineTo(e.x, e.y), I.closePath(), I.strokeStyle = a, I.lineWidth = n, I.stroke(), I.strokeStyle = s, I.lineWidth = o, I.lineCap = "round", I.lineJoin = "round", I.miterLimit = 10;
-  function c(y, h, r) {
-    const w = y.x, F = y.y, G = h.x - w, d = h.y - F, k = Math.sqrt(G * G + d * d), R = { x: G / k, y: d / k }, S = r.x - w, M = r.y - F, l = Math.sqrt(S * S + M * M), J = { x: S / l, y: M / l }, L = w + R.x * t, Y = F + R.y * t, O = w + J.x * t, z = F + J.y * t;
-    I.beginPath(), I.moveTo(L, Y), I.lineTo(w, F), I.lineTo(O, z), I.stroke();
+function HA(I, A, g, C, Q = {}) {
+  const { topLeft: B, topRight: E, bottomRight: i, bottomLeft: o } = A;
+  Q.cornerRadius;
+  const t = Q.cornerLineLength || 25, e = Q.cornerLineWidth || 4, n = Q.borderWidth || 2, s = Q.cornerColor || "#FFFFFF", a = Q.borderColor || "#4A90E2", D = Q.darkenOpacity || 0.4;
+  I.save(), I.beginPath(), I.rect(0, 0, g, C), I.moveTo(B.x, B.y), I.lineTo(E.x, E.y), I.lineTo(i.x, i.y), I.lineTo(o.x, o.y), I.closePath(), I.fillStyle = `rgba(0, 0, 0, ${D})`, I.fill("evenodd"), I.beginPath(), I.moveTo(B.x, B.y), I.lineTo(E.x, E.y), I.lineTo(i.x, i.y), I.lineTo(o.x, o.y), I.closePath(), I.strokeStyle = a, I.lineWidth = n, I.stroke(), I.strokeStyle = s, I.lineWidth = e, I.lineCap = "round", I.lineJoin = "round", I.miterLimit = 10;
+  function c(r, h, y) {
+    const w = r.x, F = r.y, G = h.x - w, k = h.y - F, d = Math.sqrt(G * G + k * k), R = { x: G / d, y: k / d }, S = y.x - w, M = y.y - F, l = Math.sqrt(S * S + M * M), f = { x: S / l, y: M / l }, L = w + R.x * t, m = F + R.y * t, O = w + f.x * t, z = F + f.y * t;
+    I.beginPath(), I.moveTo(L, m), I.lineTo(w, F), I.lineTo(O, z), I.stroke();
   }
-  c(B, E, e), c(E, B, i), c(i, E, e), c(e, B, i), I.restore();
+  c(B, E, o), c(E, B, i), c(i, E, o), c(o, B, i), I.restore();
 }
+const bA = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
+  __proto__: null,
+  LiveScanner: fA,
+  checkWebcamAvailability: JA,
+  detectDocument: p,
+  extractDocument: LA,
+  highlightDocument: uA
+}, Symbol.toStringTag, { value: "Module" }));
 export {
-  mA as LiveScanner,
-  UA as checkWebcamAvailability,
-  j as detectDocument,
-  uA as extractDocument,
-  HA as highlightDocument
+  fA as LiveScanner,
+  JA as checkWebcamAvailability,
+  p as detectDocument,
+  LA as extractDocument,
+  uA as highlightDocument
 };
 //# sourceMappingURL=scanic.js.map

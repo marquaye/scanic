@@ -253,12 +253,12 @@ function unwarpImage(ctx, image, corners) {
   const perspectiveMatrix = getPerspectiveTransform(dstPoints,srcPoints);
   console.log('Perspective Matrix:', perspectiveMatrix);
   // apply the perspective transform to the image data
-  // ctx.setTransform(
-  //   perspectiveMatrix[0][0], perspectiveMatrix[0][1],
-  //   perspectiveMatrix[1][0], perspectiveMatrix[1][1],
-  //   perspectiveMatrix[2][0], perspectiveMatrix[2][1]
-  // );
-  // ctx.drawImage(image, 0, 0, image.width, image.height);
+  ctx.setTransform(
+    perspectiveMatrix[0][0], perspectiveMatrix[0][1],
+    perspectiveMatrix[1][0], perspectiveMatrix[1][1],
+    perspectiveMatrix[2][0], perspectiveMatrix[2][1]
+  );
+  ctx.drawImage(image, 0, 0, image.width, image.height);
   warpTransform(ctx, image, perspectiveMatrix);
 }
 
@@ -292,7 +292,7 @@ function warpTransform(ctx, image, matrix){
       // ctx.fillRect(x, y, 1, 1);
     }
   }
-  ctx.putImageData(out, 0, 0);
+  return ctx.putImageData(out, 0, 0);
 
 }
 
