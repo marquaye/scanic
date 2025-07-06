@@ -279,11 +279,19 @@ export class LiveScanner {
   /**
    * Draw document overlay on output canvas
    */
-  drawDocumentOverlay(corners, ctx = null) {
+  drawDocumentOverlay(corners, ctx = null, scaleX = 1, scaleY = 1) {
     const targetCtx = ctx || this.outputCtx;
     
     // Save context
     targetCtx.save();
+    
+    // Scale corners if needed
+    const scaledCorners = {
+      topLeft: { x: corners.topLeft.x * scaleX, y: corners.topLeft.y * scaleY },
+      topRight: { x: corners.topRight.x * scaleX, y: corners.topRight.y * scaleY },
+      bottomRight: { x: corners.bottomRight.x * scaleX, y: corners.bottomRight.y * scaleY },
+      bottomLeft: { x: corners.bottomLeft.x * scaleX, y: corners.bottomLeft.y * scaleY }
+    };
     
     // Draw document border
     targetCtx.strokeStyle = '#00FF00';
@@ -291,19 +299,19 @@ export class LiveScanner {
     targetCtx.setLineDash([5, 5]);
     
     targetCtx.beginPath();
-    targetCtx.moveTo(corners.topLeft.x, corners.topLeft.y);
-    targetCtx.lineTo(corners.topRight.x, corners.topRight.y);
-    targetCtx.lineTo(corners.bottomRight.x, corners.bottomRight.y);
-    targetCtx.lineTo(corners.bottomLeft.x, corners.bottomLeft.y);
+    targetCtx.moveTo(scaledCorners.topLeft.x, scaledCorners.topLeft.y);
+    targetCtx.lineTo(scaledCorners.topRight.x, scaledCorners.topRight.y);
+    targetCtx.lineTo(scaledCorners.bottomRight.x, scaledCorners.bottomRight.y);
+    targetCtx.lineTo(scaledCorners.bottomLeft.x, scaledCorners.bottomLeft.y);
     targetCtx.closePath();
     targetCtx.stroke();
     
     // Draw corners
     targetCtx.fillStyle = '#00FF00';
     targetCtx.setLineDash([]);
-    const cornerSize = 8;
+    const cornerSize = 8 * Math.max(scaleX, scaleY); // Scale corner size too
     
-    Object.values(corners).forEach(corner => {
+    Object.values(scaledCorners).forEach(corner => {
       targetCtx.beginPath();
       targetCtx.arc(corner.x, corner.y, cornerSize, 0, 2 * Math.PI);
       targetCtx.fill();
@@ -323,12 +331,15 @@ export class LiveScanner {
   }
   
   /**
-   * Capture current frame as document
+   * Capture current frame as document with perspective transform
    */
   async captureDocument() {
     if (!this.currentCorners || !this.video) {
       throw new Error('No stable document detected');
     }
+    
+    // Import extractDocument function dynamically to avoid circular dependency
+    const { extractDocument } = await import('./index.js');
     
     // Create a high-quality capture
     const captureCanvas = document.createElement('canvas');
@@ -337,10 +348,31 @@ export class LiveScanner {
     const captureCtx = captureCanvas.getContext('2d');
     captureCtx.drawImage(this.video, 0, 0);
     
-    // Just return the canvas with the current overlay drawn
-    this.drawDocumentOverlay(this.currentCorners, captureCtx);
+    // Scale corners to match the capture resolution
+    const scaleX = this.video.videoWidth / this.outputCanvas.width;
+    const scaleY = this.video.videoHeight / this.outputCanvas.height;
     
-    return captureCanvas;
+    const scaledCorners = {
+      topLeft: { 
+        x: this.currentCorners.topLeft.x * scaleX, 
+        y: this.currentCorners.topLeft.y * scaleY 
+      },
+      topRight: { 
+        x: this.currentCorners.topRight.x * scaleX, 
+        y: this.currentCorners.topRight.y * scaleY 
+      },
+      bottomRight: { 
+        x: this.currentCorners.bottomRight.x * scaleX, 
+        y: this.currentCorners.bottomRight.y * scaleY 
+      },
+      bottomLeft: { 
+        x: this.currentCorners.bottomLeft.x * scaleX, 
+        y: this.currentCorners.bottomLeft.y * scaleY 
+      }
+    };
+    
+    // Apply perspective transform and return the corrected document
+    return extractDocument(captureCanvas, scaledCorners);
   }
   
   /**
