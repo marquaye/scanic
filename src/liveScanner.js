@@ -12,7 +12,7 @@ export class LiveScanner {
       detectionInterval: options.detectionInterval || 150, // ms between detections
       confidenceThreshold: options.confidenceThreshold || 0.7,
       stabilizationFrames: options.stabilizationFrames || 3,
-      maxProcessingDimension: options.maxProcessingDimension || 600, // Lower for live processing
+      maxProcessingDimension: options.maxProcessingDimension || 500, // Lower for live processing
       ...options
     };
     
