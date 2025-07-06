@@ -1,0 +1,962 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Scanic - Debug UI</title>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 20px;
+      background-color: #f5f5f5;
+    }
+    h1 {
+      color: #333;
+      border-bottom: 1px solid #ddd;
+      padding-bottom: 10px;
+    }
+    .container {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 20px;
+    }
+    .panel {
+      background-color: white;
+      padding: 15px;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    .controls {
+      flex: 1;
+      min-width: 300px;
+    }
+    .preview {
+      flex: 2;
+      min-width: 500px;
+      position: relative;
+    }
+    .live-panel {
+      flex: 1;
+      min-width: 400px;
+      position: relative;
+    }
+    .form-group {
+      margin-bottom: 15px;
+    }
+    label {
+      display: block;
+      margin-bottom: 5px;
+      font-weight: bold;
+    }
+    input, select, button {
+      padding: 8px;
+      border-radius: 4px;
+      border: 1px solid #ddd;
+      width: 100%;
+      box-sizing: border-box;
+    }
+    input[type="checkbox"] {
+      width: auto;
+    }
+    button {
+      background-color: #4CAF50;
+      color: white;
+      border: none;
+      cursor: pointer;
+      font-weight: bold;
+      margin-top: 10px;
+    }
+    button:hover {
+      background-color: #45a049;
+    }
+    canvas {
+      max-width: 100%;
+      height: auto;
+      border: 1px solid #ddd;
+    }
+    #dropZone {
+      border: 2px dashed #ccc;
+      border-radius: 8px;
+      padding: 30px;
+      text-align: center;
+      cursor: pointer;
+      margin-bottom: 15px;
+      background-color: #f9f9f9;
+    }
+    #dropZone:hover {
+      border-color: #999;
+      background-color: #f0f0f0;
+    }
+    .performance {
+      margin-top: 20px;
+      background-color: #f0f0f0;
+      padding: 10px;
+      border-radius: 4px;
+      font-family: monospace;
+    }
+    .sample-images {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+      gap: 10px;
+      margin-top: 20px;
+    }
+    .sample-image {
+      width: 100%;
+      height: 100px;
+      object-fit: cover;
+      cursor: pointer;
+      border: 1px solid #ddd;
+      transition: transform 0.2s;
+    }
+    .sample-image:hover {
+      transform: scale(1.05);
+      box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+    }
+    /* New styles for the debug steps */
+    .debug-steps {
+      margin-top: 20px;
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 15px;
+    }
+    .debug-step {
+      background-color: white;
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      display: flex;
+      flex-direction: column;
+    }
+    .debug-step h4 {
+      margin: 0;
+      padding: 10px;
+      background-color: #f0f0f0;
+      text-align: center;
+      font-weight: 500;
+    }
+    .debug-step canvas {
+      width: 100%; /* Scale width to fit container */
+      height: auto; /* Maintain aspect ratio */
+      display: block; /* Ensure block behavior for sizing */
+      border-top: 1px solid #ddd;
+      border-radius: 0;
+      box-sizing: border-box;
+    }
+    .live-controls {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 15px;
+      flex-wrap: wrap;
+    }
+    .live-controls button {
+      flex: 1;
+      min-width: 120px;
+    }
+    .live-stats {
+      background-color: #f0f0f0;
+      padding: 10px;
+      border-radius: 4px;
+      font-family: monospace;
+      font-size: 12px;
+      margin-top: 10px;
+    }
+    .live-video {
+      width: 100%;
+      max-height: 400px;
+      object-fit: contain;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+    }
+    .status-indicator {
+      display: inline-block;
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      margin-right: 5px;
+    }
+    .status-active { background-color: #00ff00; }
+    .status-inactive { background-color: #ff0000; }
+    .status-detecting { background-color: #ffff00; }
+    .capture-button {
+      background-color: #ff4444 !important;
+    }
+    .capture-button:hover {
+      background-color: #cc3333 !important;
+    }
+    .capture-button:disabled {
+      background-color: #cccccc !important;
+      cursor: not-allowed;
+    }
+  </style>
+</head>
+<body>
+  <h1>Scanic - Debug UI</h1>
+  
+  <!-- Load OpenCV.js -->
+  <script src="https://docs.opencv.org/4.7.0/opencv.js" async onload="onOpenCvReady();"></script>
+  
+  <div class="container">
+    <div class="panel controls">
+      <div id="dropZone">
+        <p>Drag & drop an image here<br>or click to select a file</p>
+        <input type="file" id="fileInput" accept="image/*" style="display: none">
+      </div>
+      
+      <div class="form-group">
+        <label for="lowThreshold">Low Threshold:</label>
+        <input type="range" id="lowThreshold" min="10" max="200" value="50" step="5">
+        <span id="lowThresholdValue">50</span>
+      </div>
+      
+      <div class="form-group">
+        <label for="highThreshold">High Threshold:</label>
+        <input type="range" id="highThreshold" min="50" max="255" value="150" step="5">
+        <span id="highThresholdValue">150</span>
+      </div>
+
+      <div class="form-group">
+        <label for="kernelsize">Kernel Size:</label>
+        <input type="range" id="kernelsize" min="1" max="13" value="5" step="1">
+        <span id="kernelsizeValue">13</span>
+      </div>
+      
+      <div class="form-group">
+        <label for="minArea">Minimum Contour Area:</label>
+        <input type="range" id="minArea" min="100" max="10000" value="1000" step="100">
+        <span id="minAreaValue">1000</span>
+      </div>
+      
+      <div class="form-group">
+        <label for="epsilon">Contour Approximation Epsilon:</label>
+        <input type="range" id="epsilon" min="1" max="50" value="20" step="1">
+        <span id="epsilonValue">0.02</span>
+      </div>
+      
+      <div class="form-group">
+        <label>
+          <input type="checkbox" id="debugMode" checked> 
+          Enable Debug Mode
+        </label>
+      </div>
+      
+      <button id="processButton">Process Image</button>
+      
+      <h3>Sample Images</h3>
+      <div class="sample-images" id="sampleImagesContainer">
+        <!-- Will be populated with sample images from ../docs/images/test/ -->
+      </div>
+    </div>
+    
+    <div class="panel preview">
+      <h3>Rewrite Result</h3>
+      <div id="canvasContainerRewrite" style="position: relative;">
+        <canvas id="previewCanvasRewrite"></canvas>
+      </div>
+      <div class="performance" id="performanceStatsRewrite"></div>
+      
+      <h3 style="margin-top: 20px;">Original jscanify Result</h3>
+      <div id="canvasContainerOriginal" style="position: relative;">
+        <canvas id="previewCanvasOriginal"></canvas>
+      </div>
+      <div class="performance" id="performanceStatsOriginal"></div>
+    </div>
+    
+    <!-- Live Scanner Panel -->
+    <div class="panel live-panel">
+      <h3>
+        <span class="status-indicator" id="liveStatusIndicator"></span>
+        Live Document Scanner
+      </h3>
+      
+      <div class="live-controls">
+        <button id="startLiveButton">Start Live</button>
+        <button id="stopLiveButton" disabled>Stop</button>
+        <button id="captureButton" class="capture-button" disabled>Capture</button>
+      </div>
+      
+      <canvas id="liveCanvas" class="live-video"></canvas>
+      
+      <div class="live-stats" id="liveStats">
+        <div>Status: <span id="liveStatus">Stopped</span></div>
+        <div>Render FPS: <span id="liveFPS">0</span></div>
+        <div>Detection FPS: <span id="liveDetectionFPS">0</span></div>
+        <div>Resolution: <span id="liveResolution">-</span></div>
+        <div>Document: <span id="liveDocumentStatus">Not detected</span></div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Debug Steps Sections -->
+  <div id="debugStepsContainerRewrite" class="panel" style="margin-top: 20px; display: none;">
+    <h3>Rewrite Processing Steps</h3>
+    <div class="debug-steps" id="stepsGridRewrite"></div>
+  </div>
+  
+  <div id="debugStepsContainerOriginal" class="panel" style="margin-top: 20px; display: none;">
+    <h3>Original jscanify Processing Steps</h3>
+    <div class="debug-steps" id="stepsGridOriginal"></div>
+  </div>
+  
+  <!-- Import our library via Vite (GitHub Pages compatible path) -->
+  <script src="/scanic/dist/scanic.umd.cjs" defer></script>
+  <!-- Import original jscanify (GitHub Pages compatible path) -->
+  <script src="/scanic/src/jscanify.js" defer></script>
+  
+  <script>
+    // Global flag and scanner instances
+    let cvReady = false;
+    let originalScanner = null;
+    let rewriteApi = null; // Will be populated by the module script
+    let liveScanner = null; // Live scanner instance
+
+    function onOpenCvReady() {
+      cv['onRuntimeInitialized'] = () => {
+        console.log("OpenCV.js is ready.");
+        cvReady = true;
+        originalScanner = new jscanify(); // Instantiate original scanner
+        // Try processing if an image is already loaded
+        if (currentImage) {
+          processImage();
+        }
+      };
+    }
+
+    // --- DOM elements (assuming they are declared globally or passed) ---
+    // (Keep existing declarations from the module script, 
+    // but make sure they are accessible here or passed to functions)
+    let currentImage = null;
+    const fileInput = document.getElementById('fileInput');
+    const dropZone = document.getElementById('dropZone');
+    const processButton = document.getElementById('processButton');
+    const previewCanvasRewrite = document.getElementById('previewCanvasRewrite');
+    const canvasContainerRewrite = document.getElementById('canvasContainerRewrite');
+    const performanceStatsRewrite = document.getElementById('performanceStatsRewrite');
+    const previewCanvasOriginal = document.getElementById('previewCanvasOriginal');
+    const canvasContainerOriginal = document.getElementById('canvasContainerOriginal');
+    const performanceStatsOriginal = document.getElementById('performanceStatsOriginal');
+    const sampleImagesContainer = document.getElementById('sampleImagesContainer');
+    const lowThreshold = document.getElementById('lowThreshold');
+    const highThreshold = document.getElementById('highThreshold');
+    const kernelsize = document.getElementById('kernelsize');
+    const minArea = document.getElementById('minArea');
+    const epsilon = document.getElementById('epsilon');
+    const debugMode = document.getElementById('debugMode');
+    const lowThresholdValue = document.getElementById('lowThresholdValue');
+    const highThresholdValue = document.getElementById('highThresholdValue');
+    const minAreaValue = document.getElementById('minAreaValue');
+    const epsilonValue = document.getElementById('epsilonValue');
+    const debugStepsContainerRewrite = document.getElementById('debugStepsContainerRewrite');
+    const stepsGridRewrite = document.getElementById('stepsGridRewrite');
+    const debugStepsContainerOriginal = document.getElementById('debugStepsContainerOriginal');
+    const stepsGridOriginal = document.getElementById('stepsGridOriginal');
+    
+    // Live scanner elements
+    const startLiveButton = document.getElementById('startLiveButton');
+    const stopLiveButton = document.getElementById('stopLiveButton');
+    const captureButton = document.getElementById('captureButton');
+    const liveCanvas = document.getElementById('liveCanvas');
+    const liveStatusIndicator = document.getElementById('liveStatusIndicator');
+    const liveStatus = document.getElementById('liveStatus');
+    const liveFPS = document.getElementById('liveFPS');
+    const liveDetectionFPS = document.getElementById('liveDetectionFPS');
+    const liveResolution = document.getElementById('liveResolution');
+    const liveDocumentStatus = document.getElementById('liveDocumentStatus');
+
+    // --- Live Scanner Functions ---
+    async function initLiveScanner() {
+      if (!rewriteApi || !rewriteApi.LiveScanner) {
+        alert('Live scanner not available. Please ensure the module is loaded.');
+        return;
+      }
+      
+      try {
+        // Create live scanner instance
+        liveScanner = new rewriteApi.LiveScanner({
+          targetFPS: 15,
+          detectionInterval: 200, // Check every 200ms
+          stabilizationFrames: 3,
+          maxProcessingDimension: 600,
+          lowThreshold: parseInt(lowThreshold.value),
+          highThreshold: parseInt(highThreshold.value),
+          minArea: parseInt(minArea.value),
+          epsilon: parseFloat(epsilon.value) / 1000,
+          dilationKernelSize: parseInt(kernelsize.value)
+        });
+        
+        // Set up callbacks
+        liveScanner.onDetection = (result) => {
+          if (result.isStable) {
+            liveDocumentStatus.textContent = `Detected (confidence: ${(result.confidence * 100).toFixed(1)}%)`;
+            liveStatusIndicator.className = 'status-indicator status-detecting';
+            captureButton.disabled = false;
+          } else {
+            liveDocumentStatus.textContent = 'Stabilizing...';
+            liveStatusIndicator.className = 'status-indicator status-active';
+            captureButton.disabled = true;
+          }
+        };
+        
+        liveScanner.onFPSUpdate = (stats) => {
+          liveFPS.textContent = stats.renderFPS;
+          liveDetectionFPS.textContent = stats.detectionFPS;
+        };
+        
+        liveScanner.onError = (error) => {
+          console.error('Live scanner error:', error);
+          updateLiveStatus('Error: ' + error.message, 'inactive');
+        };
+        
+        // Initialize with canvas
+        await liveScanner.init(liveCanvas);
+        
+        updateLiveStatus('Ready', 'active');
+        startLiveButton.disabled = false;
+        
+        const stats = liveScanner.getStats();
+        liveResolution.textContent = stats.videoResolution || 'Unknown';
+        
+      } catch (error) {
+        console.error('Failed to initialize live scanner:', error);
+        updateLiveStatus('Initialization failed: ' + error.message, 'inactive');
+      }
+    }
+    
+    function startLiveScanning() {
+      if (!liveScanner) {
+        initLiveScanner();
+        return;
+      }
+      
+      try {
+        liveScanner.start();
+        updateLiveStatus('Scanning', 'active');
+        startLiveButton.disabled = true;
+        stopLiveButton.disabled = false;
+      } catch (error) {
+        console.error('Failed to start live scanning:', error);
+        updateLiveStatus('Failed to start: ' + error.message, 'inactive');
+      }
+    }
+    
+    function stopLiveScanning() {
+      if (liveScanner) {
+        liveScanner.stop();
+        liveScanner = null;
+      }
+      
+      updateLiveStatus('Stopped', 'inactive');
+      startLiveButton.disabled = false;
+      stopLiveButton.disabled = true;
+      captureButton.disabled = true;
+      liveDocumentStatus.textContent = 'Not detected';
+      liveFPS.textContent = '0';
+      liveDetectionFPS.textContent = '0';
+      liveResolution.textContent = '-';
+    }
+    
+    async function captureDocument() {
+      if (!liveScanner) {
+        alert('Live scanner not running');
+        return;
+      }
+      
+      try {
+        captureButton.disabled = true;
+        captureButton.textContent = 'Capturing...';
+        
+        const capturedCanvas = await liveScanner.captureDocument();
+        
+        // Show captured document in a new window or modal
+        const newWindow = window.open('', '_blank', 'width=800,height=600');
+        const canvasDataURL = capturedCanvas.toDataURL();
+        const htmlContent = `
+          <html>
+            <head><title>Captured Document</title></head>
+            <body style="margin:0; display:flex; justify-content:center; align-items:center; min-height:100vh; background:#f0f0f0;">
+              <div style="text-align:center;">
+                <h2>Captured Document</h2>
+                <canvas id="capturedCanvas" style="max-width:90vw; max-height:80vh; border:1px solid #ccc;"></canvas>
+                <br><br>
+                <button onclick="downloadCanvas()">Download</button>
+                <button onclick="window.close()">Close</button>
+              </div>
+              <script>
+                const canvas = document.getElementById('capturedCanvas');
+                const ctx = canvas.getContext('2d');
+                canvas.width = ${capturedCanvas.width};
+                canvas.height = ${capturedCanvas.height};
+                
+                const img = new Image();
+                img.onload = function() {
+                  ctx.drawImage(img, 0, 0);
+                };
+                img.src = '${canvasDataURL}';
+                
+                function downloadCanvas() {
+                  const link = document.createElement('a');
+                  link.download = 'scanned-document-' + new Date().getTime() + '.png';
+                  link.href = canvas.toDataURL();
+                  link.click();
+                }
+              <\/script>
+            </body>
+          </html>
+        `;
+        newWindow.document.write(htmlContent);
+        
+      } catch (error) {
+        console.error('Failed to capture document:', error);
+        alert('Failed to capture document: ' + error.message);
+      } finally {
+        captureButton.disabled = false;
+        captureButton.textContent = 'Capture';
+      }
+    }
+    
+    function updateLiveStatus(status, indicatorClass) {
+      liveStatus.textContent = status;
+      liveStatusIndicator.className = `status-indicator status-${indicatorClass}`;
+    }
+    
+    // Check webcam availability on load
+    async function checkWebcamSupport() {
+      if (!rewriteApi || !rewriteApi.checkWebcamAvailability) {
+        console.log('Webcam check not available yet');
+        return;
+      }
+      
+      const result = await rewriteApi.checkWebcamAvailability();
+      if (!result.available) {
+        updateLiveStatus('No webcam available', 'inactive');
+        startLiveButton.disabled = true;
+        console.warn('Webcam not available:', result.error);
+      } else {
+        console.log(`Webcam available: ${result.deviceCount} device(s) found`);
+        updateLiveStatus('Webcam ready', 'inactive');
+      }
+    }
+
+    // --- Functions (mostly moved from module script) ---
+    function updateValueDisplays() {
+      lowThresholdValue.textContent = lowThreshold.value;
+      highThresholdValue.textContent = highThreshold.value;
+      kernelsizeValue.textContent = kernelsize.value;
+      minAreaValue.textContent = minArea.value;
+      epsilonValue.textContent = (epsilon.value / 1000).toFixed(3);
+    }
+
+    function handleFileSelect(file) {
+      if (!file || !file.type.startsWith('image/')) {
+        alert('Please select an image file');
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        loadImageFromSrc(e.target.result);
+      };
+      reader.readAsDataURL(file);
+    }
+    
+    function loadImageFromSrc(src) {
+        const img = new Image();
+        img.onload = function() {
+          currentImage = img;
+          // Ensure OpenCV is ready before drawing/processing
+          if (cvReady) {
+             resizeCanvases();
+             drawImage();
+          } else {
+             // Draw placeholder or wait message if OpenCV isn't ready
+             console.log("Waiting for OpenCV to load...");
+             const ctxRewrite = previewCanvasRewrite.getContext('2d');
+             ctxRewrite.clearRect(0, 0, previewCanvasRewrite.width, previewCanvasRewrite.height);
+             ctxRewrite.fillText("Loading OpenCV...", 10, 20);
+             const ctxOriginal = previewCanvasOriginal.getContext('2d');
+             ctxOriginal.clearRect(0, 0, previewCanvasOriginal.width, previewCanvasOriginal.height);
+             ctxOriginal.fillText("Loading OpenCV...", 10, 20);
+          }
+        };
+        img.onerror = () => alert("Failed to load image");
+        img.src = src;
+    }
+
+    function drawImage() {
+      if (!currentImage || !cvReady) return;
+      // Draw on both preview canvases
+      const ctxRewrite = previewCanvasRewrite.getContext('2d');
+      ctxRewrite.clearRect(0, 0, previewCanvasRewrite.width, previewCanvasRewrite.height);
+      ctxRewrite.drawImage(currentImage, 0, 0, previewCanvasRewrite.width, previewCanvasRewrite.height);
+      
+      const ctxOriginal = previewCanvasOriginal.getContext('2d');
+      ctxOriginal.clearRect(0, 0, previewCanvasOriginal.width, previewCanvasOriginal.height);
+      ctxOriginal.drawImage(currentImage, 0, 0, previewCanvasOriginal.width, previewCanvasOriginal.height);
+    }
+
+    function resizeCanvases() {
+      if (!currentImage) return;
+      const maxWidth = canvasContainerRewrite.clientWidth; // Use one container for width calculation
+      const scale = Math.min(1, maxWidth / currentImage.width);
+      const scaledWidth = currentImage.width * scale;
+      const scaledHeight = currentImage.height * scale;
+
+      previewCanvasRewrite.width = scaledWidth;
+      previewCanvasRewrite.height = scaledHeight;
+      previewCanvasOriginal.width = scaledWidth;
+      previewCanvasOriginal.height = scaledHeight;
+    }
+
+    async function processImage() {
+      if (!currentImage) {
+        alert('Please select an image first');
+        return;
+      }
+      if (!cvReady) {
+        alert('OpenCV is not ready yet. Please wait.');
+        return;
+      }
+      if (!rewriteApi) {
+        alert('Rewrite library module not loaded yet.');
+        return;
+      }
+
+      performanceStatsRewrite.innerHTML = 'Processing Rewrite...';
+      performanceStatsOriginal.innerHTML = 'Processing Original...';
+      debugStepsContainerRewrite.style.display = 'none';
+      debugStepsContainerOriginal.style.display = 'none';
+      stepsGridRewrite.innerHTML = '';
+      stepsGridOriginal.innerHTML = '';
+
+      const options = {
+        lowThreshold: parseInt(lowThreshold.value),
+        highThreshold: parseInt(highThreshold.value),
+        minArea: parseInt(minArea.value),
+        epsilon: parseFloat(epsilon.value) / 1000,
+        dilationKernelSize: parseInt(kernelsize.value),
+        debug: debugMode.checked,
+      };
+      // console.log('Processing with options:', options);
+
+      // --- Process with Rewrite ---
+      try {
+        const startTime = performance.now();
+        const resultCanvasRewrite = await rewriteApi.highlightDocument(currentImage, options);
+        const endTime = performance.now();
+        const processingTime = (endTime - startTime).toFixed(2);
+
+        canvasContainerRewrite.innerHTML = ''; // Clear previous canvas
+        canvasContainerRewrite.appendChild(resultCanvasRewrite);
+        performanceStatsRewrite.innerHTML = `Rewrite Time: ${processingTime} ms`;
+
+        if (options.debug && resultCanvasRewrite.debugInfo) {
+          createRewriteDebugStepsVisualization(resultCanvasRewrite.debugInfo, resultCanvasRewrite.width, resultCanvasRewrite.height);
+          debugStepsContainerRewrite.style.display = 'block';
+        }
+      } catch (error) {
+        console.error('Error processing rewrite:', error);
+        performanceStatsRewrite.innerHTML = `<span style="color:red">Rewrite Error: ${error.message}</span>`;
+      }
+
+      // --- Process with Original jscanify ---
+      try {
+        const startTime = performance.now();
+        const originalOptions = { debug: options.debug ? {} : null }; // Create separate debug object
+        const resultCanvasOriginal = originalScanner.highlightPaper(currentImage, originalOptions);
+        const endTime = performance.now();
+        const processingTime = (endTime - startTime).toFixed(2);
+
+        canvasContainerOriginal.innerHTML = ''; // Clear previous canvas
+        canvasContainerOriginal.appendChild(resultCanvasOriginal);
+        performanceStatsOriginal.innerHTML = `Original Time: ${processingTime} ms`;
+
+        if (options.debug && resultCanvasOriginal.debugInfo) {
+          createOriginalDebugStepsVisualization(resultCanvasOriginal.debugInfo, resultCanvasOriginal.width, resultCanvasOriginal.height);
+          debugStepsContainerOriginal.style.display = 'block';
+        }
+      } catch (error) {
+        console.error('Error processing original:', error);
+        performanceStatsOriginal.innerHTML = `<span style="color:red">Original Error: ${error.message}</span>`;
+      }
+    }
+
+    // --- Rewrite Debug Visualization (Adapted from module script) ---
+    function createRewriteDebugStepsVisualization(debugInfo, width, height) {
+      stepsGridRewrite.innerHTML = ''; // Clear previous steps
+      
+      // Add original image
+      addDebugStep(stepsGridRewrite, 'Rewrite: Original', (canvas) => {
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(currentImage, 0, 0, width, height);
+      }, width, height);
+
+      // Add grayscale + blur step if available
+      if (debugInfo.blurred) {
+        addDebugStep(stepsGridRewrite, 'Rewrite: Grayscale + Blur', (canvas) => {
+          drawGrayscaleArray(canvas, debugInfo.blurred, width, height);
+        }, width, height);
+      }
+      if (debugInfo.magnitude) {
+        addDebugStep(stepsGridRewrite, 'Rewrite: Gradient Magnitude', (canvas) => {
+          drawGrayscaleArray(canvas, debugInfo.magnitude, width, height);
+        }, width, height);
+      }
+      if (debugInfo.suppressed) {
+        addDebugStep(stepsGridRewrite, 'Rewrite: Non-Maximum Suppression', (canvas) => {
+          drawGrayscaleArray(canvas, debugInfo.suppressed, width, height);
+        }, width, height);
+      }
+      if (debugInfo.edges) {
+        addDebugStep(stepsGridRewrite, 'Rewrite: Edges (Pre-Dilation)', (canvas) => { // Updated title
+          drawGrayscaleArray(canvas, debugInfo.edges, width, height);
+        }, width, height);
+      }
+      // Add dilated edges step if available
+      if (debugInfo.dilated) {
+        addDebugStep(stepsGridRewrite, 'Rewrite: Dilated Edges', (canvas) => {
+          drawGrayscaleArray(canvas, debugInfo.dilated, width, height);
+        }, width, height);
+      }
+      if (debugInfo.contours) {
+        addDebugStep(stepsGridRewrite, 'Rewrite: Contours', (canvas) => {
+          // Draw contours on the *dilated* edges background for better context
+          const background = debugInfo.dilated || debugInfo.edges; 
+          drawRewriteContours(canvas, debugInfo.contours, width, height, background);
+        }, width, height);
+      }
+      // Add final result step
+      addDebugStep(stepsGridRewrite, 'Rewrite: Final Result', (canvas) => {
+        const resultCanvas = canvasContainerRewrite.querySelector('canvas');
+        if (resultCanvas) {
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(resultCanvas, 0, 0, width, height);
+        }
+      }, width, height);
+    }
+    
+    function drawGrayscaleArray(canvas, dataArray, width, height) {
+        const ctx = canvas.getContext('2d');
+        const imageData = ctx.createImageData(width, height);
+        for (let i = 0; i < dataArray.length; i++) {
+            const pixelValue = dataArray[i];
+            const pixelIdx = i * 4;
+            imageData.data[pixelIdx] = pixelValue;     // R
+            imageData.data[pixelIdx + 1] = pixelValue; // G
+            imageData.data[pixelIdx + 2] = pixelValue; // B
+            imageData.data[pixelIdx + 3] = 255;        // Alpha
+        }
+        ctx.putImageData(imageData, 0, 0);
+    }
+    
+    // Modify drawRewriteContours to accept a background image array
+    function drawRewriteContours(canvas, contours, width, height, backgroundArray = null) {
+        const ctx = canvas.getContext('2d');
+        
+        // Draw background (e.g., dilated edges) if provided
+        if (backgroundArray) {
+            drawGrayscaleArray(canvas, backgroundArray, width, height);
+            // Make it slightly transparent to see contours better
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.5)'; 
+            ctx.fillRect(0, 0, width, height);
+        } else {
+            // Fallback: Draw original image with lower opacity
+            ctx.globalAlpha = 0.3;
+            ctx.drawImage(currentImage, 0, 0, width, height);
+            ctx.globalAlpha = 1.0;
+        }
+
+        const colors = ['#FF0000', '#00FF00', '#0000FF', '#FFFF00', '#00FFFF', '#FF00FF'];
+    contours.forEach((contour, index) => {
+      
+      const colorIndex = index % colors.length;
+        ctx.strokeStyle = colors[colorIndex];
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        const points = contour.points;
+        if (points && points.length > 0) {
+            ctx.moveTo(points[0].x, points[0].y);
+            for (let i = 1; i < points.length; i++) {
+                ctx.lineTo(points[i].x, points[i].y);
+            }
+            ctx.lineTo(points[0].x, points[0].y); // Close path
+        }
+        ctx.stroke();
+        if (contour.area) {
+            const bb = contour.boundingBox;
+            const centerX = (bb.minX + bb.maxX) / 2;
+            const centerY = (bb.minY + bb.maxY) / 2;
+            
+            // Add background for text
+            const text = `#${index}`;
+            ctx.font = 'bold 20px Arial';
+            const textWidth = ctx.measureText(text).width;
+            
+            // Draw text background
+            // ctx.fillStyle = 'white';
+            // ctx.fillRect(centerX - textWidth/2 - 4, centerY - 12, textWidth + 8, 24);
+            
+            // Draw text with black outline
+            ctx.fillStyle = colors[colorIndex];  // Use contour color for text
+            ctx.fillText(text, centerX - textWidth/2, centerY + 6);
+            
+            // Add black outline
+            ctx.strokeStyle = 'black';
+            ctx.lineWidth = 1;
+            ctx.strokeText(text, centerX - textWidth/2, centerY + 6);
+        }
+    });
+    }
+
+    // --- Original jscanify Debug Visualization ---
+    function createOriginalDebugStepsVisualization(debugInfo, width, height) {
+        stepsGridOriginal.innerHTML = ''; // Clear previous steps
+        
+        // Helper to add step and draw Mat
+        const addCvStep = (title, mat) => {
+            if (mat && !mat.isDeleted()) {
+                // Create unique ID for canvas
+                const canvasId = `cv-${title.replace(/\s+/g, '-')}-${Date.now()}`;
+                addDebugStep(stepsGridOriginal, title, (canvas) => {
+                    canvas.id = canvasId;
+                    // Use try-catch as imshow can fail
+                    try {
+                        cv.imshow(canvasId, mat);
+                    } catch (e) {
+                        console.error(`Error drawing Mat for ${title}:`, e);
+                        const ctx = canvas.getContext('2d');
+                        ctx.fillStyle = 'red';
+                        ctx.fillText('Error drawing', 10, 20);
+                    }
+                }, width, height);
+            } else {
+                console.log(`Skipping debug step '${title}', Mat is missing or deleted.`);
+            }
+        };
+
+        addCvStep('Original: Input', debugInfo.original);
+        addCvStep('Original: Grayscale', debugInfo.grayscale);
+        addCvStep('Original: Blurred', debugInfo.blurred);
+        addCvStep('Original: Canny Edges', debugInfo.canny);
+        addCvStep('Original: Dilated Edges', debugInfo.dilated);
+        addCvStep('Original: Contours', debugInfo.contoursMat); // Use the pre-drawn contours Mat
+        
+        // Add final result step
+        addDebugStep(stepsGridOriginal, 'Original: Final Result', (canvas) => {
+            const resultCanvas = canvasContainerOriginal.querySelector('canvas');
+            if (resultCanvas) {
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(resultCanvas, 0, 0, width, height);
+            }
+        }, width, height);
+        
+        // Clean up Mats stored in debugInfo (important!)
+        // We cloned them in jscanify.js, so safe to delete here
+        for (const key in debugInfo) {
+            if (debugInfo[key] instanceof cv.Mat && !debugInfo[key].isDeleted()) {
+                debugInfo[key].delete();
+            }
+            // Special handling for rawContours MatVector
+            if (key === 'rawContours' && debugInfo[key] instanceof cv.MatVector) {
+                 for (let i = 0; i < debugInfo[key].size(); ++i) {
+                    if (!debugInfo[key].get(i).isDeleted()) {
+                        debugInfo[key].get(i).delete();
+                    }
+                 }
+                 debugInfo[key].delete();
+            }
+        }
+    }
+
+    // --- Generic Helper Functions ---
+    function addDebugStep(container, title, drawFn, width, height) {
+      const stepDiv = document.createElement('div');
+      stepDiv.className = 'debug-step';
+      const titleElement = document.createElement('h4');
+      titleElement.textContent = title;
+      stepDiv.appendChild(titleElement);
+      
+      const canvas = document.createElement('canvas');
+      
+      // Set canvas intrinsic size to the original image dimensions
+      canvas.width = width; 
+      canvas.height = height;
+      
+      // CSS will handle the visual scaling (width: 100% is already applied)
+      
+      // Append canvas to DOM *before* calling drawFn
+      stepDiv.appendChild(canvas);
+      container.appendChild(stepDiv);
+      
+      // Call drawing function *after* the canvas is in the DOM
+      // Pass the canvas element and its *original* dimensions
+      drawFn(canvas, width, height); 
+    }
+
+    function loadSampleImages() {
+      const testImagePaths = [
+        '/scanic/testImages/test.png',
+        '/scanic/testImages/test2.png',
+        '/scanic/testImages/test3.jpg',
+        '/scanic/testImages/test4.JPG',
+        '/scanic/testImages/test5.JPG',
+        '/scanic/testImages/test6.JPG',
+        '/scanic/testImages/test7.JPG',
+        '/scanic/testImages/test8.JPG',
+        '/scanic/testImages/test9.jpg',
+        '/scanic/testImages/test10.jpg',
+      ];
+      sampleImagesContainer.innerHTML = '';
+      testImagePaths.forEach((path, index) => {
+        const img = document.createElement('img');
+        img.src = path;
+        img.classList.add('sample-image');
+        img.alt = `Sample image ${index + 1}`;
+        img.title = `Sample image ${index + 1}`;
+        img.addEventListener('click', () => {
+          loadImageFromSrc(path);
+        });
+        sampleImagesContainer.appendChild(img);
+      });
+    }
+
+    // --- Event Listeners ---
+    fileInput.addEventListener('change', function() { handleFileSelect(this.files[0]); });
+    dropZone.addEventListener('click', function() { fileInput.click(); });
+    dropZone.addEventListener('dragover', function(e) { e.preventDefault(); e.stopPropagation(); this.style.backgroundColor = '#e9e9e9'; });
+    dropZone.addEventListener('dragleave', function(e) { e.preventDefault(); e.stopPropagation(); this.style.backgroundColor = '#f9f9f9'; });
+    dropZone.addEventListener('drop', function(e) {
+      e.preventDefault();
+      e.stopPropagation();
+      this.style.backgroundColor = '#f9f9f9';
+      handleFileSelect(e.dataTransfer.files[0]);
+    });
+    processButton.addEventListener('click', processImage);
+    
+    // Live scanner event listeners
+    startLiveButton.addEventListener('click', startLiveScanning);
+    stopLiveButton.addEventListener('click', stopLiveScanning);
+    captureButton.addEventListener('click', captureDocument);
+    window.addEventListener('resize', function() { resizeCanvases(); drawImage(); });
+    lowThreshold.addEventListener('input', updateValueDisplays);
+    highThreshold.addEventListener('input', updateValueDisplays);
+    minArea.addEventListener('input', updateValueDisplays);
+    epsilon.addEventListener('input', updateValueDisplays);
+    kernelsize.addEventListener('input', updateValueDisplays);
+
+    // --- Initialization ---
+    updateValueDisplays();
+    loadSampleImages();
+    updateLiveStatus('Initializing...', 'inactive');
+    console.log('Debug UI Initialized. Waiting for OpenCV...');
+    // Set rewriteApi when module loads
+    window.setRewriteApi = (api) => { 
+        rewriteApi = api; 
+        console.log("Rewrite API module loaded.");
+        // Check webcam support after API is loaded
+        setTimeout(checkWebcamSupport, 100);
+    };
+
+  </script>
+
+</body>
+</html>

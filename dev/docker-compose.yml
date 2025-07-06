@@ -5,6 +5,6 @@ services:
       context: .
       dockerfile: Dockerfile
     volumes:
-      - .:/code
+      - ../:/code
     working_dir: /code/wasm_blur
     command: ["wasm-pack", "build", "--target", "web", "--out-dir", "./pkg"]
