@@ -171,7 +171,7 @@
       <div class="live-controls">
         <button id="startLiveButton">Start Live</button>
         <button id="stopLiveButton" disabled>Stop</button>
-        <button id="captureButton" class="capture-button" disabled>Capture</button>
+        <button id="captureButton" class="capture-button" disabled>⏳ Detecting...</button>
       </div>
       
       <canvas id="liveCanvas" class="live-video"></canvas>
@@ -187,7 +187,18 @@
   </div>
   
   <!-- Import our library from dist -->
-  <script type="module" src="./dist/scanic.js"></script>
+  <script type="module">
+    import * as scanic from './dist/scanic.js';
+    
+    // Make scanic available globally for the rest of the script
+    window.scanic = scanic;
+    
+    console.log("Scanic ES6 module loaded successfully.");
+    
+    // Initialize after module is loaded
+    window.initializeScanicDemo();
+  </script>
+  
   <!-- Import original jscanify -->
   <script src="./src/jscanify.js"></script>
   
@@ -197,6 +208,15 @@
     let rewriteApi = null; // Will be populated by the module script
     let liveScanner = null; // Live scanner instance
     let currentImage = null;
+
+    // Initialize Scanic demo after module loads
+    window.initializeScanicDemo = function() {
+      rewriteApi = window.scanic;
+      console.log("Scanic library initialized successfully.");
+      
+      // Check webcam support after API is loaded
+      setTimeout(checkWebcamSupport, 100);
+    };
 
     function onOpenCvReady() {
       cv['onRuntimeInitialized'] = () => {
@@ -250,13 +270,15 @@
         // Set up callbacks
         liveScanner.onDetection = (result) => {
           if (result.isStable) {
-            liveDocumentStatus.textContent = `Detected (confidence: ${(result.confidence * 100).toFixed(1)}%)`;
+            liveDocumentStatus.textContent = `📄 Document Ready (confidence: ${(result.confidence * 100).toFixed(1)}%)`;
             liveStatusIndicator.className = 'status-indicator status-detecting';
             captureButton.disabled = false;
+            captureButton.textContent = '📸 Capture & Extract';
           } else {
-            liveDocumentStatus.textContent = 'Stabilizing...';
+            liveDocumentStatus.textContent = '🔍 Stabilizing...';
             liveStatusIndicator.className = 'status-indicator status-active';
             captureButton.disabled = true;
+            captureButton.textContent = '⏳ Detecting...';
           }
         };
         
@@ -312,6 +334,7 @@
       startLiveButton.disabled = false;
       stopLiveButton.disabled = true;
       captureButton.disabled = true;
+      captureButton.textContent = '⏳ Detecting...';
       liveDocumentStatus.textContent = 'Not detected';
       liveFPS.textContent = '0';
       liveDetectionFPS.textContent = '0';
@@ -328,38 +351,145 @@
         captureButton.disabled = true;
         captureButton.textContent = 'Capturing...';
         
-        const capturedCanvas = await liveScanner.captureDocument();
+        // Capture the original frame first for comparison
+        const originalCanvas = document.createElement('canvas');
+        originalCanvas.width = liveScanner.video.videoWidth;
+        originalCanvas.height = liveScanner.video.videoHeight;
+        const originalCtx = originalCanvas.getContext('2d');
+        originalCtx.drawImage(liveScanner.video, 0, 0);
         
-        // Show captured document in a new window or modal
-        const newWindow = window.open('', '_blank', 'width=800,height=600');
-        const canvasDataURL = capturedCanvas.toDataURL();
+        // Add overlay to show detected corners on original
+        if (liveScanner.currentCorners) {
+          liveScanner.drawDocumentOverlay(liveScanner.currentCorners, originalCtx, 
+            liveScanner.video.videoWidth / liveScanner.outputCanvas.width,
+            liveScanner.video.videoHeight / liveScanner.outputCanvas.height);
+        }
+        
+        // Capture the perspective-corrected document
+        const transformedCanvas = await liveScanner.captureDocument();
+        
+        // Show both original and transformed in a new window
+        const newWindow = window.open('', '_blank', 'width=1200,height=700');
+        const originalDataURL = originalCanvas.toDataURL();
+        const transformedDataURL = transformedCanvas.toDataURL();
+        
         const htmlContent = `
           <html>
-            <head><title>Captured Document</title></head>
-            <body style="margin:0; display:flex; justify-content:center; align-items:center; min-height:100vh; background:#f0f0f0;">
-              <div style="text-align:center;">
-                <h2>Captured Document</h2>
-                <canvas id="capturedCanvas" style="max-width:90vw; max-height:80vh; border:1px solid #ccc;"></canvas>
-                <br><br>
-                <button onclick="downloadCanvas()">Download</button>
-                <button onclick="window.close()">Close</button>
+            <head>
+              <title>Captured Document - Scanic</title>
+              <style>
+                body { 
+                  margin: 0; 
+                  padding: 20px; 
+                  background: #f0f0f0; 
+                  font-family: system-ui, -apple-system, sans-serif;
+                }
+                .container {
+                  display: flex;
+                  gap: 20px;
+                  justify-content: center;
+                  flex-wrap: wrap;
+                }
+                .panel {
+                  background: white;
+                  padding: 15px;
+                  border-radius: 8px;
+                  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+                  text-align: center;
+                  max-width: 500px;
+                }
+                canvas {
+                  max-width: 100%;
+                  height: auto;
+                  border: 1px solid #ddd;
+                  border-radius: 4px;
+                }
+                h2 { 
+                  margin-top: 0; 
+                  color: #333;
+                }
+                h3 {
+                  color: #666;
+                  margin-bottom: 10px;
+                }
+                .controls {
+                  margin-top: 20px;
+                  text-align: center;
+                }
+                button {
+                  background: #4CAF50;
+                  color: white;
+                  border: none;
+                  padding: 10px 20px;
+                  margin: 0 5px;
+                  border-radius: 4px;
+                  cursor: pointer;
+                  font-weight: bold;
+                }
+                button:hover {
+                  background: #45a049;
+                }
+                .highlight {
+                  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                }
+                .highlight:hover {
+                  background: linear-gradient(135deg, #5a6fd8 0%, #6a4190 100%);
+                }
+              </style>
+            </head>
+            <body>
+              <h2>📄 Document Capture Results</h2>
+              <div class="container">
+                <div class="panel">
+                  <h3>🎯 Original with Detection</h3>
+                  <canvas id="originalCanvas"></canvas>
+                  <p><small>Shows the original frame with detected document outline</small></p>
+                </div>
+                <div class="panel">
+                  <h3>✨ Perspective Corrected</h3>
+                  <canvas id="transformedCanvas"></canvas>
+                  <p><small>Document extracted and perspective-corrected for scanning</small></p>
+                </div>
               </div>
+              <div class="controls">
+                <button onclick="downloadCanvas('transformedCanvas', 'scanned-document')" class="highlight">
+                  📥 Download Scanned Document
+                </button>
+                <button onclick="downloadCanvas('originalCanvas', 'original-with-detection')">
+                  📥 Download Original
+                </button>
+                <button onclick="window.close()">❌ Close</button>
+              </div>
+              
               <script>
-                const canvas = document.getElementById('capturedCanvas');
-                const ctx = canvas.getContext('2d');
-                canvas.width = ${capturedCanvas.width};
-                canvas.height = ${capturedCanvas.height};
+                const originalCanvas = document.getElementById('originalCanvas');
+                const transformedCanvas = document.getElementById('transformedCanvas');
                 
-                const img = new Image();
-                img.onload = function() {
-                  ctx.drawImage(img, 0, 0);
+                // Load original image
+                const originalCtx = originalCanvas.getContext('2d');
+                originalCanvas.width = ${originalCanvas.width};
+                originalCanvas.height = ${originalCanvas.height};
+                const originalImg = new Image();
+                originalImg.onload = function() {
+                  originalCtx.drawImage(originalImg, 0, 0);
                 };
-                img.src = '${canvasDataURL}';
+                originalImg.src = '${originalDataURL}';
                 
-                function downloadCanvas() {
+                // Load transformed image
+                const transformedCtx = transformedCanvas.getContext('2d');
+                transformedCanvas.width = ${transformedCanvas.width};
+                transformedCanvas.height = ${transformedCanvas.height};
+                const transformedImg = new Image();
+                transformedImg.onload = function() {
+                  transformedCtx.drawImage(transformedImg, 0, 0);
+                };
+                transformedImg.src = '${transformedDataURL}';
+                
+                function downloadCanvas(canvasId, filename) {
+                  const canvas = document.getElementById(canvasId);
                   const link = document.createElement('a');
-                  link.download = 'scanned-document-' + new Date().getTime() + '.png';
-                  link.href = canvas.toDataURL();
+                  link.download = filename + '-' + new Date().toISOString().slice(0,19).replace(/:/g, '-') + '.png';
+                  link.href = canvas.toDataURL('image/png', 1.0);
                   link.click();
                 }
               <\/script>
@@ -373,7 +503,7 @@
         alert('Failed to capture document: ' + error.message);
       } finally {
         captureButton.disabled = false;
-        captureButton.textContent = 'Capture';
+        captureButton.textContent = '📸 Capture & Extract';
       }
     }
     
@@ -547,20 +677,7 @@
     loadSampleImages();
     updateLiveStatus('Initializing...', 'inactive');
     console.log('Demo UI Initialized. Waiting for OpenCV...');
-    // Set rewriteApi when module loads
-    window.setRewriteApi = (api) => { 
-        rewriteApi = api; 
-        console.log("Rewrite API module loaded.");
-        // Check webcam support after API is loaded
-        setTimeout(checkWebcamSupport, 100);
-    };
 
-  </script>
-  
-   <script type="module">
-    // Import Scanic from dist and expose to global scope
-    import * as scanic from './dist/scanic.js';
-    window.setRewriteApi(scanic);
   </script>
 </body>
 </html>
