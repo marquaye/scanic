@@ -236,8 +236,20 @@ function getPerspectiveTransform(srcPoints, dstPoints) {
 
 
 function unwarpImage(ctx, image, corners) {
-  // get perspective transform matrix
+  // Get perspective transform matrix
   const { topLeft, topRight, bottomRight, bottomLeft } = corners;
+  // Compute output rectangle size
+  const widthA = Math.hypot(bottomRight.x - bottomLeft.x, bottomRight.y - bottomLeft.y);
+  const widthB = Math.hypot(topRight.x - topLeft.x, topRight.y - topLeft.y);
+  const maxWidth = Math.round(Math.max(widthA, widthB));
+  const heightA = Math.hypot(topRight.x - bottomRight.x, topRight.y - bottomRight.y);
+  const heightB = Math.hypot(topLeft.x - bottomLeft.x, topLeft.y - bottomLeft.y);
+  const maxHeight = Math.round(Math.max(heightA, heightB));
+
+  // Set output canvas size
+  ctx.canvas.width = maxWidth;
+  ctx.canvas.height = maxHeight;
+
   const srcPoints = [
     [topLeft.x, topLeft.y],
     [topRight.x, topRight.y],
@@ -246,54 +258,74 @@ function unwarpImage(ctx, image, corners) {
   ];
   const dstPoints = [
     [0, 0],
-    [image.width, 0],
-    [image.width, image.height],
-    [0, image.height]
+    [maxWidth - 1, 0],
+    [maxWidth - 1, maxHeight - 1],
+    [0, maxHeight - 1]
   ];
-  const perspectiveMatrix = getPerspectiveTransform(dstPoints,srcPoints);
-  console.log('Perspective Matrix:', perspectiveMatrix);
-  // apply the perspective transform to the image data
-  ctx.setTransform(
-    perspectiveMatrix[0][0], perspectiveMatrix[0][1],
-    perspectiveMatrix[1][0], perspectiveMatrix[1][1],
-    perspectiveMatrix[2][0], perspectiveMatrix[2][1]
-  );
-  ctx.drawImage(image, 0, 0, image.width, image.height);
-  warpTransform(ctx, image, perspectiveMatrix);
+  const perspectiveMatrix = getPerspectiveTransform(srcPoints, dstPoints);
+  warpTransform(ctx, image, perspectiveMatrix, maxWidth, maxHeight);
 }
 
-function warpTransform(ctx, image, matrix){
-  // manual implementation of perspective warp
-  const { width, height } = image;
-  const imageData = ctx.getImageData(0, 0, width, height);
-  const out = ctx.createImageData(width, height);
-  console.log('Image Data:', imageData);
-  // for each pixel in the output image, calculate the corresponding pixel in the input image
-  for (let y = 0; y < height; y++) {
-    for (let x = 0; x < width; x++) {
-      const dstIdx = y * width + x;
-      // Calculate the corresponding point in the input image
-      let srcX = (matrix[0][0] * x + matrix[0][1] * y + matrix[0][2]) / (matrix[2][0] * x + matrix[2][1] * y + matrix[2][2]);
-      let srcY = (matrix[1][0] * x + matrix[1][1] * y + matrix[1][2]) / (matrix[2][0] * x + matrix[2][1] * y + matrix[2][2]);
-      // Clamp srcX and srcY to be within the bounds of the image
-      srcX = Math.max(0, Math.min(width - 1, srcX));
-      srcY = Math.max(0, Math.min(height - 1, srcY));
-      const srcIdx = Math.floor(srcY) * image.width + Math.floor(srcX);
-      // console.log(`Mapping pixel (${x}, ${y}) to source pixel (${srcX}, ${srcY})`);
-      out.data[dstIdx * 4] = imageData.data[srcIdx * 4];     // R
-      out.data[dstIdx * 4 + 1] = imageData.data[srcIdx * 4 + 1]; // G
-      out.data[dstIdx * 4 + 2] = imageData.data[srcIdx * 4 + 2]; // B
-      out.data[dstIdx * 4 + 3] = imageData.data[srcIdx * 4 + 3]; // A
-      // // Get pixel color from the source image
-      // const pixel = ctx.getImageData(srcX, srcY, 1, 1).data;
-      
-      // // Set pixel color in the output image
-      // ctx.fillStyle = `rgba(${pixel[0]}, ${pixel[1]}, ${pixel[2]}, ${pixel[3] / 255})`;
-      // ctx.fillRect(x, y, 1, 1);
+function invert3x3(m) {
+  // Invert a 3x3 matrix
+  const a = m[0][0], b = m[0][1], c = m[0][2];
+  const d = m[1][0], e = m[1][1], f = m[1][2];
+  const g = m[2][0], h = m[2][1], i = m[2][2];
+  const A = e * i - f * h;
+  const B = -(d * i - f * g);
+  const C = d * h - e * g;
+  const D = -(b * i - c * h);
+  const E = a * i - c * g;
+  const F = -(a * h - b * g);
+  const G = b * f - c * e;
+  const H = -(a * f - c * d);
+  const I = a * e - b * d;
+  const det = a * A + b * B + c * C;
+  if (det === 0) throw new Error('Singular matrix');
+  return [
+    [A / det, D / det, G / det],
+    [B / det, E / det, H / det],
+    [C / det, F / det, I / det]
+  ];
+}
+
+function warpTransform(ctx, image, matrix, outWidth, outHeight) {
+  // Inverse matrix for mapping output to input
+  const inv = invert3x3(matrix);
+  // Get source image data
+  const srcCanvas = document.createElement('canvas');
+  srcCanvas.width = image.width || image.naturalWidth;
+  srcCanvas.height = image.height || image.naturalHeight;
+  const srcCtx = srcCanvas.getContext('2d');
+  srcCtx.drawImage(image, 0, 0, srcCanvas.width, srcCanvas.height);
+  const srcData = srcCtx.getImageData(0, 0, srcCanvas.width, srcCanvas.height);
+  const out = ctx.createImageData(outWidth, outHeight);
+  for (let y = 0; y < outHeight; y++) {
+    for (let x = 0; x < outWidth; x++) {
+      // Map (x, y) in output to (srcX, srcY) in input
+      const denom = inv[2][0] * x + inv[2][1] * y + inv[2][2];
+      const srcX = (inv[0][0] * x + inv[0][1] * y + inv[0][2]) / denom;
+      const srcY = (inv[1][0] * x + inv[1][1] * y + inv[1][2]) / denom;
+      // Bilinear sample
+      const sx = Math.max(0, Math.min(srcCanvas.width - 2, srcX));
+      const sy = Math.max(0, Math.min(srcCanvas.height - 2, srcY));
+      const ix = Math.floor(sx), iy = Math.floor(sy);
+      const dx = sx - ix, dy = sy - iy;
+      for (let c = 0; c < 4; c++) {
+        // Bilinear interpolation
+        const i00 = srcData.data[(iy * srcCanvas.width + ix) * 4 + c];
+        const i10 = srcData.data[(iy * srcCanvas.width + (ix + 1)) * 4 + c];
+        const i01 = srcData.data[((iy + 1) * srcCanvas.width + ix) * 4 + c];
+        const i11 = srcData.data[((iy + 1) * srcCanvas.width + (ix + 1)) * 4 + c];
+        out.data[(y * outWidth + x) * 4 + c] =
+          (1 - dx) * (1 - dy) * i00 +
+          dx * (1 - dy) * i10 +
+          (1 - dx) * dy * i01 +
+          dx * dy * i11;
+      }
     }
   }
-  return ctx.putImageData(out, 0, 0);
-
+  ctx.putImageData(out, 0, 0);
 }
 
 // Function to highlight document in an image element or canvas
