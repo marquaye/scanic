@@ -6,7 +6,7 @@ Thank you for your interest in contributing to Scanic! This guide will help you 
 
 1. **Fork and clone the repository**:
    ```bash
-   git clone https://github.com/your-username/scanic.git
+   git clone https://github.com/marquaye/scanic.git
    cd scanic
    ```
 
@@ -67,6 +67,32 @@ scanic/
    git add .
    git commit -m "feat: add your feature description"
    ```
+
+## Release Process
+
+For maintainers creating releases:
+
+1. **Interactive release** (recommended for manual releases):
+   ```bash
+   npm run release [patch|minor|major]
+   ```
+   This will prompt you to update the CHANGELOG.md before creating the release.
+
+2. **Automated release** (for CI or when changelog is already updated):
+   ```bash
+   npm run release:auto [patch|minor|major]
+   ```
+   This skips the interactive prompt and creates the release immediately.
+
+Both scripts will:
+- Check you're on the main branch
+- Verify working directory is clean
+- Pull latest changes
+- Install dependencies and build
+- Run tests
+- Bump version
+- Create git tag
+- Push changes and trigger GitHub Actions
 
 ## Commit Message Format
 

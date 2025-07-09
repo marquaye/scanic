@@ -41,6 +41,15 @@ Note: `GITHUB_TOKEN` is automatically provided by GitHub Actions.
 The easiest way to create a release is using the provided release script:
 
 ```bash
+# Interactive release (prompts for changelog update)
+npm run release [patch|minor|major]
+
+# Automated release (no prompts - ensure changelog is updated first)
+npm run release:auto [patch|minor|major]
+```
+
+**Interactive release** (default):
+```bash
 # For patch version (0.1.1 → 0.1.2)
 npm run release
 
@@ -49,6 +58,13 @@ npm run release minor
 
 # For major version (0.1.1 → 1.0.0)
 npm run release major
+```
+
+**Automated release** (for CI or when changelog is already updated):
+```bash
+npm run release:auto patch
+npm run release:auto minor
+npm run release:auto major
 ```
 
 The script will:
