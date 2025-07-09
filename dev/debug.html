@@ -617,7 +617,7 @@
         return;
       }
       if (!rewriteApi) {
-        alert('Rewrite library module not loaded yet.');
+        alert('Scanic library module not loaded yet.');
         return;
       }
 
@@ -635,22 +635,23 @@
         epsilon: parseFloat(epsilon.value) / 1000,
         dilationKernelSize: parseInt(kernelsize.value),
         debug: debugMode.checked,
+        mode: 'highlight',
+        output: 'canvas',
       };
-      // console.log('Processing with options:', options);
 
-      // --- Process with Rewrite ---
+      // --- Process with Scanic unified API ---
       try {
         const startTime = performance.now();
-        const resultCanvasRewrite = await rewriteApi.highlightDocument(currentImage, options);
+        const result = await rewriteApi.scanDocument(currentImage, options);
         const endTime = performance.now();
         const processingTime = (endTime - startTime).toFixed(2);
 
-        canvasContainerRewrite.innerHTML = ''; // Clear previous canvas
-        canvasContainerRewrite.appendChild(resultCanvasRewrite);
+        canvasContainerRewrite.innerHTML = '';
+        if (result.output) canvasContainerRewrite.appendChild(result.output);
         performanceStatsRewrite.innerHTML = `Rewrite Time: ${processingTime} ms`;
 
-        if (options.debug && resultCanvasRewrite.debugInfo) {
-          createRewriteDebugStepsVisualization(resultCanvasRewrite.debugInfo, resultCanvasRewrite.width, resultCanvasRewrite.height);
+        if (options.debug && result.debug) {
+          createRewriteDebugStepsVisualization(result.debug, result.output.width, result.output.height);
           debugStepsContainerRewrite.style.display = 'block';
         }
       } catch (error) {
@@ -661,12 +662,12 @@
       // --- Process with Original jscanify ---
       try {
         const startTime = performance.now();
-        const originalOptions = { debug: options.debug ? {} : null }; // Create separate debug object
+        const originalOptions = { debug: options.debug ? {} : null };
         const resultCanvasOriginal = originalScanner.highlightPaper(currentImage, originalOptions);
         const endTime = performance.now();
         const processingTime = (endTime - startTime).toFixed(2);
 
-        canvasContainerOriginal.innerHTML = ''; // Clear previous canvas
+        canvasContainerOriginal.innerHTML = '';
         canvasContainerOriginal.appendChild(resultCanvasOriginal);
         performanceStatsOriginal.innerHTML = `Original Time: ${processingTime} ms`;
 
@@ -681,57 +682,70 @@
     }
 
     // --- Rewrite Debug Visualization (Adapted from module script) ---
-    function createRewriteDebugStepsVisualization(debugInfo, width, height) {
+    function createRewriteDebugStepsVisualization(debugInfo, origWidth, origHeight) {
       stepsGridRewrite.innerHTML = ''; // Clear previous steps
-      
       // Add original image
       addDebugStep(stepsGridRewrite, 'Rewrite: Original', (canvas) => {
         const ctx = canvas.getContext('2d');
-        ctx.drawImage(currentImage, 0, 0, width, height);
-      }, width, height);
+        ctx.drawImage(currentImage, 0, 0, origWidth, origHeight);
+      }, origWidth, origHeight);
+
+      // Helper to get scaled dimensions from debugInfo
+      function getScaledDims() {
+        if (debugInfo.preprocessing && debugInfo.preprocessing.scaledDimensions) {
+          return debugInfo.preprocessing.scaledDimensions;
+        }
+        // Fallback: try to infer from array length (assume square)
+        if (debugInfo.blurred && Number.isInteger(Math.sqrt(debugInfo.blurred.length))) {
+          const wh = Math.sqrt(debugInfo.blurred.length);
+          return { width: wh, height: wh };
+        }
+        return { width: origWidth, height: origHeight };
+      }
+      const scaledDims = getScaledDims();
 
       // Add grayscale + blur step if available
       if (debugInfo.blurred) {
         addDebugStep(stepsGridRewrite, 'Rewrite: Grayscale + Blur', (canvas) => {
-          drawGrayscaleArray(canvas, debugInfo.blurred, width, height);
-        }, width, height);
+          drawGrayscaleArray(canvas, debugInfo.blurred, scaledDims.width, scaledDims.height);
+        }, scaledDims.width, scaledDims.height);
       }
       if (debugInfo.magnitude) {
         addDebugStep(stepsGridRewrite, 'Rewrite: Gradient Magnitude', (canvas) => {
-          drawGrayscaleArray(canvas, debugInfo.magnitude, width, height);
-        }, width, height);
+          drawGrayscaleArray(canvas, debugInfo.magnitude, scaledDims.width, scaledDims.height);
+        }, scaledDims.width, scaledDims.height);
       }
       if (debugInfo.suppressed) {
         addDebugStep(stepsGridRewrite, 'Rewrite: Non-Maximum Suppression', (canvas) => {
-          drawGrayscaleArray(canvas, debugInfo.suppressed, width, height);
-        }, width, height);
+          drawGrayscaleArray(canvas, debugInfo.suppressed, scaledDims.width, scaledDims.height);
+        }, scaledDims.width, scaledDims.height);
       }
       if (debugInfo.edges) {
-        addDebugStep(stepsGridRewrite, 'Rewrite: Edges (Pre-Dilation)', (canvas) => { // Updated title
-          drawGrayscaleArray(canvas, debugInfo.edges, width, height);
-        }, width, height);
+        addDebugStep(stepsGridRewrite, 'Rewrite: Edges (Pre-Dilation)', (canvas) => {
+          drawGrayscaleArray(canvas, debugInfo.edges, scaledDims.width, scaledDims.height);
+        }, scaledDims.width, scaledDims.height);
       }
       // Add dilated edges step if available
       if (debugInfo.dilated) {
         addDebugStep(stepsGridRewrite, 'Rewrite: Dilated Edges', (canvas) => {
-          drawGrayscaleArray(canvas, debugInfo.dilated, width, height);
-        }, width, height);
+          drawGrayscaleArray(canvas, debugInfo.dilated, scaledDims.width, scaledDims.height);
+        }, scaledDims.width, scaledDims.height);
       }
       if (debugInfo.contours) {
         addDebugStep(stepsGridRewrite, 'Rewrite: Contours', (canvas) => {
           // Draw contours on the *dilated* edges background for better context
           const background = debugInfo.dilated || debugInfo.edges; 
-          drawRewriteContours(canvas, debugInfo.contours, width, height, background);
-        }, width, height);
+          drawRewriteContours(canvas, debugInfo.contours, scaledDims.width, scaledDims.height, background);
+        }, scaledDims.width, scaledDims.height);
       }
       // Add final result step
       addDebugStep(stepsGridRewrite, 'Rewrite: Final Result', (canvas) => {
         const resultCanvas = canvasContainerRewrite.querySelector('canvas');
         if (resultCanvas) {
           const ctx = canvas.getContext('2d');
-          ctx.drawImage(resultCanvas, 0, 0, width, height);
+          ctx.drawImage(resultCanvas, 0, 0, origWidth, origHeight);
         }
-      }, width, height);
+      }, origWidth, origHeight);
     }
     
     function drawGrayscaleArray(canvas, dataArray, width, height) {

@@ -4,13 +4,13 @@
  * MIT License
  */
 
+
 import { detectDocumentContour } from './contourDetection.js';
-import { findCornerPoints } from './cornerDetection.js'; 
-import { createDebugLayer } from './debug.js';
+import { findCornerPoints } from './cornerDetection.js';
 import { cannyEdgeDetector } from './edgeDetection.js';
 
-// Export live scanner functionality
-export { LiveScanner, checkWebcamAvailability } from './liveScanner.js';
+// Only import LiveScanner and checkWebcamAvailability for export, do not use them internally here
+import { LiveScanner, checkWebcamAvailability } from './liveScanner.js';
 
 
 // Helper function to calculate smart adaptive downscale factor
@@ -61,22 +61,6 @@ function calculateAdaptiveDownscale(imageData, maxDimension = 800) {
     scaledDimensions: { width: scaledWidth, height: scaledHeight }
   };
 }
-
-// Exported: Extracts (warps/crops) the document from the image using detected corners.
-export const extractDocument = function(image, corners) {
-  // Create a canvas for the output
-  const width = image.width || image.naturalWidth;
-  const height = image.height || image.naturalHeight;
-  const canvas = document.createElement('canvas');
-  canvas.width = width;
-  canvas.height = height;
-  const ctx = canvas.getContext('2d');
-  // Draw the image to the canvas
-  ctx.drawImage(image, 0, 0, width, height);
-  // Unwarp the image using the corners
-  unwarpImage(ctx, image, corners);
-  return canvas;
-};
 
 // Main API function to detect document in image
 export async function detectDocument(imageData, options = {}) {
@@ -155,11 +139,7 @@ export async function detectDocument(imageData, options = {}) {
   };
 }
 
-  /**
-   * Computes a 3x3 perspective transform matrix that maps srcPoints to dstPoints.
-   * srcPoints and dstPoints are arrays of 4 [x, y] pairs.
-   * Returns a 3x3 matrix as an array of arrays.
-   */
+// --- Perspective transform helpers (internal use only) ---
 function getPerspectiveTransform(srcPoints, dstPoints) {
   // Helper to build the system of equations
   function buildMatrix(points) {
@@ -328,136 +308,91 @@ function warpTransform(ctx, image, matrix, outWidth, outHeight) {
   ctx.putImageData(out, 0, 0);
 }
 
-// Function to highlight document in an image element or canvas
-export async function highlightDocument(image, options = {}) {
-  const canvas = document.createElement('canvas');
-  const ctx = canvas.getContext('2d');
-  
-  // Set canvas size to match input image
-  canvas.width = image.width || image.naturalWidth;
-  canvas.height = image.height || image.naturalHeight;
-  console.log(`Canvas size: ${canvas.width}x${canvas.height}`);
-  
-  
-  // Draw original image
-  ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
-  
-  // Get image data for processing
-  const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-  
+
+/**
+ * Main entry point for document scanning.
+ * @param {HTMLImageElement|HTMLCanvasElement|ImageData} image
+ * @param {Object} options
+ *   - mode: 'highlight' | 'extract' (default: 'highlight')
+ *   - output: 'canvas' | 'imagedata' | 'dataurl' (default: 'canvas')
+ *   - debug: boolean
+ *   - ...other detection options
+ * @returns {Promise<{output, corners, contour, debug, success, message}>}
+ */
+export async function scanDocument(image, options = {}) {
+  const mode = options.mode || 'highlight';
+  const outputType = options.output || 'canvas';
+  const debug = !!options.debug;
+
+  // Prepare input image data
+  let imageData, width, height;
+  if (image instanceof ImageData) {
+    imageData = image;
+    width = image.width;
+    height = image.height;
+  } else {
+    // HTMLImageElement or HTMLCanvasElement
+    const tempCanvas = document.createElement('canvas');
+    tempCanvas.width = image.width || image.naturalWidth;
+    tempCanvas.height = image.height || image.naturalHeight;
+    const tempCtx = tempCanvas.getContext('2d');
+    tempCtx.drawImage(image, 0, 0, tempCanvas.width, tempCanvas.height);
+    imageData = tempCtx.getImageData(0, 0, tempCanvas.width, tempCanvas.height);
+    width = tempCanvas.width;
+    height = tempCanvas.height;
+  }
+
   // Detect document
-  const result = await detectDocument(imageData, options);
-  
-  if (result.success && result.corners) {
-    // Draw the sleek document outline
-    drawSleekDocumentOutline(ctx, result.corners, canvas.width, canvas.height, {
-      cornerRadius: options.cornerRadius || 15,
-      cornerLineLength: options.cornerLineLength || 25,
-      cornerLineWidth: options.cornerLineWidth || 4,
-      borderWidth: options.borderWidth || 2,
-      cornerColor: options.cornerColor || '#FFFFFF',
-      borderColor: options.borderColor || '#4A90E2',
-      darkenOpacity: options.darkenOpacity || 0.4
-    });
-    unwarpImage(ctx, image, result.corners);
-  }
-  
-  // Add the debug info to the canvas object itself for later use if needed
-  if (options.debug) {
-    canvas.debugInfo = result.debug;
+  const detection = await detectDocument(imageData, options);
+  if (!detection.success) {
+    return {
+      output: null,
+      corners: null,
+      contour: null,
+      debug: detection.debug,
+      success: false,
+      message: detection.message || 'No document detected'
+    };
   }
 
-  return canvas;
+  let resultCanvas;
+  if (mode === 'extract') {
+    // Return only the cropped/warped document
+    resultCanvas = document.createElement('canvas');
+    const ctx = resultCanvas.getContext('2d');
+    unwarpImage(ctx, image, detection.corners);
+  } else {
+    // Default: highlight mode (draw outline and warp)
+    resultCanvas = document.createElement('canvas');
+    resultCanvas.width = width;
+    resultCanvas.height = height;
+    const ctx = resultCanvas.getContext('2d');
+    ctx.drawImage(image, 0, 0, width, height);
+    // Optionally, draw outline here if you want
+    // drawSleekDocumentOutline(ctx, detection.corners, width, height, ...);
+  }
+
+  // Prepare output in requested format
+  let output;
+  if (outputType === 'canvas') {
+    output = resultCanvas;
+  } else if (outputType === 'imagedata') {
+    output = resultCanvas.getContext('2d').getImageData(0, 0, resultCanvas.width, resultCanvas.height);
+  } else if (outputType === 'dataurl') {
+    output = resultCanvas.toDataURL();
+  } else {
+    output = resultCanvas;
+  }
+
+  return {
+    output,
+    corners: detection.corners,
+    contour: detection.contour,
+    debug: detection.debug,
+    success: true,
+    message: 'Document detected'
+  };
 }
 
-// Function to draw sleek document outline with rounded corners and effects
-function drawSleekDocumentOutline(ctx, corners, canvasWidth, canvasHeight, options = {}) {
-  const { topLeft, topRight, bottomRight, bottomLeft } = corners;
-  
-  // Configuration
-  const cornerRadius = options.cornerRadius || 15;
-  const cornerLineLength = options.cornerLineLength || 25;
-  const cornerLineWidth = options.cornerLineWidth || 4;
-  const borderWidth = options.borderWidth || 2;
-  const cornerColor = options.cornerColor || '#FFFFFF';
-  const borderColor = options.borderColor || '#4A90E2';
-  const darkenOpacity = options.darkenOpacity || 0.4;
-  
-  // Save current context state
-  ctx.save();
-  
-  // Step 1: Darken areas outside the document
-  // Create a path for the entire canvas
-  ctx.beginPath();
-  ctx.rect(0, 0, canvasWidth, canvasHeight);
-  
-  // Create a path for the document (as a hole)
-  ctx.moveTo(topLeft.x, topLeft.y);
-  ctx.lineTo(topRight.x, topRight.y);
-  ctx.lineTo(bottomRight.x, bottomRight.y);
-  ctx.lineTo(bottomLeft.x, bottomLeft.y);
-  ctx.closePath();
-  
-  // Use even-odd fill rule to create a "hole" in the rectangle
-  ctx.fillStyle = `rgba(0, 0, 0, ${darkenOpacity})`;
-  ctx.fill('evenodd');
-  
-  // Step 2: Draw the main blue border around the document
-  ctx.beginPath();
-  ctx.moveTo(topLeft.x, topLeft.y);
-  ctx.lineTo(topRight.x, topRight.y);
-  ctx.lineTo(bottomRight.x, bottomRight.y);
-  ctx.lineTo(bottomLeft.x, bottomLeft.y);
-  ctx.closePath();
-  ctx.strokeStyle = borderColor;
-  ctx.lineWidth = borderWidth;
-  ctx.stroke();
-  
-  // Step 3: Draw white rounded corners with extending lines
-  ctx.strokeStyle = cornerColor;
-  ctx.lineWidth = cornerLineWidth;
-  ctx.lineCap = 'round';
-  ctx.lineJoin = 'round';
-  
-  // Make corners more rounded by increasing the miter limit
-  ctx.miterLimit = 10;
-  
-  // Helper function to draw L-shaped corner with rounded line caps
-  function drawCorner(cornerPoint, adjacentPoint1, adjacentPoint2) {
-    const x = cornerPoint.x;
-    const y = cornerPoint.y;
-    
-    // Calculate normalized direction vectors to adjacent points
-    const dx1 = adjacentPoint1.x - x;
-    const dy1 = adjacentPoint1.y - y;
-    const len1 = Math.sqrt(dx1 * dx1 + dy1 * dy1);
-    const dir1 = { x: dx1 / len1, y: dy1 / len1 };
-    
-    const dx2 = adjacentPoint2.x - x;
-    const dy2 = adjacentPoint2.y - y;
-    const len2 = Math.sqrt(dx2 * dx2 + dy2 * dy2);
-    const dir2 = { x: dx2 / len2, y: dy2 / len2 };
-    
-    // Calculate line endpoints pointing towards adjacent corners
-    const line1EndX = x + dir1.x * cornerLineLength;
-    const line1EndY = y + dir1.y * cornerLineLength;
-    const line2EndX = x + dir2.x * cornerLineLength;
-    const line2EndY = y + dir2.y * cornerLineLength;
-    
-    // Draw L-shaped corner as one continuous path with rounded joins
-    ctx.beginPath();
-    ctx.moveTo(line1EndX, line1EndY);
-    ctx.lineTo(x, y);
-    ctx.lineTo(line2EndX, line2EndY);
-    ctx.stroke();
-  }
-  
-  // Draw corners pointing towards their adjacent corner points
-  drawCorner(topLeft, topRight, bottomLeft);
-  drawCorner(topRight, topLeft, bottomRight);
-  drawCorner(bottomRight, topRight, bottomLeft);
-  drawCorner(bottomLeft, topLeft, bottomRight);
-  
-  // Restore context state
-  ctx.restore();
-}
+// Export only the main API and live scanner utilities
+export { LiveScanner, checkWebcamAvailability };

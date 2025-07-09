@@ -3,7 +3,7 @@
  * Provides efficient real-time document detection with frame rate optimization
  */
 
-import { detectDocument, highlightDocument } from './index.js';
+import { detectDocument } from './index.js';
 
 export class LiveScanner {
   constructor(options = {}) {

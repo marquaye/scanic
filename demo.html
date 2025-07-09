@@ -624,7 +624,7 @@
         return;
       }
       if (!rewriteApi) {
-        console.log('Rewrite library module not loaded yet.');
+        console.log('Scanic library module not loaded yet.');
         return;
       }
 
@@ -635,13 +635,15 @@
         epsilon: 0.02,
         dilationKernelSize: 5,
         debug: false,
+        mode: 'highlight',
+        output: 'canvas',
       };
 
-      // --- Process with Rewrite ---
+      // --- Process with Scanic unified API ---
       try {
-        const resultCanvasRewrite = await rewriteApi.highlightDocument(currentImage, options);
-        canvasContainerRewrite.innerHTML = ''; // Clear previous canvas
-        canvasContainerRewrite.appendChild(resultCanvasRewrite);
+        const result = await rewriteApi.scanDocument(currentImage, options);
+        canvasContainerRewrite.innerHTML = '';
+        if (result.output) canvasContainerRewrite.appendChild(result.output);
       } catch (error) {
         console.error('Error processing rewrite:', error);
       }

@@ -3,6 +3,7 @@
 
 # But keep these for npm package
 !dist/
+!wasm_blur/pkg/
 !README.md
 !LICENSE
 !package.json

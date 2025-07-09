@@ -49,18 +49,19 @@ Or use via CDN:
 ## Usage
 
 ```js
-import { detectDocument, extractDocument, highlightDocument } from 'scanic';
+import { detectDocument, scanDocument, LiveScanner, checkWebcamAvailability } from 'scanic';
 
 // 1. Detect the document in an image (HTMLImageElement, Canvas, or ImageData)
 const result = await detectDocument(imageElement);
 
 if (result.success && result.corners) {
   // 2. Extract (warp/crop) the document from the image
-  const scannedCanvas = extractDocument(imageElement, result.corners);
-  // Do something with the scannedCanvas (e.g., display or save)
+  const extractedResult = await scanDocument(imageElement, { mode: 'extract' });
+  document.body.appendChild(extractedResult.output);
   
-  // 3. Optionally, highlight the detected document outline
-  const highlightedCanvas = await highlightDocument(imageElement, { corners: result.corners });
+  // 3. Or highlight the detected document outline
+  const highlightedResult = await scanDocument(imageElement, { mode: 'highlight' });
+  document.body.appendChild(highlightedResult.output);
 }
 ```
 
@@ -69,37 +70,66 @@ if (result.success && result.corners) {
 
 ### Core Functions
 
-#### `detectDocument(image, options?)`
-Detects documents in images and returns corner coordinates.
+#### `detectDocument(imageData, options?)`
+Detects documents in images and returns corner coordinates and contour information.
 
 **Parameters:**
-- `image`: HTMLImageElement, Canvas, or ImageData
+- `imageData`: ImageData object (use canvas.getImageData() for HTMLImageElement/Canvas)
 - `options`: Optional configuration object
-  - `downscaleFactor`: Number (default: 2) - Scale factor for processing speed
-  - `blurRadius`: Number (default: 5) - Gaussian blur radius for noise reduction
-  - `cannyLow`: Number (default: 50) - Lower threshold for Canny edge detection
-  - `cannyHigh`: Number (default: 150) - Upper threshold for Canny edge detection
+  - `maxProcessingDimension`: Number (default: 800) - Maximum dimension for processing (adaptive downscaling)
+  - `lowThreshold`: Number (default: 75) - Lower threshold for Canny edge detection
+  - `highThreshold`: Number (default: 200) - Upper threshold for Canny edge detection
+  - `dilationKernelSize`: Number (default: 3) - Kernel size for dilation
+  - `dilationIterations`: Number (default: 1) - Number of dilation iterations
+  - `minArea`: Number (default: 1000) - Minimum contour area for document detection
+  - `epsilon`: Number - Epsilon for polygon approximation
+  - `debug`: Boolean (default: false) - Enable debug information
 
-**Returns:** `Promise<{ success: boolean, corners?: Array, contour?: Array, debug?: Object }>`
+**Returns:** `Promise<{ success: boolean, corners?: Object, contour?: Array, debug?: Object, message?: string }>`
 
-#### `extractDocument(image, corners)`
-Warps and crops the image using detected corners, returning a canvas with the extracted document.
+The `corners` object contains: `{ topLeft, topRight, bottomRight, bottomLeft }` with `{x, y}` coordinates.
 
-**Parameters:**
-- `image`: HTMLImageElement, Canvas, or ImageData
-- `corners`: Array of four corner points `[{x, y}, {x, y}, {x, y}, {x, y}]`
-
-**Returns:** `HTMLCanvasElement`
-
-#### `highlightDocument(image, options?)`
-Creates a visual highlight of the detected document outline.
+#### `scanDocument(image, options?)`
+Main entry point for document scanning with flexible output options.
 
 **Parameters:**
-- `image`: HTMLImageElement, Canvas, or ImageData  
+- `image`: HTMLImageElement, HTMLCanvasElement, or ImageData
 - `options`: Optional configuration object
-  - `corners`: Array of corner points (if not provided, will auto-detect)
+  - `mode`: String - 'highlight' (default) or 'extract'
+  - `output`: String - 'canvas' (default), 'imagedata', or 'dataurl'
+  - `debug`: Boolean (default: false) - Enable debug information
+  - All `detectDocument` options are also supported
 
-**Returns:** `Promise<HTMLCanvasElement>`
+**Returns:** `Promise<{ output, corners, contour, debug, success, message }>`
+
+### Live Scanner
+
+#### `LiveScanner`
+Real-time document scanner for webcam integration.
+
+**Constructor Options:**
+- `targetFPS`: Number (default: 10) - Target frames per second
+- `detectionInterval`: Number (default: 150) - Milliseconds between detections
+- `confidenceThreshold`: Number (default: 0.7) - Confidence threshold for detections
+- `stabilizationFrames`: Number (default: 3) - Frames needed for stable detection
+- `maxProcessingDimension`: Number (default: 500) - Max dimension for live processing
+
+**Methods:**
+- `init(outputElement, constraints)` - Initialize webcam and start scanning
+- `stop()` - Stop scanning and release resources
+- `pause()` - Pause scanning
+- `resume()` - Resume scanning
+- `capture()` - Capture current frame
+
+**Events:**
+- `onDetection(result)` - Called when document is detected
+- `onFPSUpdate(fps)` - Called with current FPS
+- `onError(error)` - Called on errors
+
+#### `checkWebcamAvailability()`
+Checks if webcam is available and lists video devices.
+
+**Returns:** `Promise<{ available: boolean, deviceCount?: number, devices?: Array, error?: string }>`
 
 All functions work in both browser and Node.js environments. For Node.js, use a compatible canvas/image implementation like `canvas` or `node-canvas`.
 
@@ -108,15 +138,23 @@ All functions work in both browser and Node.js environments. For Node.js, use a 
 ### Basic Document Scanning
 
 ```js
-import { detectDocument, extractDocument } from 'scanic';
+import { detectDocument, scanDocument } from 'scanic';
 
-async function scanDocument(imageElement) {
+async function processDocument(imageElement) {
   try {
-    const detection = await detectDocument(imageElement);
+    // Convert image to ImageData
+    const canvas = document.createElement('canvas');
+    canvas.width = imageElement.width || imageElement.naturalWidth;
+    canvas.height = imageElement.height || imageElement.naturalHeight;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(imageElement, 0, 0);
+    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    
+    const detection = await detectDocument(imageData);
     
     if (detection.success) {
-      const scannedDocument = extractDocument(imageElement, detection.corners);
-      document.body.appendChild(scannedDocument);
+      const result = await scanDocument(imageElement, { mode: 'extract' });
+      document.body.appendChild(result.output);
     } else {
       console.log('No document detected in the image');
     }
@@ -130,26 +168,75 @@ async function scanDocument(imageElement) {
 
 ```js
 const options = {
-  downscaleFactor: 1.5,  // Higher quality, slower processing
-  blurRadius: 3,         // Less noise reduction
-  cannyLow: 30,          // More sensitive edge detection
-  cannyHigh: 120
+  maxProcessingDimension: 1000,  // Higher quality, slower processing
+  lowThreshold: 50,              // More sensitive edge detection
+  highThreshold: 150,
+  dilationKernelSize: 5,         // Larger dilation kernel
+  minArea: 2000,                 // Larger minimum document area
+  debug: true                    // Enable debug information
 };
 
-const result = await detectDocument(imageElement, options);
+const result = await detectDocument(imageData, options);
 ```
 
-### Document Highlighting
+### Document Highlighting vs Extraction
 
 ```js
-// Highlight detected document outline
-const highlightedImage = await highlightDocument(imageElement);
-document.body.appendChild(highlightedImage);
-
-// Or highlight specific corners
-const customHighlight = await highlightDocument(imageElement, {
-  corners: [{x: 10, y: 10}, {x: 200, y: 10}, {x: 200, y: 300}, {x: 10, y: 300}]
+// Extract the document (cropped and warped)
+const extractedResult = await scanDocument(imageElement, { 
+  mode: 'extract',
+  output: 'canvas' 
 });
+
+// Highlight the document outline on original image
+const highlightedResult = await scanDocument(imageElement, { 
+  mode: 'highlight',
+  output: 'dataurl' 
+});
+
+// Get raw ImageData output
+const rawResult = await scanDocument(imageElement, { 
+  mode: 'extract',
+  output: 'imagedata' 
+});
+```
+
+### Live Scanner Usage
+
+```js
+import { LiveScanner, checkWebcamAvailability } from 'scanic';
+
+// Check if webcam is available
+const webcamStatus = await checkWebcamAvailability();
+if (!webcamStatus.available) {
+  console.error('No webcam available');
+  return;
+}
+
+// Create live scanner
+const liveScanner = new LiveScanner({
+  targetFPS: 15,
+  detectionInterval: 100,
+  maxProcessingDimension: 600
+});
+
+// Set up event handlers
+liveScanner.onDetection = (result) => {
+  if (result.success) {
+    console.log('Document detected:', result.corners);
+  }
+};
+
+liveScanner.onFPSUpdate = (fps) => {
+  console.log('Current FPS:', fps);
+};
+
+// Start scanning
+const outputCanvas = document.getElementById('scanner-output');
+await liveScanner.init(outputCanvas);
+
+// Stop scanning when done
+// liveScanner.stop();
 ```
 
 ## Development
