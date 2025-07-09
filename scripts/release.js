@@ -5,9 +5,9 @@
  * Usage: npm run release [patch|minor|major]
  */
 
-const { execSync } = require('child_process');
-const fs = require('fs');
-const path = require('path');
+import { execSync } from 'child_process';
+import fs from 'fs';
+import path from 'path';
 
 const releaseType = process.argv[2] || 'patch';
 
