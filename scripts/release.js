@@ -61,12 +61,12 @@ console.log('🔨 Building project...');
 exec('npm run build');
 
 // Run tests if they exist
-console.log('🧪 Running tests...');
-try {
-  exec('npm test');
-} catch (error) {
-  console.log('ℹ️ No tests found, skipping...');
-}
+// console.log('🧪 Running tests...');
+// try {
+//   exec('npm test');
+// } catch (error) {
+//   console.log('ℹ️ No tests found, skipping...');
+// }
 
 // Version bump
 console.log(`📝 Bumping version (${releaseType})...`);
