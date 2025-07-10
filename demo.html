@@ -203,14 +203,13 @@
   
   <script>
     // Global flag and scanner instances
-    let cvReady = false;
-    let rewriteApi = null; // Will be populated by the module script
+    let scanicApi = null; // Will be populated by the module script
     let liveScanner = null; // Live scanner instance
     let currentImage = null;
 
     // Initialize Scanic demo after module loads
     window.initializeScanicDemo = function() {
-      rewriteApi = window.scanic;
+      scanicApi = window.scanic;
       console.log("Scanic library initialized successfully.");
       
       // Check webcam support after API is loaded
@@ -239,14 +238,14 @@
 
     // --- Live Scanner Functions ---
     async function initLiveScanner() {
-      if (!rewriteApi || !rewriteApi.LiveScanner) {
+      if (!scanicApi || !scanicApi.LiveScanner) {
         alert('Live scanner not available. Please ensure the module is loaded.');
         return;
       }
       
       try {
         // Create live scanner instance
-        liveScanner = new rewriteApi.LiveScanner({
+        liveScanner = new scanicApi.LiveScanner({
           targetFPS: 15,
           detectionInterval: 100, // Check every 200ms
           stabilizationFrames: 3,
@@ -505,12 +504,12 @@
     
     // Check webcam availability on load
     async function checkWebcamSupport() {
-      if (!rewriteApi || !rewriteApi.checkWebcamAvailability) {
+      if (!scanicApi || !scanicApi.checkWebcamAvailability) {
         console.log('Webcam check not available yet');
         return;
       }
       
-      const result = await rewriteApi.checkWebcamAvailability();
+      const result = await scanicApi.checkWebcamAvailability();
       if (!result.available) {
         updateLiveStatus('No webcam available', 'inactive');
         startLiveButton.disabled = true;
@@ -570,25 +569,16 @@
         const img = new Image();
         img.onload = function() {
           currentImage = img;
-          // Ensure OpenCV is ready before drawing/processing
-          if (cvReady) {
              resizeCanvas();
              drawImage();
              processImage();
-          } else {
-             // Draw placeholder or wait message if OpenCV isn't ready
-             console.log("Waiting for OpenCV to load...");
-             const ctxRewrite = previewCanvasRewrite.getContext('2d');
-             ctxRewrite.clearRect(0, 0, previewCanvasRewrite.width, previewCanvasRewrite.height);
-             ctxRewrite.fillText("Loading OpenCV...", 10, 20);
-          }
         };
         img.onerror = () => alert("Failed to load image");
         img.src = src;
     }
 
     function drawImage() {
-      if (!currentImage || !cvReady) return;
+      if (!currentImage) return;
       // Draw on preview canvas
       const ctxRewrite = previewCanvasRewrite.getContext('2d');
       ctxRewrite.clearRect(0, 0, previewCanvasRewrite.width, previewCanvasRewrite.height);
@@ -610,11 +600,7 @@
       if (!currentImage) {
         return;
       }
-      if (!cvReady) {
-        console.log('OpenCV is not ready yet. Please wait.');
-        return;
-      }
-      if (!rewriteApi) {
+      if (!scanicApi) {
         console.log('Scanic library module not loaded yet.');
         return;
       }
@@ -632,7 +618,7 @@
 
       // --- Process with Scanic unified API ---
       try {
-        const result = await rewriteApi.scanDocument(currentImage, options);
+        const result = await scanicApi.scanDocument(currentImage, options);
         
         // Clear and redraw the original image
         const ctx = previewCanvasRewrite.getContext('2d');
@@ -736,7 +722,6 @@
     // --- Initialization ---
     loadSampleImages();
     updateLiveStatus('Initializing...', 'inactive');
-    console.log('Demo UI Initialized. Waiting for OpenCV...');
 
   </script>
 </body>
