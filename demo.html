@@ -664,7 +664,7 @@
       ctx.closePath();
       ctx.fill();
       
-      // 2. Draw modern corner brackets instead of full border
+      // 2. Draw modern L-shaped corner brackets pointing toward adjacent corners
       const cornerSize = 25;
       const cornerThickness = 4;
       const cornerColor = '#0096FF';
@@ -676,36 +676,39 @@
       ctx.shadowColor = 'rgba(0, 150, 255, 0.6)';
       ctx.shadowBlur = 8;
       
-      // Draw corner brackets for each corner
-      Object.entries(scaledCorners).forEach(([cornerName, [x, y]]) => {
-        ctx.beginPath();
+      // Helper function to calculate direction vector and normalize it
+      function getDirection(from, to) {
+        const dx = to[0] - from[0];
+        const dy = to[1] - from[1];
+        const length = Math.sqrt(dx * dx + dy * dy);
+        return [dx / length, dy / length];
+      }
+      
+      // Draw L-shaped corner brackets for each corner
+      const cornerPoints = [
+        { name: 'topLeft', pos: scaledCorners.topLeft, neighbors: [scaledCorners.topRight, scaledCorners.bottomLeft] },
+        { name: 'topRight', pos: scaledCorners.topRight, neighbors: [scaledCorners.topLeft, scaledCorners.bottomRight] },
+        { name: 'bottomRight', pos: scaledCorners.bottomRight, neighbors: [scaledCorners.topRight, scaledCorners.bottomLeft] },
+        { name: 'bottomLeft', pos: scaledCorners.bottomLeft, neighbors: [scaledCorners.topLeft, scaledCorners.bottomRight] }
+      ];
+      
+      cornerPoints.forEach(corner => {
+        const [x, y] = corner.pos;
+        const [neighbor1, neighbor2] = corner.neighbors;
         
-        switch(cornerName) {
-          case 'topLeft':
-            // Top-left corner bracket
-            ctx.moveTo(x + cornerSize, y);
-            ctx.lineTo(x, y);
-            ctx.lineTo(x, y + cornerSize);
-            break;
-          case 'topRight':
-            // Top-right corner bracket
-            ctx.moveTo(x - cornerSize, y);
-            ctx.lineTo(x, y);
-            ctx.lineTo(x, y + cornerSize);
-            break;
-          case 'bottomRight':
-            // Bottom-right corner bracket
-            ctx.moveTo(x, y - cornerSize);
-            ctx.lineTo(x, y);
-            ctx.lineTo(x - cornerSize, y);
-            break;
-          case 'bottomLeft':
-            // Bottom-left corner bracket
-            ctx.moveTo(x + cornerSize, y);
-            ctx.lineTo(x, y);
-            ctx.lineTo(x, y - cornerSize);
-            break;
-        }
+        // Get direction vectors to neighboring corners
+        const dir1 = getDirection(corner.pos, neighbor1);
+        const dir2 = getDirection(corner.pos, neighbor2);
+        
+        // Calculate end points for the L-shaped bracket
+        const end1 = [x + dir1[0] * cornerSize, y + dir1[1] * cornerSize];
+        const end2 = [x + dir2[0] * cornerSize, y + dir2[1] * cornerSize];
+        
+        // Draw L-shaped bracket
+        ctx.beginPath();
+        ctx.moveTo(end1[0], end1[1]);
+        ctx.lineTo(x, y);
+        ctx.lineTo(end2[0], end2[1]);
         ctx.stroke();
       });
       
@@ -723,31 +726,26 @@
       ctx.closePath();
       ctx.stroke();
       
-      // 4. Draw modern corner dots with gradient
+      // 4. Draw sleek corner indicators (small rounded squares instead of circles)
       ctx.setLineDash([]); // Reset line dash
-      const dotRadius = 6;
+      const cornerIndicatorSize = 3;
       
       Object.values(scaledCorners).forEach(([x, y]) => {
-        // Create radial gradient for dots
-        const gradient = ctx.createRadialGradient(x, y, 0, x, y, dotRadius);
-        gradient.addColorStop(0, '#FFFFFF');
-        gradient.addColorStop(0.3, '#0096FF');
-        gradient.addColorStop(1, '#0066CC');
-        
-        ctx.fillStyle = gradient;
+        ctx.fillStyle = '#FFFFFF';
         ctx.shadowColor = 'rgba(0, 150, 255, 0.8)';
-        ctx.shadowBlur = 6;
+        ctx.shadowBlur = 4;
         
+        // Draw small rounded square
         ctx.beginPath();
-        ctx.arc(x, y, dotRadius, 0, 2 * Math.PI);
+        ctx.roundRect(x - cornerIndicatorSize, y - cornerIndicatorSize, 
+                     cornerIndicatorSize * 2, cornerIndicatorSize * 2, 2);
         ctx.fill();
         
-        // Add white inner dot for modern look
+        // Add blue border
         ctx.shadowBlur = 0;
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
-        ctx.beginPath();
-        ctx.arc(x, y, dotRadius * 0.4, 0, 2 * Math.PI);
-        ctx.fill();
+        ctx.strokeStyle = '#0096FF';
+        ctx.lineWidth = 1;
+        ctx.stroke();
       });
       
       // 5. Add scanning animation effect (optional pulsing)
