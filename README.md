@@ -27,7 +27,7 @@ This library is heavily inspired by [jscanify](https://github.com/puffinsoft/jsc
 - 🦀 **Rust WebAssembly**: Performance-critical operations optimized with Rust-compiled WASM
 - 🛠️ **Easy Integration**: Simple API for web apps, Electron, or Node.js applications
 - 🏷️ **MIT Licensed**: Free for personal and commercial use
-- 📦 **Lightweight**: Small bundle size (500kb) compared to OpenCV-based solutions (30 mb)
+- 📦 **Lightweight**: Small bundle size (< 100kb) compared to OpenCV-based solutions (+30 mb)
 
 ## Demo
 

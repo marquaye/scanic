@@ -22,57 +22,57 @@ const K = {
 ];
 function V(I, A = {}) {
   const g = A.width || Math.sqrt(I.length), C = A.height || I.length / g, E = A.mode !== void 0 ? A.mode : z, B = A.method !== void 0 ? A.method : x, Q = A.minArea || K.MIN_CONTOUR_AREA, i = g + 2, s = C + 2, t = new Int32Array(i * s);
-  for (let n = 0; n < C; n++)
+  for (let a = 0; a < C; a++)
     for (let D = 0; D < g; D++)
-      I[n * g + D] > 0 && (t[(n + 1) * i + (D + 1)] = 1);
-  const e = [];
-  let o = 2;
-  for (let n = 1; n <= C; n++)
+      I[a * g + D] > 0 && (t[(a + 1) * i + (D + 1)] = 1);
+  const o = [];
+  let n = 2;
+  for (let a = 1; a <= C; a++)
     for (let D = 1; D <= g; D++) {
-      const h = t[n * i + D], y = t[n * i + (D - 1)];
+      const h = t[a * i + D], y = t[a * i + (D - 1)];
       let c = null, r = !1, w = -1;
-      if (h === 1 && y === 0 ? (r = !0, c = { x: D, y: n }, w = 2) : h === 0 && y >= 1 && y !== -1 && y === 1 && (r = !1, c = { x: D - 1, y: n }, w = 6), c) {
+      if (h === 1 && y === 0 ? (r = !0, c = { x: D, y: a }, w = 2) : h === 0 && y >= 1 && y !== -1 && y === 1 && (r = !1, c = { x: D - 1, y: a }, w = 6), c) {
         if (E === O && !r) {
           t[c.y * i + c.x] = -1;
           continue;
         }
-        const F = o++, R = _(t, i, s, c, w, F);
+        const F = n++, R = _(t, i, s, c, w, F);
         if (R && R.length > 0) {
-          let S = R;
-          B === x && (S = $(R));
-          const d = S.map((G) => ({ x: G.x - 1, y: G.y - 1 }));
-          if (d.length >= (B === x ? 4 : K.MIN_CONTOUR_POINTS)) {
+          let d = R;
+          B === x && (d = $(R));
+          const S = d.map((G) => ({ x: G.x - 1, y: G.y - 1 }));
+          if (S.length >= (B === x ? 4 : K.MIN_CONTOUR_POINTS)) {
             const G = {
               id: F,
-              points: d,
+              points: S,
               isOuter: r
               // Calculate area and bounding box later if needed for filtering/sorting
             };
-            e.push(G);
+            o.push(G);
           }
         } else
           t[c.y * i + c.x] === 1 && (t[c.y * i + c.x] = F);
       }
     }
-  e.forEach((n) => {
-    n.area = AA(n.points), n.boundingBox = IA(n.points);
+  o.forEach((a) => {
+    a.area = AA(a.points), a.boundingBox = IA(a.points);
   });
-  const a = e.filter((n) => n.area >= Q);
-  return a.sort((n, D) => D.area - n.area), A.debug && (A.debug.labels = t, A.debug.rawContours = e, A.debug.finalContours = a), a;
+  const e = o.filter((a) => a.area >= Q);
+  return e.sort((a, D) => D.area - a.area), A.debug && (A.debug.labels = t, A.debug.rawContours = o, A.debug.finalContours = e), e;
 }
 function _(I, A, g, C, E, B) {
   const Q = [], i = /* @__PURE__ */ new Set();
   let s = { ...C }, t = -1;
   I[C.y * A + C.x] = B;
-  let e = 0;
-  const o = A * g;
-  for (; e++ < o; ) {
-    let a;
+  let o = 0;
+  const n = A * g;
+  for (; o++ < n; ) {
+    let e;
     if (t === -1) {
       let h = !1;
       for (let y = 0; y < 8; y++) {
-        a = (E + y) % 8;
-        const c = s.x + Y[a].dx, r = s.y + Y[a].dy;
+        e = (E + y) % 8;
+        const c = s.x + Y[e].dx, r = s.y + Y[e].dy;
         if (c >= 0 && c < A && r >= 0 && r < g && I[r * A + c] > 0) {
           h = !0;
           break;
@@ -80,34 +80,34 @@ function _(I, A, g, C, E, B) {
       }
       if (!h) return null;
     } else
-      a = (t + 2) % 8;
-    let n = null;
+      e = (t + 2) % 8;
+    let a = null;
     for (let h = 0; h < 8; h++) {
-      const y = (a + h) % 8, c = s.x + Y[y].dx, r = s.y + Y[y].dy;
+      const y = (e + h) % 8, c = s.x + Y[y].dx, r = s.y + Y[y].dy;
       if (c >= 0 && c < A && r >= 0 && r < g && I[r * A + c] > 0) {
-        n = { x: c, y: r }, t = (y + 4) % 8;
+        a = { x: c, y: r }, t = (y + 4) % 8;
         break;
       }
     }
-    if (!n) {
+    if (!a) {
       Q.length === 0 && Q.push({ ...s }), console.warn(`Contour tracing stopped unexpectedly at (${s.x - 1}, ${s.y - 1}) for contour ${B}`);
       break;
     }
     const D = `${s.x},${s.y}`;
     if (i.has(D))
       return Q;
-    if (Q.push({ ...s }), i.add(D), I[n.y * A + n.x] === 1 && (I[n.y * A + n.x] = B), s = n, s.x === C.x && s.y === C.y)
+    if (Q.push({ ...s }), i.add(D), I[a.y * A + a.x] === 1 && (I[a.y * A + a.x] = B), s = a, s.x === C.x && s.y === C.y)
       break;
   }
-  return e >= o ? (console.warn(`Contour tracing exceeded max steps for contour ${B}`), null) : Q;
+  return o >= n ? (console.warn(`Contour tracing exceeded max steps for contour ${B}`), null) : Q;
 }
 function $(I) {
   if (I.length <= 2)
     return I;
   const A = [], g = I.length;
   for (let C = 0; C < g; C++) {
-    const E = I[(C + g - 1) % g], B = I[C], Q = I[(C + 1) % g], i = B.x - E.x, s = B.y - E.y, t = Q.x - B.x, e = Q.y - B.y;
-    i * e !== s * t && A.push(B);
+    const E = I[(C + g - 1) % g], B = I[C], Q = I[(C + 1) % g], i = B.x - E.x, s = B.y - E.y, t = Q.x - B.x, o = Q.y - B.y;
+    i * o !== s * t && A.push(B);
   }
   if (A.length === 0 && g > 0) {
     if (g === 1) return [I[0]];
@@ -166,8 +166,8 @@ function gA(I, A, g) {
   const Q = ((I.x - A.x) * C + (I.y - A.y) * E) / B;
   let i, s;
   Q < 0 ? (i = A.x, s = A.y) : Q > 1 ? (i = g.x, s = g.y) : (i = A.x + Q * C, s = A.y + Q * E);
-  const t = I.x - i, e = I.y - s;
-  return Math.sqrt(t * t + e * e);
+  const t = I.x - i, o = I.y - s;
+  return Math.sqrt(t * t + o * o);
 }
 function BA(I, A = 0.02) {
   const g = QA(I), C = A * g;
@@ -203,8 +203,8 @@ function iA(I) {
   if (!I || I.length === 0) return null;
   let A = I[0], g = I[0], C = I[0], E = I[0], B = A.x + A.y, Q = g.x - g.y, i = C.x + C.y, s = E.x - E.y;
   for (let t = 1; t < I.length; t++) {
-    const e = I[t], o = e.x + e.y, a = e.x - e.y;
-    o < B && (B = o, A = e), o > i && (i = o, C = e), a > Q && (Q = a, g = e), a < s && (s = a, E = e);
+    const o = I[t], n = o.x + o.y, e = o.x - o.y;
+    n < B && (B = n, A = o), n > i && (i = n, C = o), e > Q && (Q = e, g = o), e < s && (s = e, E = o);
   }
   return {
     topLeft: A,
@@ -259,12 +259,12 @@ let L = null;
 function Z() {
   return (L === null || L.byteLength === 0) && (L = new Float32Array(N.memory.buffer)), L;
 }
-function eA(I, A) {
+function oA(I, A) {
   const g = A(I.length * 4, 4) >>> 0;
   return Z().set(I, g / 4), k = I.length, g;
 }
-function oA(I, A, g, C, E) {
-  const B = eA(I, N.__wbindgen_malloc), Q = k, i = N.hysteresis_thresholding(B, Q, A, g, C, E);
+function eA(I, A, g, C, E) {
+  const B = oA(I, N.__wbindgen_malloc), Q = k, i = N.hysteresis_thresholding(B, Q, A, g, C, E);
   var s = b(i[0], i[1]).slice();
   return N.__wbindgen_free(i[0], i[1] * 1, 1), s;
 }
@@ -286,8 +286,8 @@ function DA(I, A) {
 }
 function cA(I, A, g, C, E) {
   const B = p(I, N.__wbindgen_malloc), Q = k, i = p(A, N.__wbindgen_malloc), s = k, t = N.non_maximum_suppression(B, Q, i, s, g, C, E);
-  var e = DA(t[0], t[1]).slice();
-  return N.__wbindgen_free(t[0], t[1] * 4, 4), e;
+  var o = DA(t[0], t[1]).slice();
+  return N.__wbindgen_free(t[0], t[1] * 4, 4), o;
 }
 async function hA(I, A) {
   if (typeof Response == "function" && I instanceof Response) {
@@ -336,24 +336,24 @@ function NA(I, A, g, C = 5, E = 0) {
   E === 0 && (E = 0.3 * ((C - 1) * 0.5 - 1) + 0.8);
   const B = Math.floor(C / 2), Q = FA(C, E), i = new Uint8ClampedArray(A * g), s = new Uint8ClampedArray(A * g);
   for (let t = 0; t < g; t++) {
-    const e = t * A;
-    for (let o = 0; o < A; o++) {
-      let a = 0;
-      for (let n = -B; n <= B; n++) {
-        const D = Math.min(A - 1, Math.max(0, o + n));
-        a += I[e + D] * Q[B + n];
+    const o = t * A;
+    for (let n = 0; n < A; n++) {
+      let e = 0;
+      for (let a = -B; a <= B; a++) {
+        const D = Math.min(A - 1, Math.max(0, n + a));
+        e += I[o + D] * Q[B + a];
       }
-      i[e + o] = a;
+      i[o + n] = e;
     }
   }
   for (let t = 0; t < A; t++)
-    for (let e = 0; e < g; e++) {
-      let o = 0;
-      for (let a = -B; a <= B; a++) {
-        const n = Math.min(g - 1, Math.max(0, e + a));
-        o += i[n * A + t] * Q[B + a];
+    for (let o = 0; o < g; o++) {
+      let n = 0;
+      for (let e = -B; e <= B; e++) {
+        const a = Math.min(g - 1, Math.max(0, o + e));
+        n += i[a * A + t] * Q[B + e];
       }
-      s[e * A + t] = Math.round(o);
+      s[o * A + t] = Math.round(n);
     }
   return s;
 }
@@ -373,8 +373,8 @@ function RA(I, A, g) {
   for (let B = 1; B < g - 1; B++) {
     const Q = B * A, i = (B - 1) * A, s = (B + 1) * A;
     for (let t = 1; t < A - 1; t++) {
-      const e = Q + t, o = I[i + t - 1], a = I[i + t], n = I[i + t + 1], D = I[Q + t - 1], h = I[Q + t + 1], y = I[s + t - 1], c = I[s + t], r = I[s + t + 1], w = n - o + 2 * (h - D) + (r - y), F = y + 2 * c + r - (o + 2 * a + n);
-      C[e] = w, E[e] = F;
+      const o = Q + t, n = I[i + t - 1], e = I[i + t], a = I[i + t + 1], D = I[Q + t - 1], h = I[Q + t + 1], y = I[s + t - 1], c = I[s + t], r = I[s + t + 1], w = a - n + 2 * (h - D) + (r - y), F = y + 2 * c + r - (n + 2 * e + a);
+      C[o] = w, E[o] = F;
     }
   }
   return { dx: C, dy: E };
@@ -387,32 +387,32 @@ function lA(I, A, g, C, E) {
   }
   for (let i = 1; i < C - 1; i++)
     for (let s = 1; s < g - 1; s++) {
-      const t = i * g + s, e = B[t];
-      if (e === 0) {
+      const t = i * g + s, o = B[t];
+      if (o === 0) {
         Q[t] = 0;
         continue;
       }
-      const o = I[t], a = A[t];
-      let n = 0, D = 0;
-      const h = Math.abs(o), y = Math.abs(a);
+      const n = I[t], e = A[t];
+      let a = 0, D = 0;
+      const h = Math.abs(n), y = Math.abs(e);
       if (y > h * 2.4142)
-        n = B[t - g], D = B[t + g];
+        a = B[t - g], D = B[t + g];
       else if (h > y * 2.4142)
-        n = B[t - 1], D = B[t + 1];
+        a = B[t - 1], D = B[t + 1];
       else {
-        const c = (o ^ a) < 0 ? -1 : 1;
-        a > 0 ? (n = B[(i - 1) * g + (s - c)], D = B[(i + 1) * g + (s + c)]) : (n = B[(i + 1) * g + (s - c)], D = B[(i - 1) * g + (s + c)]), o > 0 && a > 0 || o < 0 && a < 0 ? (n = B[(i - 1) * g + (s + 1)], D = B[(i + 1) * g + (s - 1)]) : (n = B[(i - 1) * g + (s - 1)], D = B[(i + 1) * g + (s + 1)]);
+        const c = (n ^ e) < 0 ? -1 : 1;
+        e > 0 ? (a = B[(i - 1) * g + (s - c)], D = B[(i + 1) * g + (s + c)]) : (a = B[(i + 1) * g + (s - c)], D = B[(i - 1) * g + (s + c)]), n > 0 && e > 0 || n < 0 && e < 0 ? (a = B[(i - 1) * g + (s + 1)], D = B[(i + 1) * g + (s - 1)]) : (a = B[(i - 1) * g + (s - 1)], D = B[(i + 1) * g + (s + 1)]);
       }
-      e >= n && e >= D ? Q[t] = e : Q[t] = 0;
+      o >= a && o >= D ? Q[t] = o : Q[t] = 0;
     }
   return Q;
 }
 function v(I, A, g, C, E) {
   const B = new Uint8Array(A * g), Q = [];
   for (let t = 1; t < g - 1; t++)
-    for (let e = 1; e < A - 1; e++) {
-      const o = t * A + e, a = I[o];
-      a >= E ? (B[o] = 2, Q.push({ x: e, y: t })) : a >= C ? B[o] = 0 : B[o] = 1;
+    for (let o = 1; o < A - 1; o++) {
+      const n = t * A + o, e = I[n];
+      e >= E ? (B[n] = 2, Q.push({ x: o, y: t })) : e >= C ? B[n] = 0 : B[n] = 1;
     }
   for (let t = 0; t < A; t++)
     B[t] = 1, B[(g - 1) * A + t] = 1;
@@ -420,10 +420,10 @@ function v(I, A, g, C, E) {
     B[t * A] = 1, B[t * A + A - 1] = 1;
   const i = [-1, 0, 1, -1, 1, -1, 0, 1], s = [-1, -1, -1, 0, 0, 1, 1, 1];
   for (; Q.length > 0; ) {
-    const { x: t, y: e } = Q.pop();
-    for (let o = 0; o < 8; o++) {
-      const a = t + i[o], n = e + s[o], D = n * A + a;
-      B[D] === 0 && (B[D] = 2, Q.push({ x: a, y: n }));
+    const { x: t, y: o } = Q.pop();
+    for (let n = 0; n < 8; n++) {
+      const e = t + i[n], a = o + s[n], D = a * A + e;
+      B[D] === 0 && (B[D] = 2, Q.push({ x: e, y: a }));
     }
   }
   return B;
@@ -433,35 +433,35 @@ function GA(I, A, g, C = 5) {
   for (let i = 0; i < g; i++) {
     const s = i * A;
     for (let t = 0; t < A; t++) {
-      let e = 0;
-      for (let o = -E; o <= E; o++) {
-        const a = t + o;
-        if (a >= 0 && a < A) {
-          const n = I[s + a];
-          n > e && (e = n);
+      let o = 0;
+      for (let n = -E; n <= E; n++) {
+        const e = t + n;
+        if (e >= 0 && e < A) {
+          const a = I[s + e];
+          a > o && (o = a);
         }
       }
-      B[s + t] = e;
+      B[s + t] = o;
     }
   }
   for (let i = 0; i < A; i++)
     for (let s = 0; s < g; s++) {
       let t = 0;
-      for (let e = -E; e <= E; e++) {
-        const o = s + e;
-        if (o >= 0 && o < g) {
-          const a = B[o * A + i];
-          a > t && (t = a);
+      for (let o = -E; o <= E; o++) {
+        const n = s + o;
+        if (n >= 0 && n < g) {
+          const e = B[n * A + i];
+          e > t && (t = e);
         }
       }
       Q[s * A + i] = t;
     }
   return Q;
 }
-async function dA(I, A = {}) {
+async function SA(I, A = {}) {
   const g = [], C = performance.now(), { width: E, height: B } = I;
   let Q = A.lowThreshold !== void 0 ? A.lowThreshold : 75, i = A.highThreshold !== void 0 ? A.highThreshold : 200;
-  const s = A.kernelSize || 5, t = A.sigma || 0, e = A.L2gradient === void 0 ? !1 : A.L2gradient, o = A.applyDilation !== void 0 ? A.applyDilation : !0, a = A.dilationKernelSize || 5, n = A.useWasmHysteresis !== void 0 ? A.useWasmHysteresis : !1;
+  const s = A.kernelSize || 5, t = A.sigma || 0, o = A.L2gradient === void 0 ? !1 : A.L2gradient, n = A.applyDilation !== void 0 ? A.applyDilation : !0, e = A.dilationKernelSize || 5, a = A.useWasmHysteresis !== void 0 ? A.useWasmHysteresis : !1;
   Q >= i && (console.warn(`Canny Edge Detector: lowThreshold (${Q}) should be lower than highThreshold (${i}). Swapping them.`), [Q, i] = [i, Q]);
   let D = performance.now();
   const h = wA(I);
@@ -483,46 +483,46 @@ async function dA(I, A = {}) {
   y = performance.now(), g.push({ step: "Gradients", ms: (y - D).toFixed(2) }), D = performance.now();
   let F;
   try {
-    await u, F = await cA(r, w, E, B, e);
+    await u, F = await cA(r, w, E, B, o);
   } catch {
-    F = lA(r, w, E, B, e);
+    F = lA(r, w, E, B, o);
   }
   y = performance.now(), g.push({ step: "Non-Max Suppression", ms: (y - D).toFixed(2) }), D = performance.now();
-  const R = e ? Q * Q : Q, S = e ? i * i : i;
-  let d;
-  if (n)
+  const R = o ? Q * Q : Q, d = o ? i * i : i;
+  let S;
+  if (a)
     try {
-      await u, d = oA(F, E, B, R, S);
+      await u, S = eA(F, E, B, R, d);
     } catch (l) {
-      console.warn("WASM hysteresis failed, falling back to JS:", l), d = v(F, E, B, R, S);
+      console.warn("WASM hysteresis failed, falling back to JS:", l), S = v(F, E, B, R, d);
     }
   else
-    d = v(F, E, B, R, S);
+    S = v(F, E, B, R, d);
   y = performance.now(), g.push({ step: "Hysteresis", ms: (y - D).toFixed(2) }), D = performance.now();
   const G = new Uint8ClampedArray(E * B);
-  for (let l = 0; l < d.length; l++)
-    G[l] = d[l] === 2 ? 255 : 0;
+  for (let l = 0; l < S.length; l++)
+    G[l] = S[l] === 2 ? 255 : 0;
   y = performance.now(), g.push({ step: "Binary Image", ms: (y - D).toFixed(2) }), D = performance.now();
   let f = G;
-  if (o)
+  if (n)
     try {
-      await u, f = sA(G, E, B, a);
+      await u, f = sA(G, E, B, e);
     } catch {
-      f = GA(G, E, B, a);
+      f = GA(G, E, B, e);
     }
   if (y = performance.now(), g.push({ step: "Dilation", ms: (y - D).toFixed(2) }), A.debug) {
     A.debug.dx = r, A.debug.dy = w;
     const l = new Float32Array(E * B);
     for (let J = 0; J < r.length; J++) {
       const U = r[J], H = w[J];
-      l[J] = e ? Math.sqrt(U * U + H * H) : Math.abs(U) + Math.abs(H);
+      l[J] = o ? Math.sqrt(U * U + H * H) : Math.abs(U) + Math.abs(H);
     }
-    A.debug.magnitude = l, A.debug.suppressed = F, A.debug.edgeMap = d, A.debug.cannyEdges = G, A.debug.finalEdges = f, A.debug.timings = g;
+    A.debug.magnitude = l, A.debug.suppressed = F, A.debug.edgeMap = S, A.debug.cannyEdges = G, A.debug.finalEdges = f, A.debug.timings = g;
   }
   const j = performance.now();
   return g.unshift({ step: "Total", ms: (j - C).toFixed(2) }), console.table(g), f;
 }
-class SA {
+class dA {
   constructor(A = {}) {
     this.options = {
       targetFPS: A.targetFPS || 10,
@@ -738,11 +738,11 @@ function fA(I, A = 800) {
     };
   const B = A / E, Q = Math.round(g * B), i = Math.round(C * B), s = document.createElement("canvas");
   s.width = g, s.height = C, s.getContext("2d").putImageData(I, 0, 0);
-  const e = document.createElement("canvas");
-  e.width = Q, e.height = i;
-  const o = e.getContext("2d");
-  return o.imageSmoothingEnabled = !0, o.imageSmoothingQuality = "high", o.drawImage(s, 0, 0, g, C, 0, 0, Q, i), {
-    scaledImageData: o.getImageData(0, 0, Q, i),
+  const o = document.createElement("canvas");
+  o.width = Q, o.height = i;
+  const n = o.getContext("2d");
+  return n.imageSmoothingEnabled = !0, n.imageSmoothingQuality = "high", n.drawImage(s, 0, 0, g, C, 0, 0, Q, i), {
+    scaledImageData: n.getImageData(0, 0, Q, i),
     scaleFactor: 1 / B,
     // Return inverse for compatibility with existing code
     originalDimensions: { width: g, height: C },
@@ -757,7 +757,7 @@ async function JA(I, A = {}) {
     scaleFactor: B,
     maxProcessingDimension: C
   });
-  const { width: s, height: t } = E, e = await dA(E, {
+  const { width: s, height: t } = E, o = await SA(E, {
     lowThreshold: A.lowThreshold || 75,
     // Match OpenCV values
     highThreshold: A.highThreshold || 200,
@@ -766,32 +766,32 @@ async function JA(I, A = {}) {
     // Match OpenCV value 
     dilationIterations: A.dilationIterations || 1,
     debug: g
-  }), o = V(e, {
+  }), n = V(o, {
     minArea: (A.minArea || 1e3) / (B * B),
     // Adjust minArea for scaled image
     debug: g,
     width: s,
     height: t
   });
-  if (!o || o.length === 0)
+  if (!n || n.length === 0)
     return console.log("No document detected"), {
       success: !1,
       message: "No document detected",
       debug: g
     };
-  const a = o[0], n = EA(a, {
+  const e = n[0], a = EA(e, {
     epsilon: A.epsilon
     // Pass epsilon for approximation
   });
-  let D = n;
+  let D = a;
   return B !== 1 && (D = {
-    topLeft: { x: n.topLeft.x * B, y: n.topLeft.y * B },
-    topRight: { x: n.topRight.x * B, y: n.topRight.y * B },
-    bottomRight: { x: n.bottomRight.x * B, y: n.bottomRight.y * B },
-    bottomLeft: { x: n.bottomLeft.x * B, y: n.bottomLeft.y * B }
+    topLeft: { x: a.topLeft.x * B, y: a.topLeft.y * B },
+    topRight: { x: a.topRight.x * B, y: a.topRight.y * B },
+    bottomRight: { x: a.bottomRight.x * B, y: a.bottomRight.y * B },
+    bottomLeft: { x: a.bottomLeft.x * B, y: a.bottomLeft.y * B }
   }), {
     success: !0,
-    contour: a,
+    contour: e,
     corners: D,
     debug: g
   };
@@ -799,9 +799,9 @@ async function JA(I, A = {}) {
 function MA(I, A) {
   function g(s) {
     const t = [];
-    for (let e = 0; e < 4; e++) {
-      const [o, a] = s[e];
-      t.push([o, a, 1, 0, 0, 0, -o * A[e][0], -a * A[e][0]]), t.push([0, 0, 0, o, a, 1, -o * A[e][1], -a * A[e][1]]);
+    for (let o = 0; o < 4; o++) {
+      const [n, e] = s[o];
+      t.push([n, e, 1, 0, 0, 0, -n * A[o][0], -e * A[o][0]]), t.push([0, 0, 0, n, e, 1, -n * A[o][1], -e * A[o][1]]);
     }
     return t;
   }
@@ -816,25 +816,25 @@ function MA(I, A) {
     A[3][1]
   ];
   function B(s, t) {
-    const e = s.length, o = s[0].length, a = s.map((h) => h.slice()), n = t.slice();
-    for (let h = 0; h < o; h++) {
+    const o = s.length, n = s[0].length, e = s.map((h) => h.slice()), a = t.slice();
+    for (let h = 0; h < n; h++) {
       let y = h;
-      for (let c = h + 1; c < e; c++)
-        Math.abs(a[c][h]) > Math.abs(a[y][h]) && (y = c);
-      [a[h], a[y]] = [a[y], a[h]], [n[h], n[y]] = [n[y], n[h]];
-      for (let c = h + 1; c < e; c++) {
-        const r = a[c][h] / a[h][h];
-        for (let w = h; w < o; w++)
-          a[c][w] -= r * a[h][w];
-        n[c] -= r * n[h];
+      for (let c = h + 1; c < o; c++)
+        Math.abs(e[c][h]) > Math.abs(e[y][h]) && (y = c);
+      [e[h], e[y]] = [e[y], e[h]], [a[h], a[y]] = [a[y], a[h]];
+      for (let c = h + 1; c < o; c++) {
+        const r = e[c][h] / e[h][h];
+        for (let w = h; w < n; w++)
+          e[c][w] -= r * e[h][w];
+        a[c] -= r * a[h];
       }
     }
-    const D = new Array(o);
-    for (let h = o - 1; h >= 0; h--) {
-      let y = n[h];
-      for (let c = h + 1; c < o; c++)
-        y -= a[h][c] * D[c];
-      D[h] = y / a[h][h];
+    const D = new Array(n);
+    for (let h = n - 1; h >= 0; h--) {
+      let y = a[h];
+      for (let c = h + 1; c < n; c++)
+        y -= e[h][c] * D[c];
+      D[h] = y / e[h][h];
     }
     return D;
   }
@@ -846,9 +846,9 @@ function MA(I, A) {
   ];
 }
 function LA(I, A, g) {
-  const { topLeft: C, topRight: E, bottomRight: B, bottomLeft: Q } = g, i = Math.hypot(B.x - Q.x, B.y - Q.y), s = Math.hypot(E.x - C.x, E.y - C.y), t = Math.round(Math.max(i, s)), e = Math.hypot(E.x - B.x, E.y - B.y), o = Math.hypot(C.x - Q.x, C.y - Q.y), a = Math.round(Math.max(e, o));
-  I.canvas.width = t, I.canvas.height = a;
-  const n = [
+  const { topLeft: C, topRight: E, bottomRight: B, bottomLeft: Q } = g, i = Math.hypot(B.x - Q.x, B.y - Q.y), s = Math.hypot(E.x - C.x, E.y - C.y), t = Math.round(Math.max(i, s)), o = Math.hypot(E.x - B.x, E.y - B.y), n = Math.hypot(C.x - Q.x, C.y - Q.y), e = Math.round(Math.max(o, n));
+  I.canvas.width = t, I.canvas.height = e;
+  const a = [
     [C.x, C.y],
     [E.x, E.y],
     [B.x, B.y],
@@ -856,18 +856,18 @@ function LA(I, A, g) {
   ], D = [
     [0, 0],
     [t - 1, 0],
-    [t - 1, a - 1],
-    [0, a - 1]
-  ], h = MA(n, D);
-  YA(I, A, h, t, a);
+    [t - 1, e - 1],
+    [0, e - 1]
+  ], h = MA(a, D);
+  YA(I, A, h, t, e);
 }
 function mA(I) {
-  const A = I[0][0], g = I[0][1], C = I[0][2], E = I[1][0], B = I[1][1], Q = I[1][2], i = I[2][0], s = I[2][1], t = I[2][2], e = B * t - Q * s, o = -(E * t - Q * i), a = E * s - B * i, n = -(g * t - C * s), D = A * t - C * i, h = -(A * s - g * i), y = g * Q - C * B, c = -(A * Q - C * E), r = A * B - g * E, w = A * e + g * o + C * a;
+  const A = I[0][0], g = I[0][1], C = I[0][2], E = I[1][0], B = I[1][1], Q = I[1][2], i = I[2][0], s = I[2][1], t = I[2][2], o = B * t - Q * s, n = -(E * t - Q * i), e = E * s - B * i, a = -(g * t - C * s), D = A * t - C * i, h = -(A * s - g * i), y = g * Q - C * B, c = -(A * Q - C * E), r = A * B - g * E, w = A * o + g * n + C * e;
   if (w === 0) throw new Error("Singular matrix");
   return [
-    [e / w, n / w, y / w],
-    [o / w, D / w, c / w],
-    [a / w, h / w, r / w]
+    [o / w, a / w, y / w],
+    [n / w, D / w, c / w],
+    [e / w, h / w, r / w]
   ];
 }
 function YA(I, A, g, C, E) {
@@ -876,12 +876,12 @@ function YA(I, A, g, C, E) {
   const i = Q.getContext("2d");
   i.drawImage(A, 0, 0, Q.width, Q.height);
   const s = i.getImageData(0, 0, Q.width, Q.height), t = I.createImageData(C, E);
-  for (let e = 0; e < E; e++)
-    for (let o = 0; o < C; o++) {
-      const a = B[2][0] * o + B[2][1] * e + B[2][2], n = (B[0][0] * o + B[0][1] * e + B[0][2]) / a, D = (B[1][0] * o + B[1][1] * e + B[1][2]) / a, h = Math.max(0, Math.min(Q.width - 2, n)), y = Math.max(0, Math.min(Q.height - 2, D)), c = Math.floor(h), r = Math.floor(y), w = h - c, F = y - r;
+  for (let o = 0; o < E; o++)
+    for (let n = 0; n < C; n++) {
+      const e = B[2][0] * n + B[2][1] * o + B[2][2], a = (B[0][0] * n + B[0][1] * o + B[0][2]) / e, D = (B[1][0] * n + B[1][1] * o + B[1][2]) / e, h = Math.max(0, Math.min(Q.width - 2, a)), y = Math.max(0, Math.min(Q.height - 2, D)), c = Math.floor(h), r = Math.floor(y), w = h - c, F = y - r;
       for (let R = 0; R < 4; R++) {
-        const S = s.data[(r * Q.width + c) * 4 + R], d = s.data[(r * Q.width + (c + 1)) * 4 + R], G = s.data[((r + 1) * Q.width + c) * 4 + R], f = s.data[((r + 1) * Q.width + (c + 1)) * 4 + R];
-        t.data[(e * C + o) * 4 + R] = (1 - w) * (1 - F) * S + w * (1 - F) * d + (1 - w) * F * G + w * F * f;
+        const d = s.data[(r * Q.width + c) * 4 + R], S = s.data[(r * Q.width + (c + 1)) * 4 + R], G = s.data[((r + 1) * Q.width + c) * 4 + R], f = s.data[((r + 1) * Q.width + (c + 1)) * 4 + R];
+        t.data[(o * C + n) * 4 + R] = (1 - w) * (1 - F) * d + w * (1 - F) * S + (1 - w) * F * G + w * F * f;
       }
     }
   I.putImageData(t, 0, 0);
@@ -889,51 +889,50 @@ function YA(I, A, g, C, E) {
 async function X(I, A = {}) {
   const g = A.mode || "detect", C = A.output || "canvas";
   A.debug;
-  let E, B, Q;
+  let E;
   if (I instanceof ImageData)
-    E = I, B = I.width, Q = I.height;
+    E = I, I.width, I.height;
   else {
-    const e = document.createElement("canvas");
-    e.width = I.width || I.naturalWidth, e.height = I.height || I.naturalHeight;
-    const o = e.getContext("2d");
-    o.drawImage(I, 0, 0, e.width, e.height), E = o.getImageData(0, 0, e.width, e.height), B = e.width, Q = e.height;
+    const s = document.createElement("canvas");
+    s.width = I.width || I.naturalWidth, s.height = I.height || I.naturalHeight;
+    const t = s.getContext("2d");
+    t.drawImage(I, 0, 0, s.width, s.height), E = t.getImageData(0, 0, s.width, s.height), s.width, s.height;
   }
-  const i = await JA(E, A);
-  if (!i.success)
+  const B = await JA(E, A);
+  if (!B.success)
     return {
       output: null,
       corners: null,
       contour: null,
-      debug: i.debug,
+      debug: B.debug,
       success: !1,
-      message: i.message || "No document detected"
+      message: B.message || "No document detected"
     };
-  let s, t;
+  let Q, i;
   if (g === "detect")
-    t = null;
+    i = null;
   else if (g === "extract") {
-    s = document.createElement("canvas");
-    const e = s.getContext("2d");
-    LA(e, I, i.corners);
-  } else
-    s = document.createElement("canvas"), s.width = B, s.height = Q, s.getContext("2d").drawImage(I, 0, 0, B, Q);
-  return g !== "detect" && s && (C === "canvas" ? t = s : C === "imagedata" ? t = s.getContext("2d").getImageData(0, 0, s.width, s.height) : C === "dataurl" ? t = s.toDataURL() : t = s), {
-    output: t,
-    corners: i.corners,
-    contour: i.contour,
-    debug: i.debug,
+    Q = document.createElement("canvas");
+    const s = Q.getContext("2d");
+    LA(s, I, B.corners);
+  }
+  return g !== "detect" && Q && (C === "canvas" ? i = Q : C === "imagedata" ? i = Q.getContext("2d").getImageData(0, 0, Q.width, Q.height) : C === "dataurl" ? i = Q.toDataURL() : i = Q), {
+    output: i,
+    corners: B.corners,
+    contour: B.contour,
+    debug: B.debug,
     success: !0,
     message: "Document detected"
   };
 }
 const uA = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
   __proto__: null,
-  LiveScanner: SA,
+  LiveScanner: dA,
   checkWebcamAvailability: kA,
   scanDocument: X
 }, Symbol.toStringTag, { value: "Module" }));
 export {
-  SA as LiveScanner,
+  dA as LiveScanner,
   kA as checkWebcamAvailability,
   X as scanDocument
 };
