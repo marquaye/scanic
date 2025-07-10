@@ -652,13 +652,69 @@
       // Save context
       ctx.save();
       
-      // Draw sleek border
-      ctx.strokeStyle = '#00ff00';
-      ctx.lineWidth = 3;
-      ctx.shadowColor = 'rgba(0, 255, 0, 0.5)';
-      ctx.shadowBlur = 10;
+      // Modern sleek design with gradient and corner brackets
       
-      // Draw the document outline
+      // 1. Draw subtle semi-transparent overlay on document area
+      ctx.fillStyle = 'rgba(0, 150, 255, 0.08)';
+      ctx.beginPath();
+      ctx.moveTo(scaledCorners.topLeft[0], scaledCorners.topLeft[1]);
+      ctx.lineTo(scaledCorners.topRight[0], scaledCorners.topRight[1]);
+      ctx.lineTo(scaledCorners.bottomRight[0], scaledCorners.bottomRight[1]);
+      ctx.lineTo(scaledCorners.bottomLeft[0], scaledCorners.bottomLeft[1]);
+      ctx.closePath();
+      ctx.fill();
+      
+      // 2. Draw modern corner brackets instead of full border
+      const cornerSize = 25;
+      const cornerThickness = 4;
+      const cornerColor = '#0096FF';
+      
+      ctx.strokeStyle = cornerColor;
+      ctx.lineWidth = cornerThickness;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      ctx.shadowColor = 'rgba(0, 150, 255, 0.6)';
+      ctx.shadowBlur = 8;
+      
+      // Draw corner brackets for each corner
+      Object.entries(scaledCorners).forEach(([cornerName, [x, y]]) => {
+        ctx.beginPath();
+        
+        switch(cornerName) {
+          case 'topLeft':
+            // Top-left corner bracket
+            ctx.moveTo(x + cornerSize, y);
+            ctx.lineTo(x, y);
+            ctx.lineTo(x, y + cornerSize);
+            break;
+          case 'topRight':
+            // Top-right corner bracket
+            ctx.moveTo(x - cornerSize, y);
+            ctx.lineTo(x, y);
+            ctx.lineTo(x, y + cornerSize);
+            break;
+          case 'bottomRight':
+            // Bottom-right corner bracket
+            ctx.moveTo(x, y - cornerSize);
+            ctx.lineTo(x, y);
+            ctx.lineTo(x - cornerSize, y);
+            break;
+          case 'bottomLeft':
+            // Bottom-left corner bracket
+            ctx.moveTo(x + cornerSize, y);
+            ctx.lineTo(x, y);
+            ctx.lineTo(x, y - cornerSize);
+            break;
+        }
+        ctx.stroke();
+      });
+      
+      // 3. Draw subtle connecting lines (dashed)
+      ctx.shadowBlur = 0;
+      ctx.strokeStyle = 'rgba(0, 150, 255, 0.4)';
+      ctx.lineWidth = 2;
+      ctx.setLineDash([8, 12]);
+      
       ctx.beginPath();
       ctx.moveTo(scaledCorners.topLeft[0], scaledCorners.topLeft[1]);
       ctx.lineTo(scaledCorners.topRight[0], scaledCorners.topRight[1]);
@@ -667,27 +723,50 @@
       ctx.closePath();
       ctx.stroke();
       
-      // Draw corner markers
-      const cornerRadius = 8;
-      ctx.fillStyle = '#00ff00';
-      ctx.shadowBlur = 5;
+      // 4. Draw modern corner dots with gradient
+      ctx.setLineDash([]); // Reset line dash
+      const dotRadius = 6;
       
       Object.values(scaledCorners).forEach(([x, y]) => {
+        // Create radial gradient for dots
+        const gradient = ctx.createRadialGradient(x, y, 0, x, y, dotRadius);
+        gradient.addColorStop(0, '#FFFFFF');
+        gradient.addColorStop(0.3, '#0096FF');
+        gradient.addColorStop(1, '#0066CC');
+        
+        ctx.fillStyle = gradient;
+        ctx.shadowColor = 'rgba(0, 150, 255, 0.8)';
+        ctx.shadowBlur = 6;
+        
         ctx.beginPath();
-        ctx.arc(x, y, cornerRadius, 0, 2 * Math.PI);
+        ctx.arc(x, y, dotRadius, 0, 2 * Math.PI);
+        ctx.fill();
+        
+        // Add white inner dot for modern look
+        ctx.shadowBlur = 0;
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+        ctx.beginPath();
+        ctx.arc(x, y, dotRadius * 0.4, 0, 2 * Math.PI);
         ctx.fill();
       });
       
-      // Add semi-transparent fill
-      ctx.fillStyle = 'rgba(0, 255, 0, 0.1)';
-      ctx.shadowBlur = 0;
+      // 5. Add scanning animation effect (optional pulsing)
+      const time = Date.now() * 0.003;
+      const pulseOpacity = (Math.sin(time) + 1) * 0.15 + 0.1;
+      
+      ctx.strokeStyle = `rgba(0, 150, 255, ${pulseOpacity})`;
+      ctx.lineWidth = 1;
+      ctx.setLineDash([]);
+      ctx.shadowColor = 'rgba(0, 150, 255, 0.3)';
+      ctx.shadowBlur = 15;
+      
       ctx.beginPath();
       ctx.moveTo(scaledCorners.topLeft[0], scaledCorners.topLeft[1]);
       ctx.lineTo(scaledCorners.topRight[0], scaledCorners.topRight[1]);
       ctx.lineTo(scaledCorners.bottomRight[0], scaledCorners.bottomRight[1]);
       ctx.lineTo(scaledCorners.bottomLeft[0], scaledCorners.bottomLeft[1]);
       ctx.closePath();
-      ctx.fill();
+      ctx.stroke();
       
       // Restore context
       ctx.restore();
