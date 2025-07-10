@@ -8,7 +8,7 @@
     <a href="https://npmjs.com/package/scanic"><img src="https://badgen.net/npm/dw/scanic"></a>
     <br />
     <a href="https://github.com/marquaye/scanic/blob/master/LICENSE"><img src="https://img.shields.io/github/license/marquaye/scanic.svg"></a>
-    <a href="https://npmjs.com/package/jscanic"><img src="https://badgen.net/npm/v/scanic"></a>
+    <a href="https://npmjs.com/package/scanic"><img src="https://badgen.net/npm/v/scanic"></a>
 </p>
 
 # Scanic
