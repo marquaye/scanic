@@ -6,22 +6,24 @@
 
 # Scanic
 
-**Modern Document Scanner in Pure JavaScript**
+**Modern Document Scanner for the Web**
 
-Scanic is a blazing-fast, lightweight, and modern document scanner library written entirely in JavaScript. It enables developers to detect, scan, and process documents from images directly in the browser or Node.js, with no dependencies on native code or external services.
+Scanic is a blazing-fast, lightweight, and modern document scanner library written in JavaScript and rust (WASM). It enables developers to detect, scan, and process documents from images directly in the browser or Node.js, with no dependencies or external services.
 
 ## Why Scanic?
 
-I wanted to use document scanning features within web environments without the overhead of large libraries. While OpenCV makes this easy, it comes at the cost of a 30+ MB download. That's why I developed my own workflow heavily inspired by [jscanify](https://github.com/puffinsoft/jscanify) but without the OpenCV dependency.
+I always wanted to use document scanning features within web environments for years. While OpenCV makes this easy, it comes at the cost of a 30+ MB download.
 
 Scanic combines pure JavaScript algorithms with **Rust-compiled WebAssembly** for performance-critical operations like Gaussian blur, Canny edge detection, and gradient calculations. This hybrid approach delivers near-native performance while maintaining JavaScript's accessibility and a lightweight footprint.
 
 Performance-wise, I'm working to match OpenCV solutions while maintaining the lightweight footprint - this is an ongoing area of improvement.
 
+This library is heavily inspired by [jscanify](https://github.com/puffinsoft/jscanify) 
+
 ## Features
 
 - 📄 **Document Detection**: Accurately finds and extracts document contours from images
-- ⚡ **Pure JavaScript**: No native modules, works everywhere JavaScript runs
+- ⚡ **Pure JavaScript**: Works everywhere JavaScript runs
 - 🦀 **Rust WebAssembly**: Performance-critical operations optimized with Rust-compiled WASM
 - 🛠️ **Easy Integration**: Simple API for web apps, Electron, or Node.js applications
 - 🏷️ **MIT Licensed**: Free for personal and commercial use
@@ -46,58 +48,92 @@ Or use via CDN:
 ## Usage
 
 ```js
-import { detectDocument, scanDocument, LiveScanner, checkWebcamAvailability } from 'scanic';
+import { scanDocument, LiveScanner, checkWebcamAvailability } from 'scanic';
 
-// 1. Detect the document in an image (HTMLImageElement, Canvas, or ImageData)
-const result = await detectDocument(imageElement);
+// Simple usage - just detect document
+const result = await scanDocument(imageElement);
+if (result.success) {
+  console.log('Document found at corners:', result.corners);
+}
 
-if (result.success && result.corners) {
-  // 2. Extract (warp/crop) the document from the image
-  const extractedResult = await scanDocument(imageElement, { mode: 'extract' });
-  document.body.appendChild(extractedResult.output);
-  
-  // 3. Or highlight the detected document outline
-  const highlightedResult = await scanDocument(imageElement, { mode: 'highlight' });
-  document.body.appendChild(highlightedResult.output);
+// Extract the document (perspective correction)
+const extracted = await scanDocument(imageElement, { mode: 'extract' });
+if (extracted.success) {
+  document.body.appendChild(extracted.output); // Display extracted document
 }
 ```
 
+### Complete Example
+
+```js
+import { scanDocument } from 'scanic';
+
+async function processDocument() {
+  // Get image from file input or any source
+  const imageFile = document.getElementById('fileInput').files[0];
+  const img = new Image();
+  
+  img.onload = async () => {
+    try {  
+      // Extract and display the scanned document
+      const result = await scanDocument(img, { 
+        mode: 'extract',
+        output: 'canvas'
+      });
+      
+      if (result.success) {
+        // Add the extracted document to the page
+        document.getElementById('output').appendChild(result.output);
+        
+        // Or get as data URL for download/display
+        const dataUrl = result.output.toDataURL('image/png');
+        console.log('Extracted document as data URL:', dataUrl);
+      }    
+    } catch (error) {
+      console.error('Error processing document:', error);
+    }
+  };
+  
+  img.src = URL.createObjectURL(imageFile);
+}
+
+// HTML setup
+// <input type="file" id="fileInput" accept="image/*" onchange="processDocument()">
+// <div id="output"></div>
+```
 
 ## API Reference
 
-### Core Functions
-
-#### `detectDocument(imageData, options?)`
-Detects documents in images and returns corner coordinates and contour information.
-
-**Parameters:**
-- `imageData`: ImageData object (use canvas.getImageData() for HTMLImageElement/Canvas)
-- `options`: Optional configuration object
-  - `maxProcessingDimension`: Number (default: 800) - Maximum dimension for processing (adaptive downscaling)
-  - `lowThreshold`: Number (default: 75) - Lower threshold for Canny edge detection
-  - `highThreshold`: Number (default: 200) - Upper threshold for Canny edge detection
-  - `dilationKernelSize`: Number (default: 3) - Kernel size for dilation
-  - `dilationIterations`: Number (default: 1) - Number of dilation iterations
-  - `minArea`: Number (default: 1000) - Minimum contour area for document detection
-  - `epsilon`: Number - Epsilon for polygon approximation
-  - `debug`: Boolean (default: false) - Enable debug information
-
-**Returns:** `Promise<{ success: boolean, corners?: Object, contour?: Array, debug?: Object, message?: string }>`
-
-The `corners` object contains: `{ topLeft, topRight, bottomRight, bottomLeft }` with `{x, y}` coordinates.
+### Core Function
 
 #### `scanDocument(image, options?)`
-Main entry point for document scanning with flexible output options.
+Main entry point for document scanning with flexible modes and output options.
 
 **Parameters:**
 - `image`: HTMLImageElement, HTMLCanvasElement, or ImageData
 - `options`: Optional configuration object
-  - `mode`: String - 'highlight' (default) or 'extract'
+  - `mode`: String - 'detect' (default), 'highlight', or 'extract'
+    - `'detect'`: Only detect document, return corners/contour info (no image processing)
+    - `'highlight'`: Draw outline on original image  
+    - `'extract'`: Extract/warp the document region
   - `output`: String - 'canvas' (default), 'imagedata', or 'dataurl'
   - `debug`: Boolean (default: false) - Enable debug information
-  - All `detectDocument` options are also supported
+  - Detection options:
+    - `maxProcessingDimension`: Number (default: 800) - Maximum dimension for processing
+    - `lowThreshold`: Number (default: 75) - Lower threshold for Canny edge detection
+    - `highThreshold`: Number (default: 200) - Upper threshold for Canny edge detection
+    - `dilationKernelSize`: Number (default: 3) - Kernel size for dilation
+    - `dilationIterations`: Number (default: 1) - Number of dilation iterations
+    - `minArea`: Number (default: 1000) - Minimum contour area for document detection
+    - `epsilon`: Number - Epsilon for polygon approximation
 
 **Returns:** `Promise<{ output, corners, contour, debug, success, message }>`
+
+- `output`: Processed image (null for 'detect' mode)
+- `corners`: Object with `{ topLeft, topRight, bottomRight, bottomLeft }` coordinates
+- `contour`: Array of contour points
+- `success`: Boolean indicating if document was detected
+- `message`: Status message
 
 ### Live Scanner
 
@@ -132,39 +168,9 @@ All functions work in both browser and Node.js environments. For Node.js, use a 
 
 ## Examples
 
-### Basic Document Scanning
-
-```js
-import { detectDocument, scanDocument } from 'scanic';
-
-async function processDocument(imageElement) {
-  try {
-    // Convert image to ImageData
-    const canvas = document.createElement('canvas');
-    canvas.width = imageElement.width || imageElement.naturalWidth;
-    canvas.height = imageElement.height || imageElement.naturalHeight;
-    const ctx = canvas.getContext('2d');
-    ctx.drawImage(imageElement, 0, 0);
-    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-    
-    const detection = await detectDocument(imageData);
-    
-    if (detection.success) {
-      const result = await scanDocument(imageElement, { mode: 'extract' });
-      document.body.appendChild(result.output);
-    } else {
-      console.log('No document detected in the image');
-    }
-  } catch (error) {
-    console.error('Scanning failed:', error);
-  }
-}
-```
-
-### Advanced Configuration
-
 ```js
 const options = {
+  mode: 'extract',
   maxProcessingDimension: 1000,  // Higher quality, slower processing
   lowThreshold: 50,              // More sensitive edge detection
   highThreshold: 150,
@@ -173,26 +179,29 @@ const options = {
   debug: true                    // Enable debug information
 };
 
-const result = await detectDocument(imageData, options);
+const result = await scanDocument(imageElement, options);
 ```
 
-### Document Highlighting vs Extraction
+### Different Modes and Output Formats
 
 ```js
-// Extract the document (cropped and warped)
-const extractedResult = await scanDocument(imageElement, { 
+// Just detect (no image processing)
+const detection = await scanDocument(imageElement, { mode: 'detect' });
+
+// Extract as canvas
+const extracted = await scanDocument(imageElement, { 
   mode: 'extract',
   output: 'canvas' 
 });
 
-// Highlight the document outline on original image
-const highlightedResult = await scanDocument(imageElement, { 
+// Highlight as data URL
+const highlighted = await scanDocument(imageElement, { 
   mode: 'highlight',
   output: 'dataurl' 
 });
 
-// Get raw ImageData output
-const rawResult = await scanDocument(imageElement, { 
+// Extract as ImageData
+const rawData = await scanDocument(imageElement, { 
   mode: 'extract',
   output: 'imagedata' 
 });
@@ -316,7 +325,6 @@ Please ensure your code follows the existing style and includes appropriate test
 - [ ] TypeScript definitions
 - [ ] Additional image enhancement filters
 - [ ] Mobile-optimized processing
-- [ ] Plugin system for custom algorithms
 - [ ] WebGPU acceleration for supported browsers
 
 ## License

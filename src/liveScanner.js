@@ -3,7 +3,7 @@
  * Provides efficient real-time document detection with frame rate optimization
  */
 
-import { detectDocument } from './index.js';
+import { scanDocument } from './index.js';
 
 export class LiveScanner {
   constructor(options = {}) {
@@ -201,8 +201,9 @@ export class LiveScanner {
    */
   async detectDocumentAsync(imageData) {
     try {
-      const result = await detectDocument(imageData, {
+      const result = await scanDocument(imageData, {
         ...this.options,
+        mode: 'detect', // Only detect, no image processing
         debug: false // Disable debug for performance
       });
       

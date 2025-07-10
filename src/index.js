@@ -33,8 +33,6 @@ function calculateAdaptiveDownscale(imageData, maxDimension = 800) {
   const scaledWidth = Math.round(width * scaleFactor);
   const scaledHeight = Math.round(height * scaleFactor);
   
-  console.log(`Smart downscale: ${width}x${height} -> ${scaledWidth}x${scaledHeight} (factor: ${scaleFactor.toFixed(3)})`);
-  
   // Create scaled image data
   const tempCanvas = document.createElement('canvas');
   tempCanvas.width = width;
@@ -62,9 +60,8 @@ function calculateAdaptiveDownscale(imageData, maxDimension = 800) {
   };
 }
 
-// Main API function to detect document in image
-export async function detectDocument(imageData, options = {}) {
-  
+// Internal function to detect document in image
+async function detectDocumentInternal(imageData, options = {}) {
   const debugInfo = options.debug ? {} : null;
   
   // Smart adaptive downscaling - ensure largest dimension doesn't exceed maxProcessingDimension
@@ -313,14 +310,14 @@ function warpTransform(ctx, image, matrix, outWidth, outHeight) {
  * Main entry point for document scanning.
  * @param {HTMLImageElement|HTMLCanvasElement|ImageData} image
  * @param {Object} options
- *   - mode: 'highlight' | 'extract' (default: 'highlight')
+ *   - mode: 'detect' | 'highlight' | 'extract' (default: 'detect')
  *   - output: 'canvas' | 'imagedata' | 'dataurl' (default: 'canvas')
  *   - debug: boolean
  *   - ...other detection options
  * @returns {Promise<{output, corners, contour, debug, success, message}>}
  */
 export async function scanDocument(image, options = {}) {
-  const mode = options.mode || 'highlight';
+  const mode = options.mode || 'detect';
   const outputType = options.output || 'canvas';
   const debug = !!options.debug;
 
@@ -343,7 +340,7 @@ export async function scanDocument(image, options = {}) {
   }
 
   // Detect document
-  const detection = await detectDocument(imageData, options);
+  const detection = await detectDocumentInternal(imageData, options);
   if (!detection.success) {
     return {
       output: null,
@@ -356,13 +353,18 @@ export async function scanDocument(image, options = {}) {
   }
 
   let resultCanvas;
-  if (mode === 'extract') {
+  let output;
+
+  if (mode === 'detect') {
+    // Just return detection info, no image processing
+    output = null;
+  } else if (mode === 'extract') {
     // Return only the cropped/warped document
     resultCanvas = document.createElement('canvas');
     const ctx = resultCanvas.getContext('2d');
     unwarpImage(ctx, image, detection.corners);
   } else {
-    // Default: highlight mode (draw outline and warp)
+    // Default: highlight mode (draw outline on original image)
     resultCanvas = document.createElement('canvas');
     resultCanvas.width = width;
     resultCanvas.height = height;
@@ -372,16 +374,17 @@ export async function scanDocument(image, options = {}) {
     // drawSleekDocumentOutline(ctx, detection.corners, width, height, ...);
   }
 
-  // Prepare output in requested format
-  let output;
-  if (outputType === 'canvas') {
-    output = resultCanvas;
-  } else if (outputType === 'imagedata') {
-    output = resultCanvas.getContext('2d').getImageData(0, 0, resultCanvas.width, resultCanvas.height);
-  } else if (outputType === 'dataurl') {
-    output = resultCanvas.toDataURL();
-  } else {
-    output = resultCanvas;
+  // Prepare output in requested format (only if not detect mode)
+  if (mode !== 'detect' && resultCanvas) {
+    if (outputType === 'canvas') {
+      output = resultCanvas;
+    } else if (outputType === 'imagedata') {
+      output = resultCanvas.getContext('2d').getImageData(0, 0, resultCanvas.width, resultCanvas.height);
+    } else if (outputType === 'dataurl') {
+      output = resultCanvas.toDataURL();
+    } else {
+      output = resultCanvas;
+    }
   }
 
   return {
