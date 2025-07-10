@@ -257,10 +257,9 @@ Please ensure your code follows the existing style.
 ### 🏆 Gold Sponsors
 
 <table>
-  <tr>
+  <tr style="color: black;">
     <td align="center" width="300">
-      <a href="https://zeugnisprofi.com" target="_blank">
-        <img src="https://via.placeholder.com/200x80/4A90E2/FFFFFF?text=ZeugnisProfi" alt="ZeugnisProfi" width="200"/>
+      <a href="https://zeugnisprofi.com" target="_blank"> 
         <br/>
         <strong>ZeugnisProfi</strong>
       </a>
@@ -269,7 +268,6 @@ Please ensure your code follows the existing style.
     </td>
     <td align="center" width="300">
       <a href="https://zeugnisprofi.de" target="_blank">
-        <img src="https://via.placeholder.com/200x80/50C878/FFFFFF?text=ZeugnisProfi.de" alt="ZeugnisProfi.de" width="200"/>
         <br/>
         <strong>ZeugnisProfi.de</strong>
       </a>
@@ -278,7 +276,6 @@ Please ensure your code follows the existing style.
     </td>
     <td align="center" width="250">
       <a href="https://www.verlingo.de" target="_blank">
-        <img src="https://via.placeholder.com/180x70/FF6B35/FFFFFF?text=Verlingo" alt="Verlingo" width="180"/>
         <br/>
         <strong>Verlingo</strong>
       </a>
@@ -293,6 +290,8 @@ Please ensure your code follows the existing style.
 ## Roadmap
 
 - [ ] Performance optimizations to match OpenCV speed
+- [ ] React Example
+- [ ] Vue Example
 - [ ] Enhanced WASM module with additional Rust-optimized algorithms
 - [ ] SIMD vectorization for more image processing operations
 - [ ] TypeScript definitions
