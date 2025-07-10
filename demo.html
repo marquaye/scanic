@@ -139,8 +139,6 @@
 <body>
   <h1>Scanic - Debug UI</h1>
   
-  <!-- Load OpenCV.js -->
-  <script src="https://docs.opencv.org/4.7.0/opencv.js" async onload="onOpenCvReady();"></script>
   
   <div class="container">
     <div class="panel preview">
@@ -218,15 +216,7 @@
       setTimeout(checkWebcamSupport, 100);
     };
 
-    function onOpenCvReady() {
-      cv['onRuntimeInitialized'] = () => {
-        console.log("OpenCV.js is ready.");
-        cvReady = true;
-        // Initialize with sample image
-        loadSampleImage();
-      };
-    }
-
+  
     // --- DOM elements ---
     const fileInput = document.getElementById('fileInput');
     const dropZone = document.getElementById('dropZone');
@@ -635,18 +625,85 @@
         epsilon: 0.02,
         dilationKernelSize: 5,
         debug: false,
-        mode: 'highlight',
+        mode: 'detect', // Use detect mode to get corners only
         output: 'canvas',
       };
 
       // --- Process with Scanic unified API ---
       try {
         const result = await rewriteApi.scanDocument(currentImage, options);
-        canvasContainerRewrite.innerHTML = '';
-        if (result.output) canvasContainerRewrite.appendChild(result.output);
+        
+        // Clear and redraw the original image
+        const ctx = previewCanvasRewrite.getContext('2d');
+        ctx.clearRect(0, 0, previewCanvasRewrite.width, previewCanvasRewrite.height);
+        ctx.drawImage(currentImage, 0, 0, previewCanvasRewrite.width, previewCanvasRewrite.height);
+        
+        // If document detected, draw the sleek border overlay
+        if (result.success && result.corners) {
+          drawDocumentOverlay(result.corners, ctx);
+        }
+        
       } catch (error) {
         console.error('Error processing rewrite:', error);
       }
+    }
+
+    // Function to draw the sleek document border overlay
+    function drawDocumentOverlay(corners, ctx) {
+      const canvas = ctx.canvas;
+      const scaleX = canvas.width / currentImage.width;
+      const scaleY = canvas.height / currentImage.height;
+      
+      // Scale corners to canvas coordinates
+      const scaledCorners = {
+        topLeft: [corners.topLeft.x * scaleX, corners.topLeft.y * scaleY],
+        topRight: [corners.topRight.x * scaleX, corners.topRight.y * scaleY],
+        bottomRight: [corners.bottomRight.x * scaleX, corners.bottomRight.y * scaleY],
+        bottomLeft: [corners.bottomLeft.x * scaleX, corners.bottomLeft.y * scaleY]
+      };
+      
+      // Save context
+      ctx.save();
+      
+      // Draw sleek border
+      ctx.strokeStyle = '#00ff00';
+      ctx.lineWidth = 3;
+      ctx.shadowColor = 'rgba(0, 255, 0, 0.5)';
+      ctx.shadowBlur = 10;
+      
+      // Draw the document outline
+      ctx.beginPath();
+      ctx.moveTo(scaledCorners.topLeft[0], scaledCorners.topLeft[1]);
+      ctx.lineTo(scaledCorners.topRight[0], scaledCorners.topRight[1]);
+      ctx.lineTo(scaledCorners.bottomRight[0], scaledCorners.bottomRight[1]);
+      ctx.lineTo(scaledCorners.bottomLeft[0], scaledCorners.bottomLeft[1]);
+      ctx.closePath();
+      ctx.stroke();
+      
+      // Draw corner markers
+      const cornerRadius = 8;
+      ctx.fillStyle = '#00ff00';
+      ctx.shadowBlur = 5;
+      
+      Object.values(scaledCorners).forEach(([x, y]) => {
+        ctx.beginPath();
+        ctx.arc(x, y, cornerRadius, 0, 2 * Math.PI);
+        ctx.fill();
+      });
+      
+      // Add semi-transparent fill
+      ctx.fillStyle = 'rgba(0, 255, 0, 0.1)';
+      ctx.shadowBlur = 0;
+      ctx.beginPath();
+      ctx.moveTo(scaledCorners.topLeft[0], scaledCorners.topLeft[1]);
+      ctx.lineTo(scaledCorners.topRight[0], scaledCorners.topRight[1]);
+      ctx.lineTo(scaledCorners.bottomRight[0], scaledCorners.bottomRight[1]);
+      ctx.lineTo(scaledCorners.bottomLeft[0], scaledCorners.bottomLeft[1]);
+      ctx.closePath();
+      ctx.fill();
+      
+      // Restore context
+      ctx.restore();
     }
 
     // --- Event Listeners ---

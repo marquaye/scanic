@@ -112,9 +112,8 @@ Main entry point for document scanning with flexible modes and output options.
 **Parameters:**
 - `image`: HTMLImageElement, HTMLCanvasElement, or ImageData
 - `options`: Optional configuration object
-  - `mode`: String - 'detect' (default), 'highlight', or 'extract'
+  - `mode`: String - 'detect' (default), or 'extract'
     - `'detect'`: Only detect document, return corners/contour info (no image processing)
-    - `'highlight'`: Draw outline on original image  
     - `'extract'`: Extract/warp the document region
   - `output`: String - 'canvas' (default), 'imagedata', or 'dataurl'
   - `debug`: Boolean (default: false) - Enable debug information
@@ -161,12 +160,6 @@ const detection = await scanDocument(imageElement, { mode: 'detect' });
 const extracted = await scanDocument(imageElement, { 
   mode: 'extract',
   output: 'canvas' 
-});
-
-// Highlight as data URL
-const highlighted = await scanDocument(imageElement, { 
-  mode: 'highlight',
-  output: 'dataurl' 
 });
 
 // Extract as ImageData

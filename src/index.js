@@ -310,7 +310,7 @@ function warpTransform(ctx, image, matrix, outWidth, outHeight) {
  * Main entry point for document scanning.
  * @param {HTMLImageElement|HTMLCanvasElement|ImageData} image
  * @param {Object} options
- *   - mode: 'detect' | 'highlight' | 'extract' (default: 'detect')
+ *   - mode: 'detect' | 'extract' (default: 'detect')
  *   - output: 'canvas' | 'imagedata' | 'dataurl' (default: 'canvas')
  *   - debug: boolean
  *   - ...other detection options
@@ -363,15 +363,6 @@ export async function scanDocument(image, options = {}) {
     resultCanvas = document.createElement('canvas');
     const ctx = resultCanvas.getContext('2d');
     unwarpImage(ctx, image, detection.corners);
-  } else {
-    // Default: highlight mode (draw outline on original image)
-    resultCanvas = document.createElement('canvas');
-    resultCanvas.width = width;
-    resultCanvas.height = height;
-    const ctx = resultCanvas.getContext('2d');
-    ctx.drawImage(image, 0, 0, width, height);
-    // Optionally, draw outline here if you want
-    // drawSleekDocumentOutline(ctx, detection.corners, width, height, ...);
   }
 
   // Prepare output in requested format (only if not detect mode)
