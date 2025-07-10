@@ -2,13 +2,11 @@ name: Release and Publish
 
 on:
   push:
-    branches:
-      - main
     tags:
       - 'v*'
 
 jobs:
-  build:
+  release:
     runs-on: ubuntu-latest
     
     steps:
@@ -24,35 +22,13 @@ jobs:
     - name: Install dependencies
       run: npm ci
       
+    - name: Build WASM module
+      run: docker compose -f dev/docker-compose.yml up --build
+        
     - name: Build project
       run: npm run build
       
-    - name: Run tests (if any)
-      run: npm test --if-present
-      
-    - name: Upload build artifacts
-      uses: actions/upload-artifact@v4
-      with:
-        name: build-artifacts
-        path: dist/
-        
-  create-release:
-    needs: build
-    runs-on: ubuntu-latest
-    if: startsWith(github.ref, 'refs/tags/v')
-    
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-      
-    - name: Download build artifacts
-      uses: actions/download-artifact@v4
-      with:
-        name: build-artifacts
-        path: dist/
-        
     - name: Create Release
-      id: create_release
       uses: actions/create-release@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -60,10 +36,6 @@ jobs:
         tag_name: ${{ github.ref }}
         release_name: Release ${{ github.ref }}
         body: |
-          ## Changes in this Release
-          
-          See [CHANGELOG.md](https://github.com/marquaye/scanic/blob/main/CHANGELOG.md) for details.
-          
           ## Installation
           
           ```bash
@@ -77,72 +49,15 @@ jobs:
         draft: false
         prerelease: false
         
-    - name: Upload Release Asset (ES Module)
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: ./dist/scanic.js
-        asset_name: scanic.js
-        asset_content_type: application/javascript
-        
-    - name: Upload Release Asset (UMD)
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: ./dist/scanic.umd.cjs
-        asset_name: scanic.umd.cjs
-        asset_content_type: application/javascript
-        
-  publish-npm:
-    needs: build
-    runs-on: ubuntu-latest
-    if: startsWith(github.ref, 'refs/tags/v')
-    
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-      
-    - name: Setup Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: '20'
-        registry-url: 'https://registry.npmjs.org'
-        
-    - name: Install dependencies
-      run: npm ci
-      
-    - name: Build project
-      run: npm run build
-      
     - name: Publish to NPM
       run: npm publish
       env:
         NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         
-  update-demo:
-    needs: build
-    runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
-    
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-      
-    - name: Setup Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: '20'
+    - name: Update demo site
+      run: |
+        npm run build:gh-pages
         
-    - name: Install dependencies
-      run: npm ci
-      
-    - name: Build for GitHub Pages
-      run: npm run build:gh-pages
-      
     - name: Deploy to GitHub Pages
       uses: peaceiris/actions-gh-pages@v3
       with:

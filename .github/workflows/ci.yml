@@ -28,6 +28,10 @@ jobs:
     - name: Install dependencies
       run: npm ci
       
+    - name: Build WASM module
+      run: |
+        docker compose -f dev/docker-compose.yml up --build
+        
     - name: Build project
       run: npm run build
       

@@ -21,14 +21,11 @@ Performance-wise, I'm working to match OpenCV solutions while maintaining the li
 ## Features
 
 - 📄 **Document Detection**: Accurately finds and extracts document contours from images
-- ✨ **Edge & Corner Detection**: Advanced algorithms for robust edge and corner identification
 - ⚡ **Pure JavaScript**: No native modules, works everywhere JavaScript runs
 - 🦀 **Rust WebAssembly**: Performance-critical operations optimized with Rust-compiled WASM
-- 🖼️ **Image Processing**: Built-in tools for preprocessing and enhancing scanned images
 - 🛠️ **Easy Integration**: Simple API for web apps, Electron, or Node.js applications
 - 🏷️ **MIT Licensed**: Free for personal and commercial use
 - 📦 **Lightweight**: Small bundle size compared to OpenCV-based solutions
-- 🔧 **Customizable**: Configurable parameters for different use cases
 
 ## Demo
 
@@ -265,12 +262,13 @@ The built files will be available in the `dist/` directory.
 
 ### Building the WebAssembly Module
 
-The Rust WASM module is pre-compiled and included in the repository. If you need to rebuild it use docker:
+The Rust WASM module is pre-compiled and included in the repository. If you need to rebuild it:
 
 ```bash
-docker compose -f 'docker-compose.yml' up -d --build
-
+npm run build:wasm
 ```
+
+This uses Docker to build the WASM module without requiring local Rust installation.
 
 
 ### Performance Architecture

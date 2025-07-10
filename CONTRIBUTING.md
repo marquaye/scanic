@@ -72,27 +72,24 @@ scanic/
 
 For maintainers creating releases:
 
-1. **Interactive release** (recommended for manual releases):
-   ```bash
-   npm run release [patch|minor|major]
-   ```
-   This will prompt you to update the CHANGELOG.md before creating the release.
+```bash
+# Simple release process
+npm run release [patch|minor|major]
+```
 
-2. **Automated release** (for CI or when changelog is already updated):
-   ```bash
-   npm run release:auto [patch|minor|major]
-   ```
-   This skips the interactive prompt and creates the release immediately.
-
-Both scripts will:
-- Check you're on the main branch
+This will:
+- Check you're on main branch
 - Verify working directory is clean
-- Pull latest changes
-- Install dependencies and build
-- Run tests
+- Build WASM module using Docker
+- Build the project
 - Bump version
 - Create git tag
 - Push changes and trigger GitHub Actions
+
+You can also build just the WASM module:
+```bash
+npm run build:wasm
+```
 
 ## Commit Message Format
 
