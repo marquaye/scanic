@@ -27,7 +27,7 @@ This library is heavily inspired by [jscanify](https://github.com/puffinsoft/jsc
 - 🦀 **Rust WebAssembly**: Performance-critical operations optimized with Rust-compiled WASM
 - 🛠️ **Easy Integration**: Simple API for web apps, Electron, or Node.js applications
 - 🏷️ **MIT Licensed**: Free for personal and commercial use
-- 📦 **Lightweight**: Small bundle size compared to OpenCV-based solutions
+- 📦 **Lightweight**: Small bundle size (500kb) compared to OpenCV-based solutions (30 mb)
 
 ## Demo
 
@@ -119,7 +119,7 @@ Main entry point for document scanning with flexible modes and output options.
   - `output`: String - 'canvas' (default), 'imagedata', or 'dataurl'
   - `debug`: Boolean (default: false) - Enable debug information
   - Detection options:
-    - `maxProcessingDimension`: Number (default: 800) - Maximum dimension for processing
+    - `maxProcessingDimension`: Number (default: 800) - Maximum dimension for processing in pixels
     - `lowThreshold`: Number (default: 75) - Lower threshold for Canny edge detection
     - `highThreshold`: Number (default: 200) - Upper threshold for Canny edge detection
     - `dilationKernelSize`: Number (default: 3) - Kernel size for dilation
@@ -134,37 +134,6 @@ Main entry point for document scanning with flexible modes and output options.
 - `contour`: Array of contour points
 - `success`: Boolean indicating if document was detected
 - `message`: Status message
-
-### Live Scanner
-
-#### `LiveScanner`
-Real-time document scanner for webcam integration.
-
-**Constructor Options:**
-- `targetFPS`: Number (default: 10) - Target frames per second
-- `detectionInterval`: Number (default: 150) - Milliseconds between detections
-- `confidenceThreshold`: Number (default: 0.7) - Confidence threshold for detections
-- `stabilizationFrames`: Number (default: 3) - Frames needed for stable detection
-- `maxProcessingDimension`: Number (default: 500) - Max dimension for live processing
-
-**Methods:**
-- `init(outputElement, constraints)` - Initialize webcam and start scanning
-- `stop()` - Stop scanning and release resources
-- `pause()` - Pause scanning
-- `resume()` - Resume scanning
-- `capture()` - Capture current frame
-
-**Events:**
-- `onDetection(result)` - Called when document is detected
-- `onFPSUpdate(fps)` - Called with current FPS
-- `onError(error)` - Called on errors
-
-#### `checkWebcamAvailability()`
-Checks if webcam is available and lists video devices.
-
-**Returns:** `Promise<{ available: boolean, deviceCount?: number, devices?: Array, error?: string }>`
-
-All functions work in both browser and Node.js environments. For Node.js, use a compatible canvas/image implementation like `canvas` or `node-canvas`.
 
 ## Examples
 
@@ -207,43 +176,6 @@ const rawData = await scanDocument(imageElement, {
 });
 ```
 
-### Live Scanner Usage
-
-```js
-import { LiveScanner, checkWebcamAvailability } from 'scanic';
-
-// Check if webcam is available
-const webcamStatus = await checkWebcamAvailability();
-if (!webcamStatus.available) {
-  console.error('No webcam available');
-  return;
-}
-
-// Create live scanner
-const liveScanner = new LiveScanner({
-  targetFPS: 15,
-  detectionInterval: 100,
-  maxProcessingDimension: 600
-});
-
-// Set up event handlers
-liveScanner.onDetection = (result) => {
-  if (result.success) {
-    console.log('Document detected:', result.corners);
-  }
-};
-
-liveScanner.onFPSUpdate = (fps) => {
-  console.log('Current FPS:', fps);
-};
-
-// Start scanning
-const outputCanvas = document.getElementById('scanner-output');
-await liveScanner.init(outputCanvas);
-
-// Stop scanning when done
-// liveScanner.stop();
-```
 
 ## Development
 
@@ -292,8 +224,6 @@ Scanic uses a **hybrid JavaScript + WebAssembly approach**:
   - Non-maximum suppression for edge thinning
   - Morphological operations (dilation/erosion)
 
-The WASM module is compiled from Rust using `wasm-bindgen` and includes fixed-point arithmetic optimizations for better performance on integer operations.
-
 ## Contributing
 
 Contributions are welcome! Here's how you can help:
@@ -307,15 +237,51 @@ Contributions are welcome! Here's how you can help:
    - Push to the branch (`git push origin feature/amazing-feature`)
    - Open a Pull Request
 
-Please ensure your code follows the existing style and includes appropriate tests.
+Please ensure your code follows the existing style.
 
-## Sponsors
+## 💖 Sponsors
 
-[zeugnisprofi](https://zeugnisprofi.com)
+<p align="center">
+  <strong>Special thanks to our amazing sponsors who make this project possible!</strong>
+</p>
 
-[zeugnisprofi.de] (https://zeugnisprofi.de)
+<div align="center">
 
-[verlingo](https://www.verlingo.de)
+### 🏆 Gold Sponsors
+
+<table>
+  <tr>
+    <td align="center" width="300">
+      <a href="https://zeugnisprofi.com" target="_blank">
+        <img src="https://via.placeholder.com/200x80/4A90E2/FFFFFF?text=ZeugnisProfi" alt="ZeugnisProfi" width="200"/>
+        <br/>
+        <strong>ZeugnisProfi</strong>
+      </a>
+      <br/>
+      <em>Professional certificate and document services</em>
+    </td>
+    <td align="center" width="300">
+      <a href="https://zeugnisprofi.de" target="_blank">
+        <img src="https://via.placeholder.com/200x80/50C878/FFFFFF?text=ZeugnisProfi.de" alt="ZeugnisProfi.de" width="200"/>
+        <br/>
+        <strong>ZeugnisProfi.de</strong>
+      </a>
+      <br/>
+      <em>German document processing specialists</em>
+    </td>
+    <td align="center" width="250">
+      <a href="https://www.verlingo.de" target="_blank">
+        <img src="https://via.placeholder.com/180x70/FF6B35/FFFFFF?text=Verlingo" alt="Verlingo" width="180"/>
+        <br/>
+        <strong>Verlingo</strong>
+      </a>
+      <br/>
+      <em>Language and translation services</em>
+    </td>
+  </tr>
+</table>
+
+</div>
 
 ## Roadmap
 
@@ -331,4 +297,3 @@ Please ensure your code follows the existing style and includes appropriate test
 
 MIT License © [marquaye](https://github.com/marquaye)
 
-See [LICENSE](LICENSE) for more details.
