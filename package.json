@@ -23,8 +23,16 @@
     "contour",
     "detection"
   ],
-  "author": "",
+  "author": "marquaye",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/marquaye/scanic.git"
+  },
+  "homepage": "https://github.com/marquaye/scanic",
+  "bugs": {
+    "url": "https://github.com/marquaye/scanic/issues"
+  },
   "files": [
     "dist",
     "wasm_blur/pkg",
