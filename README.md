@@ -48,7 +48,7 @@ Or use via CDN:
 ## Usage
 
 ```js
-import { scanDocument, LiveScanner, checkWebcamAvailability } from 'scanic';
+import { scanDocument } from 'scanic';
 
 // Simple usage - just detect document
 const result = await scanDocument(imageElement);
@@ -167,6 +167,13 @@ const rawData = await scanDocument(imageElement, {
   mode: 'extract',
   output: 'imagedata' 
 });
+
+// Extract as DataURI
+const rawData = await scanDocument(imageElement, { 
+  mode: 'extract',
+  output: 'dataurl' 
+});
+
 ```
 
 
