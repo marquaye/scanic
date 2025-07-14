@@ -63,7 +63,7 @@ if (result.success) {
   console.log('Document found at corners:', result.corners);
 }
 
-// Extract the document (perspective correction)
+// Extract the document (with perspective correction)
 const extracted = await scanDocument(imageElement, { mode: 'extract' });
 if (extracted.success) {
   document.body.appendChild(extracted.output); // Display extracted document
