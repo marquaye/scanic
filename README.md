@@ -183,6 +183,15 @@ const rawData = await scanDocument(imageElement, {
 
 ```
 
+## Framework Examples
+
+### Vue.js Integration
+
+👉 **[Vue.js Example & Guide](docs/vue-example.md)**
+
+### React Integration
+Coming soon! React component examples and integration patterns.
+
 
 ## Development
 
@@ -290,8 +299,8 @@ Please ensure your code follows the existing style.
 ## Roadmap
 
 - [ ] Performance optimizations to match OpenCV speed
-- [ ] React Example
-- [ ] Vue Example
+- [ ] ✅ [Vue.js Example and Integration Guide](docs/vue-example.md)
+- [ ] React Example  
 - [ ] Enhanced WASM module with additional Rust-optimized algorithms
 - [ ] SIMD vectorization for more image processing operations
 - [ ] TypeScript definitions
