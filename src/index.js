@@ -9,9 +9,6 @@ import { detectDocumentContour } from './contourDetection.js';
 import { findCornerPoints } from './cornerDetection.js';
 import { cannyEdgeDetector } from './edgeDetection.js';
 
-// Only import LiveScanner and checkWebcamAvailability for export, do not use them internally here
-import { LiveScanner, checkWebcamAvailability } from './liveScanner.js';
-
 
 // Helper function to calculate smart adaptive downscale factor
 function calculateAdaptiveDownscale(imageData, maxDimension = 800) {
@@ -387,6 +384,3 @@ export async function scanDocument(image, options = {}) {
     message: 'Document detected'
   };
 }
-
-// Export only the main API and live scanner utilities
-export { LiveScanner, checkWebcamAvailability };
