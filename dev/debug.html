@@ -309,7 +309,15 @@
     let cvReady = false;
     let originalScanner = null;
     let rewriteApi = null; // Will be populated by the module script
-    let liveScanner = null; // Live scanner instance
+    let liveStream = null; // MediaStream from webcam
+    let liveVideo = null; // Video element for webcam
+    let liveAnimationId = null; // Animation frame ID
+    let isLiveScanning = false;
+    let lastDetectionTime = 0;
+    let detectionInterval = 200; // ms between detections
+    let stableDetections = 0;
+    let requiredStableFrames = 3;
+    let lastCorners = null;
 
     function onOpenCvReady() {
       cv['onRuntimeInitialized'] = () => {
@@ -366,29 +374,179 @@
 
     // --- Live Scanner Functions ---
     async function initLiveScanner() {
-      if (!rewriteApi || !rewriteApi.LiveScanner) {
-        alert('Live scanner not available. Please ensure the module is loaded.');
+      if (!rewriteApi) {
+        alert('Scanic API not available. Please ensure the module is loaded.');
         return;
       }
       
       try {
-        // Create live scanner instance
-        liveScanner = new rewriteApi.LiveScanner({
-          targetFPS: 15,
-          detectionInterval: 200, // Check every 200ms
-          stabilizationFrames: 3,
-          maxProcessingDimension: 600,
+        // Request webcam access
+        liveStream = await navigator.mediaDevices.getUserMedia({ 
+          video: { 
+            width: { ideal: 1280 }, 
+            height: { ideal: 720 },
+            facingMode: 'environment' // Prefer rear camera on mobile
+          } 
+        });
+        
+        // Create video element if not exists
+        if (!liveVideo) {
+          liveVideo = document.createElement('video');
+          liveVideo.autoplay = true;
+          liveVideo.playsInline = true;
+          liveVideo.muted = true;
+        }
+        
+        // Set up video stream
+        liveVideo.srcObject = liveStream;
+        await new Promise(resolve => {
+          liveVideo.onloadedmetadata = resolve;
+        });
+        
+        // Set canvas size to match video
+        liveCanvas.width = liveVideo.videoWidth;
+        liveCanvas.height = liveVideo.videoHeight;
+        
+        updateLiveStatus('Ready', 'active');
+        startLiveButton.disabled = false;
+        
+        liveResolution.textContent = `${liveVideo.videoWidth}x${liveVideo.videoHeight}`;
+        
+      } catch (error) {
+        console.error('Failed to initialize webcam:', error);
+        updateLiveStatus('Webcam access failed: ' + error.message, 'inactive');
+      }
+    }
+    
+    function startLiveScanning() {
+      if (!liveStream || !liveVideo) {
+        initLiveScanner();
+        return;
+      }
+      
+      isLiveScanning = true;
+      updateLiveStatus('Scanning', 'active');
+      startLiveButton.disabled = true;
+      stopLiveButton.disabled = false;
+      
+      // Reset detection state
+      stableDetections = 0;
+      lastCorners = null;
+      
+      // Start the animation loop
+      liveLoop();
+    }
+    
+    function stopLiveScanning() {
+      isLiveScanning = false;
+      
+      if (liveAnimationId) {
+        cancelAnimationFrame(liveAnimationId);
+        liveAnimationId = null;
+      }
+      
+      if (liveStream) {
+        liveStream.getTracks().forEach(track => track.stop());
+        liveStream = null;
+      }
+      
+      if (liveVideo) {
+        liveVideo.srcObject = null;
+        liveVideo = null;
+      }
+      
+      updateLiveStatus('Stopped', 'inactive');
+      startLiveButton.disabled = false;
+      stopLiveButton.disabled = true;
+      captureButton.disabled = true;
+      captureButton.textContent = 'Capture';
+      liveDocumentStatus.textContent = 'Not detected';
+      liveFPS.textContent = '0';
+      liveDetectionFPS.textContent = '0';
+      liveResolution.textContent = '-';
+      
+      // Clear canvas
+      const ctx = liveCanvas.getContext('2d');
+      ctx.clearRect(0, 0, liveCanvas.width, liveCanvas.height);
+    }
+    
+    let lastFrameTime = 0;
+    let frameCount = 0;
+    let lastFPSUpdate = 0;
+    let detectionCount = 0;
+    let lastDetectionFPSUpdate = 0;
+    
+    function liveLoop() {
+      if (!isLiveScanning) return;
+      
+      const now = performance.now();
+      const ctx = liveCanvas.getContext('2d');
+      
+      // Draw current video frame
+      if (liveVideo && liveVideo.readyState >= 2) {
+        ctx.drawImage(liveVideo, 0, 0, liveCanvas.width, liveCanvas.height);
+        
+        // Calculate and update render FPS
+        frameCount++;
+        if (now - lastFPSUpdate > 1000) {
+          const fps = Math.round((frameCount * 1000) / (now - lastFPSUpdate));
+          liveFPS.textContent = fps;
+          frameCount = 0;
+          lastFPSUpdate = now;
+        }
+        
+        // Run detection at specified interval
+        if (now - lastDetectionTime > detectionInterval) {
+          performDetection(ctx, now);
+          lastDetectionTime = now;
+        }
+      }
+      
+      liveAnimationId = requestAnimationFrame(liveLoop);
+    }
+    
+    async function performDetection(ctx, now) {
+      try {
+        // Get image data from canvas
+        const imageData = ctx.getImageData(0, 0, liveCanvas.width, liveCanvas.height);
+        
+        // Use current debug settings for live detection
+        const result = await rewriteApi.scanDocument(imageData, {
+          mode: 'detect',
           lowThreshold: parseInt(lowThreshold.value),
           highThreshold: parseInt(highThreshold.value),
           minArea: parseInt(minArea.value),
           epsilon: parseFloat(epsilon.value) / 1000,
-          dilationKernelSize: parseInt(kernelsize.value)
+          dilationKernelSize: parseInt(kernelsize.value),
+          maxProcessingDimension: 400 // Keep it small for performance
         });
         
-        // Set up callbacks
-        liveScanner.onDetection = (result) => {
-          if (result.isStable) {
-            liveDocumentStatus.textContent = `Detected (confidence: ${(result.confidence * 100).toFixed(1)}%)`;
+        // Update detection FPS
+        detectionCount++;
+        if (now - lastDetectionFPSUpdate > 1000) {
+          const detectionFPS = Math.round((detectionCount * 1000) / (now - lastDetectionFPSUpdate));
+          liveDetectionFPS.textContent = detectionFPS;
+          detectionCount = 0;
+          lastDetectionFPSUpdate = now;
+        }
+        
+        if (result.success && result.corners) {
+          // Check if detection is stable
+          const isStable = areCornersSimilar(result.corners, lastCorners);
+          
+          if (isStable) {
+            stableDetections++;
+          } else {
+            stableDetections = 0;
+          }
+          
+          lastCorners = result.corners;
+          
+          // Draw overlay
+          drawLiveDocumentOverlay(result.corners, ctx);
+          
+          if (stableDetections >= requiredStableFrames) {
+            liveDocumentStatus.textContent = `Detected (stable for ${stableDetections} frames)`;
             liveStatusIndicator.className = 'status-indicator status-detecting';
             captureButton.disabled = false;
           } else {
@@ -396,69 +554,65 @@
             liveStatusIndicator.className = 'status-indicator status-active';
             captureButton.disabled = true;
           }
-        };
-        
-        liveScanner.onFPSUpdate = (stats) => {
-          liveFPS.textContent = stats.renderFPS;
-          liveDetectionFPS.textContent = stats.detectionFPS;
-        };
-        
-        liveScanner.onError = (error) => {
-          console.error('Live scanner error:', error);
-          updateLiveStatus('Error: ' + error.message, 'inactive');
-        };
-        
-        // Initialize with canvas
-        await liveScanner.init(liveCanvas);
-        
-        updateLiveStatus('Ready', 'active');
-        startLiveButton.disabled = false;
-        
-        const stats = liveScanner.getStats();
-        liveResolution.textContent = stats.videoResolution || 'Unknown';
+        } else {
+          // No document detected
+          stableDetections = 0;
+          lastCorners = null;
+          liveDocumentStatus.textContent = 'Not detected';
+          liveStatusIndicator.className = 'status-indicator status-active';
+          captureButton.disabled = true;
+        }
         
       } catch (error) {
-        console.error('Failed to initialize live scanner:', error);
-        updateLiveStatus('Initialization failed: ' + error.message, 'inactive');
+        console.error('Detection error:', error);
       }
     }
     
-    function startLiveScanning() {
-      if (!liveScanner) {
-        initLiveScanner();
-        return;
-      }
+    function areCornersSimilar(corners1, corners2, threshold = 20) {
+      if (!corners1 || !corners2) return false;
       
-      try {
-        liveScanner.start();
-        updateLiveStatus('Scanning', 'active');
-        startLiveButton.disabled = true;
-        stopLiveButton.disabled = false;
-      } catch (error) {
-        console.error('Failed to start live scanning:', error);
-        updateLiveStatus('Failed to start: ' + error.message, 'inactive');
+      const cornerNames = ['topLeft', 'topRight', 'bottomRight', 'bottomLeft'];
+      for (const name of cornerNames) {
+        const c1 = corners1[name];
+        const c2 = corners2[name];
+        const distance = Math.sqrt(Math.pow(c1.x - c2.x, 2) + Math.pow(c1.y - c2.y, 2));
+        if (distance > threshold) return false;
       }
+      return true;
     }
     
-    function stopLiveScanning() {
-      if (liveScanner) {
-        liveScanner.stop();
-        liveScanner = null;
-      }
+    function drawLiveDocumentOverlay(corners, ctx) {
+      // Simple green outline for live detection
+      ctx.save();
+      ctx.strokeStyle = '#00FF00';
+      ctx.lineWidth = 3;
+      ctx.shadowColor = 'rgba(0, 255, 0, 0.5)';
+      ctx.shadowBlur = 5;
       
-      updateLiveStatus('Stopped', 'inactive');
-      startLiveButton.disabled = false;
-      stopLiveButton.disabled = true;
-      captureButton.disabled = true;
-      liveDocumentStatus.textContent = 'Not detected';
-      liveFPS.textContent = '0';
-      liveDetectionFPS.textContent = '0';
-      liveResolution.textContent = '-';
+      ctx.beginPath();
+      ctx.moveTo(corners.topLeft.x, corners.topLeft.y);
+      ctx.lineTo(corners.topRight.x, corners.topRight.y);
+      ctx.lineTo(corners.bottomRight.x, corners.bottomRight.y);
+      ctx.lineTo(corners.bottomLeft.x, corners.bottomLeft.y);
+      ctx.closePath();
+      ctx.stroke();
+      
+      // Draw corner points
+      ctx.fillStyle = '#00FF00';
+      ctx.shadowBlur = 3;
+      const corners_array = [corners.topLeft, corners.topRight, corners.bottomRight, corners.bottomLeft];
+      corners_array.forEach(corner => {
+        ctx.beginPath();
+        ctx.arc(corner.x, corner.y, 4, 0, 2 * Math.PI);
+        ctx.fill();
+      });
+      
+      ctx.restore();
     }
     
     async function captureDocument() {
-      if (!liveScanner) {
-        alert('Live scanner not running');
+      if (!isLiveScanning || !lastCorners) {
+        alert('No stable document detection available');
         return;
       }
       
@@ -466,45 +620,52 @@
         captureButton.disabled = true;
         captureButton.textContent = 'Capturing...';
         
-        const capturedCanvas = await liveScanner.captureDocument();
+        // Get current frame from video
+        const captureCanvas = document.createElement('canvas');
+        captureCanvas.width = liveVideo.videoWidth;
+        captureCanvas.height = liveVideo.videoHeight;
+        const captureCtx = captureCanvas.getContext('2d');
+        captureCtx.drawImage(liveVideo, 0, 0);
         
-        // Show captured document in a new window or modal
-        const newWindow = window.open('', '_blank', 'width=800,height=600');
-        const canvasDataURL = capturedCanvas.toDataURL();
-        const htmlContent = `
-          <html>
-            <head><title>Captured Document</title></head>
-            <body style="margin:0; display:flex; justify-content:center; align-items:center; min-height:100vh; background:#f0f0f0;">
-              <div style="text-align:center;">
-                <h2>Captured Document</h2>
-                <canvas id="capturedCanvas" style="max-width:90vw; max-height:80vh; border:1px solid #ccc;"></canvas>
-                <br><br>
-                <button onclick="downloadCanvas()">Download</button>
-                <button onclick="window.close()">Close</button>
-              </div>
-              <script>
-                const canvas = document.getElementById('capturedCanvas');
-                const ctx = canvas.getContext('2d');
-                canvas.width = ${capturedCanvas.width};
-                canvas.height = ${capturedCanvas.height};
-                
-                const img = new Image();
-                img.onload = function() {
-                  ctx.drawImage(img, 0, 0);
-                };
-                img.src = '${canvasDataURL}';
-                
-                function downloadCanvas() {
-                  const link = document.createElement('a');
-                  link.download = 'scanned-document-' + new Date().getTime() + '.png';
-                  link.href = canvas.toDataURL();
-                  link.click();
-                }
-              <\/script>
-            </body>
-          </html>
-        `;
-        newWindow.document.write(htmlContent);
+        // Create a copy for showing original with overlay
+        const originalCanvas = document.createElement('canvas');
+        originalCanvas.width = captureCanvas.width;
+        originalCanvas.height = captureCanvas.height;
+        const originalCtx = originalCanvas.getContext('2d');
+        originalCtx.drawImage(captureCanvas, 0, 0);
+        
+        // Scale corners to full video resolution
+        const scaleX = liveVideo.videoWidth / liveCanvas.width;
+        const scaleY = liveVideo.videoHeight / liveCanvas.height;
+        
+        const scaledCorners = {
+          topLeft: { x: lastCorners.topLeft.x * scaleX, y: lastCorners.topLeft.y * scaleY },
+          topRight: { x: lastCorners.topRight.x * scaleX, y: lastCorners.topRight.y * scaleY },
+          bottomRight: { x: lastCorners.bottomRight.x * scaleX, y: lastCorners.bottomRight.y * scaleY },
+          bottomLeft: { x: lastCorners.bottomLeft.x * scaleX, y: lastCorners.bottomLeft.y * scaleY }
+        };
+        
+        // Draw overlay on original
+        drawLiveDocumentOverlay(scaledCorners, originalCtx);
+        
+        // Extract document using scanDocument with extract mode
+        const imageData = captureCtx.getImageData(0, 0, captureCanvas.width, captureCanvas.height);
+        const extractResult = await rewriteApi.scanDocument(imageData, {
+          mode: 'extract',
+          output: 'canvas',
+          lowThreshold: parseInt(lowThreshold.value),
+          highThreshold: parseInt(highThreshold.value),
+          minArea: parseInt(minArea.value),
+          epsilon: parseFloat(epsilon.value) / 1000,
+          dilationKernelSize: parseInt(kernelsize.value)
+        });
+        
+        if (extractResult.success && extractResult.output) {
+          // Show results in new window
+          showCaptureResults(originalCanvas, extractResult.output);
+        } else {
+          alert('Failed to extract document');
+        }
         
       } catch (error) {
         console.error('Failed to capture document:', error);
@@ -515,6 +676,137 @@
       }
     }
     
+    function showCaptureResults(originalCanvas, extractedCanvas) {
+      const newWindow = window.open('', '_blank', 'width=1200,height=700');
+      const originalDataURL = originalCanvas.toDataURL();
+      const extractedDataURL = extractedCanvas.toDataURL();
+      
+      const htmlContent = `
+        <html>
+          <head>
+            <title>Captured Document - Scanic Debug</title>
+            <style>
+              body { 
+                margin: 0; 
+                padding: 20px; 
+                background: #f0f0f0; 
+                font-family: system-ui, -apple-system, sans-serif;
+              }
+              .container {
+                display: flex;
+                gap: 20px;
+                justify-content: center;
+                flex-wrap: wrap;
+              }
+              .panel {
+                background: white;
+                padding: 15px;
+                border-radius: 8px;
+                box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+                text-align: center;
+                max-width: 500px;
+              }
+              canvas {
+                max-width: 100%;
+                height: auto;
+                border: 1px solid #ddd;
+                border-radius: 4px;
+              }
+              h2 { 
+                margin-top: 0; 
+                color: #333;
+              }
+              h3 {
+                color: #666;
+                margin-bottom: 10px;
+              }
+              .controls {
+                margin-top: 20px;
+                text-align: center;
+              }
+              button {
+                background: #4CAF50;
+                color: white;
+                border: none;
+                padding: 10px 20px;
+                margin: 0 5px;
+                border-radius: 4px;
+                cursor: pointer;
+                font-weight: bold;
+              }
+              button:hover {
+                background: #45a049;
+              }
+              .highlight {
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+              }
+              .highlight:hover {
+                background: linear-gradient(135deg, #5a6fd8 0%, #6a4190 100%);
+              }
+            </style>
+          </head>
+          <body>
+            <h2>📄 Document Capture Results</h2>
+            <div class="container">
+              <div class="panel">
+                <h3>🎯 Original with Detection</h3>
+                <canvas id="originalCanvas"></canvas>
+                <p><small>Shows the original frame with detected document outline</small></p>
+              </div>
+              <div class="panel">
+                <h3>✨ Perspective Corrected</h3>
+                <canvas id="extractedCanvas"></canvas>
+                <p><small>Document extracted and perspective-corrected for scanning</small></p>
+              </div>
+            </div>
+            <div class="controls">
+              <button onclick="downloadCanvas('extractedCanvas', 'scanned-document')" class="highlight">
+                📥 Download Scanned Document
+              </button>
+              <button onclick="downloadCanvas('originalCanvas', 'original-with-detection')">
+                📥 Download Original
+              </button>
+              <button onclick="window.close()">❌ Close</button>
+            </div>
+            
+            <script>
+              const originalCanvas = document.getElementById('originalCanvas');
+              const extractedCanvas = document.getElementById('extractedCanvas');
+              
+              // Load original image
+              const originalCtx = originalCanvas.getContext('2d');
+              originalCanvas.width = ${originalCanvas.width};
+              originalCanvas.height = ${originalCanvas.height};
+              const originalImg = new Image();
+              originalImg.onload = function() {
+                originalCtx.drawImage(originalImg, 0, 0);
+              };
+              originalImg.src = '${originalDataURL}';
+              
+              // Load extracted image
+              const extractedCtx = extractedCanvas.getContext('2d');
+              extractedCanvas.width = ${extractedCanvas.width};
+              extractedCanvas.height = ${extractedCanvas.height};
+              const extractedImg = new Image();
+              extractedImg.onload = function() {
+                extractedCtx.drawImage(extractedImg, 0, 0);
+              };
+              extractedImg.src = '${extractedDataURL}';
+              
+              function downloadCanvas(canvasId, filename) {
+                const canvas = document.getElementById(canvasId);
+                const link = document.createElement('a');
+                link.download = filename + '-' + new Date().toISOString().slice(0,19).replace(/:/g, '-') + '.png';
+                link.href = canvas.toDataURL('image/png', 1.0);
+                link.click();
+              }
+            <\/script>
+          </body>
+        </html>
+      `;
+      newWindow.document.write(htmlContent);
+    }
+    
     function updateLiveStatus(status, indicatorClass) {
       liveStatus.textContent = status;
       liveStatusIndicator.className = `status-indicator status-${indicatorClass}`;
@@ -522,19 +814,22 @@
     
     // Check webcam availability on load
     async function checkWebcamSupport() {
-      if (!rewriteApi || !rewriteApi.checkWebcamAvailability) {
-        console.log('Webcam check not available yet');
-        return;
-      }
-      
-      const result = await rewriteApi.checkWebcamAvailability();
-      if (!result.available) {
-        updateLiveStatus('No webcam available', 'inactive');
+      try {
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        const videoDevices = devices.filter(device => device.kind === 'videoinput');
+        
+        if (videoDevices.length === 0) {
+          updateLiveStatus('No webcam available', 'inactive');
+          startLiveButton.disabled = true;
+          console.warn('No video input devices found');
+        } else {
+          console.log(`Webcam available: ${videoDevices.length} device(s) found`);
+          updateLiveStatus('Webcam ready', 'inactive');
+        }
+      } catch (error) {
+        updateLiveStatus('Webcam check failed', 'inactive');  
         startLiveButton.disabled = true;
-        console.warn('Webcam not available:', result.error);
-      } else {
-        console.log(`Webcam available: ${result.deviceCount} device(s) found`);
-        updateLiveStatus('Webcam ready', 'inactive');
+        console.warn('Failed to check webcam availability:', error);
       }
     }
 
