@@ -19,7 +19,7 @@ Scanic is a blazing-fast, lightweight, and modern document scanner library writt
 
 ## Why Scanic?
 
-I always wanted to use document scanning features within web environments for years. While OpenCV makes this easy, it comes at the cost of a 30+ MB download.
+I always wanted to use document scanning features within web environments for years. While OpenCV makes this easy, it comes at the cost of a **30+ MB** download.
 
 Scanic combines pure JavaScript algorithms with **Rust-compiled WebAssembly** for performance-critical operations like Gaussian blur, Canny edge detection, and gradient calculations. This hybrid approach delivers near-native performance while maintaining JavaScript's accessibility and a lightweight footprint.
 
@@ -119,45 +119,6 @@ async function processDocument() {
 // HTML setup
 // <input type="file" id="fileInput" accept="image/*" onchange="processDocument()">
 // <div id="output"></div>
-```
-
-#### `extractDocument(image, corners, options?)`
-Extract document with manually specified corner points (no automatic detection).
-
-**Parameters:**
-- `image`: HTMLImageElement, HTMLCanvasElement, or ImageData
-- `corners`: Object with corner coordinates
-  - `topLeft`: Object with `{ x, y }` coordinates
-  - `topRight`: Object with `{ x, y }` coordinates  
-  - `bottomRight`: Object with `{ x, y }` coordinates
-  - `bottomLeft`: Object with `{ x, y }` coordinates
-- `options`: Optional configuration object
-  - `output`: String - 'canvas' (default), 'imagedata', or 'dataurl'
-
-**Returns:** `Promise<{ output, corners, success, message }>`
-
-- `output`: Extracted/warped document image
-- `corners`: The provided corner coordinates
-- `success`: Boolean indicating if extraction succeeded
-- `message`: Status message
-
-**Example:**
-```js
-// Manual corner specification for image editor use case
-const corners = {
-  topLeft: { x: 100, y: 50 },
-  topRight: { x: 400, y: 60 },
-  bottomRight: { x: 390, y: 300 },
-  bottomLeft: { x: 110, y: 290 }
-};
-
-const result = await extractDocument(imageElement, corners, {
-  output: 'canvas'
-});
-
-if (result.success) {
-  document.body.appendChild(result.output);
-}
 ```
 
 ## API Reference
