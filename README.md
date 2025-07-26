@@ -55,7 +55,7 @@ Or use via CDN:
 ## Usage
 
 ```js
-import { scanDocument } from 'scanic';
+import { scanDocument, extractDocument } from 'scanic';
 
 // Simple usage - just detect document
 const result = await scanDocument(imageElement);
@@ -67,6 +67,18 @@ if (result.success) {
 const extracted = await scanDocument(imageElement, { mode: 'extract' });
 if (extracted.success) {
   document.body.appendChild(extracted.output); // Display extracted document
+}
+
+// Manual extraction with custom corner points (for image editors)
+const corners = {
+  topLeft: { x: 100, y: 50 },
+  topRight: { x: 400, y: 60 },
+  bottomRight: { x: 390, y: 300 },
+  bottomLeft: { x: 110, y: 290 }
+};
+const manualExtract = await extractDocument(imageElement, corners);
+if (manualExtract.success) {
+  document.body.appendChild(manualExtract.output);
 }
 ```
 
@@ -109,9 +121,48 @@ async function processDocument() {
 // <div id="output"></div>
 ```
 
+#### `extractDocument(image, corners, options?)`
+Extract document with manually specified corner points (no automatic detection).
+
+**Parameters:**
+- `image`: HTMLImageElement, HTMLCanvasElement, or ImageData
+- `corners`: Object with corner coordinates
+  - `topLeft`: Object with `{ x, y }` coordinates
+  - `topRight`: Object with `{ x, y }` coordinates  
+  - `bottomRight`: Object with `{ x, y }` coordinates
+  - `bottomLeft`: Object with `{ x, y }` coordinates
+- `options`: Optional configuration object
+  - `output`: String - 'canvas' (default), 'imagedata', or 'dataurl'
+
+**Returns:** `Promise<{ output, corners, success, message }>`
+
+- `output`: Extracted/warped document image
+- `corners`: The provided corner coordinates
+- `success`: Boolean indicating if extraction succeeded
+- `message`: Status message
+
+**Example:**
+```js
+// Manual corner specification for image editor use case
+const corners = {
+  topLeft: { x: 100, y: 50 },
+  topRight: { x: 400, y: 60 },
+  bottomRight: { x: 390, y: 300 },
+  bottomLeft: { x: 110, y: 290 }
+};
+
+const result = await extractDocument(imageElement, corners, {
+  output: 'canvas'
+});
+
+if (result.success) {
+  document.body.appendChild(result.output);
+}
+```
+
 ## API Reference
 
-### Core Function
+### Core Functions
 
 #### `scanDocument(image, options?)`
 Main entry point for document scanning with flexible modes and output options.
@@ -185,11 +236,8 @@ const rawData = await scanDocument(imageElement, {
 
 ## Framework Examples
 
-### Vue.js Integration
 
 👉 **[Vue.js Example & Guide](docs/vue-example.md)**
-
-### React Integration
 
 👉 **[React Example & Guide](docs/react-example.md)**
 
@@ -300,8 +348,6 @@ Please ensure your code follows the existing style.
 ## Roadmap
 
 - [ ] Performance optimizations to match OpenCV speed
-- [ ] ✅ [Vue.js Example and Integration Guide](docs/vue-example.md)
-- [ ] ✅ [React Example and Integration Guide](docs/react-example.md)
 - [ ] Enhanced WASM module with additional Rust-optimized algorithms
 - [ ] SIMD vectorization for more image processing operations
 - [ ] TypeScript definitions

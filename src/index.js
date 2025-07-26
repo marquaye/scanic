@@ -304,6 +304,60 @@ function warpTransform(ctx, image, matrix, outWidth, outHeight) {
 
 
 /**
+ * Extract document with manual corner points (no detection).
+ * @param {HTMLImageElement|HTMLCanvasElement|ImageData} image
+ * @param {Object} corners - Corner points object with topLeft, topRight, bottomRight, bottomLeft
+ * @param {Object} options
+ *   - output: 'canvas' | 'imagedata' | 'dataurl' (default: 'canvas')
+ * @returns {Promise<{output, corners, success, message}>}
+ */
+export async function extractDocument(image, corners, options = {}) {
+  const outputType = options.output || 'canvas';
+
+  if (!corners || !corners.topLeft || !corners.topRight || !corners.bottomRight || !corners.bottomLeft) {
+    return {
+      output: null,
+      corners: null,
+      success: false,
+      message: 'Invalid corner points provided'
+    };
+  }
+
+  try {
+    // Create result canvas and extract document
+    const resultCanvas = document.createElement('canvas');
+    const ctx = resultCanvas.getContext('2d');
+    unwarpImage(ctx, image, corners);
+
+    let output;
+    // Prepare output in requested format
+    if (outputType === 'canvas') {
+      output = resultCanvas;
+    } else if (outputType === 'imagedata') {
+      output = resultCanvas.getContext('2d').getImageData(0, 0, resultCanvas.width, resultCanvas.height);
+    } else if (outputType === 'dataurl') {
+      output = resultCanvas.toDataURL();
+    } else {
+      output = resultCanvas;
+    }
+
+    return {
+      output,
+      corners,
+      success: true,
+      message: 'Document extracted successfully'
+    };
+  } catch (error) {
+    return {
+      output: null,
+      corners,
+      success: false,
+      message: `Extraction failed: ${error.message}`
+    };
+  }
+}
+
+/**
  * Main entry point for document scanning.
  * @param {HTMLImageElement|HTMLCanvasElement|ImageData} image
  * @param {Object} options
