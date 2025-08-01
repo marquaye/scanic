@@ -49,14 +49,25 @@
       margin-top: 10px;
       padding: 10px 20px;
       border-radius: 4px;
+      transition: all 0.2s ease;
     }
     button:hover {
       background-color: #45a049;
+      transform: translateY(-1px);
+    }
+    button:disabled {
+      background-color: #cccccc !important;
+      cursor: not-allowed !important;
+      transform: none !important;
     }
     canvas {
       max-width: 100%;
       height: auto;
       border: 1px solid #ddd;
+      transition: opacity 0.3s ease;
+    }
+    canvas.loading {
+      opacity: 0.7;
     }
     #dropZone {
       border: 2px dashed #ccc;
@@ -121,10 +132,25 @@
       height: 10px;
       border-radius: 50%;
       margin-right: 5px;
+      transition: all 0.3s ease;
     }
-    .status-active { background-color: #00ff00; }
-    .status-inactive { background-color: #ff0000; }
-    .status-detecting { background-color: #ffff00; }
+    .status-active { 
+      background-color: #00ff00; 
+      box-shadow: 0 0 8px rgba(0, 255, 0, 0.6);
+    }
+    .status-inactive { 
+      background-color: #ff0000;
+      box-shadow: 0 0 8px rgba(255, 0, 0, 0.6);
+    }
+    .status-detecting { 
+      background-color: #ffff00;
+      box-shadow: 0 0 8px rgba(255, 255, 0, 0.6);
+      animation: pulse 1.5s infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
     .capture-button {
       background-color: #ff4444 !important;
     }
@@ -246,10 +272,12 @@
     let currentImage = null;
     let isLiveScanning = false;
     let lastDetectionTime = 0;
-    let detectionInterval = 200; // ms between detections
+    let detectionInterval = 150; // ms between detections (reduced for smoother experience)
     let stableDetections = 0;
-    let requiredStableFrames = 3;
+    let requiredStableFrames = 2; // Reduced for faster response
     let lastCorners = null;
+    let isInitializing = false; // Flag to prevent double initialization
+    let videoReady = false; // Flag to track video readiness
 
     // Initialize Scanic demo after module loads
     window.initializeScanicDemo = function() {
@@ -282,10 +310,19 @@
 
     // --- Live Scanner Functions ---
     async function initLiveScanner() {
+      if (isInitializing) {
+        console.log('Already initializing webcam...');
+        return;
+      }
+      
       if (!scanicApi) {
         alert('Scanic API not available. Please ensure the module is loaded.');
         return;
       }
+      
+      isInitializing = true;
+      updateLiveStatus('Initializing camera...', 'inactive');
+      startLiveButton.disabled = true;
       
       try {
         // Request webcam access
@@ -307,39 +344,71 @@
         
         // Set up video stream
         liveVideo.srcObject = liveStream;
-        await new Promise(resolve => {
-          liveVideo.onloadedmetadata = resolve;
+        
+        // Wait for video to be ready
+        await new Promise((resolve, reject) => {
+          const timeout = setTimeout(() => reject(new Error('Video load timeout')), 10000);
+          liveVideo.onloadedmetadata = () => {
+            clearTimeout(timeout);
+            resolve();
+          };
+          liveVideo.onerror = () => {
+            clearTimeout(timeout);
+            reject(new Error('Video load error'));
+          };
         });
+        
+        // Ensure video is playing
+        await liveVideo.play();
         
         // Set canvas size to match video
         liveCanvas.width = liveVideo.videoWidth;
         liveCanvas.height = liveVideo.videoHeight;
         
-        updateLiveStatus('Ready', 'active');
+        videoReady = true;
+        updateLiveStatus('Camera ready', 'active');
         startLiveButton.disabled = false;
         
         liveResolution.textContent = `${liveVideo.videoWidth}x${liveVideo.videoHeight}`;
+        console.log('Webcam initialized successfully');
         
       } catch (error) {
         console.error('Failed to initialize webcam:', error);
-        updateLiveStatus('Webcam access failed: ' + error.message, 'inactive');
+        updateLiveStatus('Camera access failed: ' + error.message, 'inactive');
+        startLiveButton.disabled = false;
+        videoReady = false;
+      } finally {
+        isInitializing = false;
       }
     }
     
     function startLiveScanning() {
-      if (!liveStream || !liveVideo) {
-        initLiveScanner();
+      // Prevent multiple calls
+      if (isLiveScanning) {
+        console.log('Live scanning already active');
+        return;
+      }
+      
+      // Initialize if not ready
+      if (!videoReady || !liveStream || !liveVideo) {
+        console.log('Initializing camera before starting...');
+        initLiveScanner().then(() => {
+          if (videoReady) {
+            startLiveScanning();
+          }
+        });
         return;
       }
       
       isLiveScanning = true;
-      updateLiveStatus('Scanning', 'active');
+      updateLiveStatus('Scanning...', 'active');
       startLiveButton.disabled = true;
       stopLiveButton.disabled = false;
       
       // Reset detection state
       stableDetections = 0;
       lastCorners = null;
+      lastDetectionTime = 0;
       
       // Start the animation loop
       liveLoop();
@@ -347,6 +416,8 @@
     
     function stopLiveScanning() {
       isLiveScanning = false;
+      videoReady = false;
+      isInitializing = false;
       
       if (liveAnimationId) {
         cancelAnimationFrame(liveAnimationId);
@@ -385,13 +456,15 @@
     let lastDetectionFPSUpdate = 0;
     
     function liveLoop() {
-      if (!isLiveScanning) return;
+      if (!isLiveScanning || !liveVideo) return;
       
       const now = performance.now();
       const ctx = liveCanvas.getContext('2d');
       
-      // Draw current video frame
-      if (liveVideo && liveVideo.readyState >= 2) {
+      // Draw current video frame first
+      if (liveVideo.readyState >= 2) {
+        // Clear canvas and draw fresh video frame
+        ctx.clearRect(0, 0, liveCanvas.width, liveCanvas.height);
         ctx.drawImage(liveVideo, 0, 0, liveCanvas.width, liveCanvas.height);
         
         // Calculate and update render FPS
@@ -407,6 +480,9 @@
         if (now - lastDetectionTime > detectionInterval) {
           performDetection(ctx, now);
           lastDetectionTime = now;
+        } else if (lastCorners) {
+          // Draw the last known detection to maintain smooth overlay
+          drawLiveDocumentOverlay(lastCorners, ctx);
         }
       }
       
@@ -415,7 +491,7 @@
     
     async function performDetection(ctx, now) {
       try {
-        // Get image data from canvas
+        // Get image data from canvas - use a smaller region for better performance
         const imageData = ctx.getImageData(0, 0, liveCanvas.width, liveCanvas.height);
         
         // Use scanDocument for detection
@@ -426,7 +502,7 @@
           minArea: 1000,
           epsilon: 0.02,
           dilationKernelSize: 3,
-          maxProcessingDimension: 400 // Keep it small for performance
+          maxProcessingDimension: 350 // Reduced for better performance
         });
         
         // Update detection FPS
@@ -439,47 +515,54 @@
         }
         
         if (result.success && result.corners) {
-          // Check if detection is stable
-          const isStable = areCornersSimilar(result.corners, lastCorners);
+          // Check if detection is stable (with slightly more tolerance for smoothness)
+          const isStable = areCornersSimilar(result.corners, lastCorners, 25);
           
           if (isStable) {
             stableDetections++;
           } else {
-            stableDetections = 0;
+            stableDetections = Math.max(0, stableDetections - 1); // Gradual decrease instead of reset
           }
           
           lastCorners = result.corners;
           
-          // Draw overlay
+          // Draw overlay with current corners
           drawLiveDocumentOverlay(result.corners, ctx);
           
+          // Update status based on stability
           if (stableDetections >= requiredStableFrames) {
-            liveDocumentStatus.textContent = `📄 Document Ready (stable for ${stableDetections} frames)`;
+            liveDocumentStatus.textContent = `📄 Document Ready`;
             liveStatusIndicator.className = 'status-indicator status-detecting';
             captureButton.disabled = false;
             captureButton.textContent = '📸 Capture & Extract';
           } else {
-            liveDocumentStatus.textContent = '🔍 Stabilizing...';
+            liveDocumentStatus.textContent = `🔍 Detecting... (${stableDetections}/${requiredStableFrames})`;
             liveStatusIndicator.className = 'status-indicator status-active';
             captureButton.disabled = true;
             captureButton.textContent = '⏳ Detecting...';
           }
         } else {
-          // No document detected
-          stableDetections = 0;
-          lastCorners = null;
-          liveDocumentStatus.textContent = 'No document detected';
-          liveStatusIndicator.className = 'status-indicator status-active';
-          captureButton.disabled = true;
-          captureButton.textContent = '⏳ Detecting...';
+          // No document detected - gradual fade out of stability
+          if (stableDetections > 0) {
+            stableDetections = Math.max(0, stableDetections - 1);
+          }
+          
+          if (stableDetections === 0) {
+            lastCorners = null;
+            liveDocumentStatus.textContent = 'No document detected';
+            liveStatusIndicator.className = 'status-indicator status-active';
+            captureButton.disabled = true;
+            captureButton.textContent = '⏳ Detecting...';
+          }
         }
         
       } catch (error) {
         console.error('Detection error:', error);
+        // Don't reset everything on error, just log it
       }
     }
     
-    function areCornersSimilar(corners1, corners2, threshold = 20) {
+    function areCornersSimilar(corners1, corners2, threshold = 25) {
       if (!corners1 || !corners2) return false;
       
       const cornerNames = ['topLeft', 'topRight', 'bottomRight', 'bottomLeft'];
@@ -493,12 +576,81 @@
     }
     
     function drawLiveDocumentOverlay(corners, ctx) {
-      // Simple green outline for live detection
+      // Draw the video frame first (ensures clean base)
+      if (liveVideo && liveVideo.readyState >= 2) {
+        ctx.drawImage(liveVideo, 0, 0, liveCanvas.width, liveCanvas.height);
+      }
+      
+      // Modern, subtle overlay for live detection
       ctx.save();
-      ctx.strokeStyle = '#00FF00';
-      ctx.lineWidth = 3;
-      ctx.shadowColor = 'rgba(0, 255, 0, 0.5)';
-      ctx.shadowBlur = 5;
+      
+      // Dynamic opacity based on stability
+      const baseOpacity = 0.6;
+      const stabilityBonus = Math.min(stableDetections / requiredStableFrames, 1) * 0.3;
+      const overlayOpacity = baseOpacity + stabilityBonus;
+      
+      // 1. Draw subtle document area highlight with gradient
+      const gradient = ctx.createLinearGradient(
+        corners.topLeft.x, corners.topLeft.y,
+        corners.bottomRight.x, corners.bottomRight.y
+      );
+      gradient.addColorStop(0, `rgba(0, 150, 255, 0.05)`);
+      gradient.addColorStop(0.5, `rgba(0, 200, 255, 0.08)`);
+      gradient.addColorStop(1, `rgba(0, 150, 255, 0.05)`);
+      
+      ctx.fillStyle = gradient;
+      ctx.beginPath();
+      ctx.moveTo(corners.topLeft.x, corners.topLeft.y);
+      ctx.lineTo(corners.topRight.x, corners.topRight.y);
+      ctx.lineTo(corners.bottomRight.x, corners.bottomRight.y);
+      ctx.lineTo(corners.bottomLeft.x, corners.bottomLeft.y);
+      ctx.closePath();
+      ctx.fill();
+      
+      // 2. Draw modern corner brackets instead of full border
+      const cornerSize = 20;
+      const cornerThickness = 3;
+      const cornerColor = `rgba(0, 150, 255, ${overlayOpacity})`;
+      
+      ctx.strokeStyle = cornerColor;
+      ctx.lineWidth = cornerThickness;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      ctx.shadowColor = 'rgba(0, 150, 255, 0.4)';
+      ctx.shadowBlur = 6;
+      
+      // Helper function to draw L-shaped corner brackets
+      function drawCornerBracket(corner, angle) {
+        const x = corner.x;
+        const y = corner.y;
+        
+        // Calculate bracket arms based on angle
+        const cos = Math.cos(angle);
+        const sin = Math.sin(angle);
+        
+        const arm1X = x + cos * cornerSize;
+        const arm1Y = y + sin * cornerSize;
+        const arm2X = x + sin * cornerSize;
+        const arm2Y = y - cos * cornerSize;
+        
+        ctx.beginPath();
+        ctx.moveTo(arm1X, arm1Y);
+        ctx.lineTo(x, y);
+        ctx.lineTo(arm2X, arm2Y);
+        ctx.stroke();
+      }
+      
+      // Draw corner brackets
+      drawCornerBracket(corners.topLeft, Math.PI * 0.25);     // 45°
+      drawCornerBracket(corners.topRight, Math.PI * 0.75);    // 135°
+      drawCornerBracket(corners.bottomRight, Math.PI * 1.25); // 225°
+      drawCornerBracket(corners.bottomLeft, Math.PI * 1.75);  // 315°
+      
+      // 3. Draw subtle dashed border connecting corners
+      ctx.shadowBlur = 0;
+      ctx.strokeStyle = `rgba(0, 150, 255, ${overlayOpacity * 0.5})`;
+      ctx.lineWidth = 1.5;
+      ctx.setLineDash([10, 8]);
       
       ctx.beginPath();
       ctx.moveTo(corners.topLeft.x, corners.topLeft.y);
@@ -508,15 +660,72 @@
       ctx.closePath();
       ctx.stroke();
       
-      // Draw corner points
-      ctx.fillStyle = '#00FF00';
-      ctx.shadowBlur = 3;
+      // 4. Draw elegant corner indicators
+      ctx.setLineDash([]); // Reset line dash
+      const indicatorSize = 4;
+      
       const corners_array = [corners.topLeft, corners.topRight, corners.bottomRight, corners.bottomLeft];
       corners_array.forEach(corner => {
+        // Outer glow
+        ctx.shadowColor = 'rgba(0, 150, 255, 0.6)';
+        ctx.shadowBlur = 8;
+        ctx.fillStyle = `rgba(255, 255, 255, ${overlayOpacity})`;
+        
         ctx.beginPath();
-        ctx.arc(corner.x, corner.y, 4, 0, 2 * Math.PI);
+        ctx.arc(corner.x, corner.y, indicatorSize, 0, 2 * Math.PI);
         ctx.fill();
+        
+        // Inner ring
+        ctx.shadowBlur = 0;
+        ctx.strokeStyle = `rgba(0, 150, 255, ${overlayOpacity})`;
+        ctx.lineWidth = 2;
+        ctx.stroke();
       });
+      
+      // 5. Add subtle scanning animation for active detection
+      if (stableDetections > 0) {
+        const time = Date.now() * 0.002;
+        const animOpacity = (Math.sin(time) + 1) * 0.1 + 0.05;
+        
+        ctx.strokeStyle = `rgba(0, 200, 255, ${animOpacity})`;
+        ctx.lineWidth = 2;
+        ctx.setLineDash([6, 4]);
+        ctx.shadowColor = 'rgba(0, 200, 255, 0.3)';
+        ctx.shadowBlur = 10;
+        
+        ctx.beginPath();
+        ctx.moveTo(corners.topLeft.x, corners.topLeft.y);
+        ctx.lineTo(corners.topRight.x, corners.topRight.y);
+        ctx.lineTo(corners.bottomRight.x, corners.bottomRight.y);
+        ctx.lineTo(corners.bottomLeft.x, corners.bottomLeft.y);
+        ctx.closePath();
+        ctx.stroke();
+      }
+      
+      // 6. Add "DOCUMENT DETECTED" text overlay when stable
+      if (stableDetections >= requiredStableFrames) {
+        const centerX = (corners.topLeft.x + corners.topRight.x + corners.bottomLeft.x + corners.bottomRight.x) / 4;
+        const centerY = (corners.topLeft.y + corners.topRight.y + corners.bottomLeft.y + corners.bottomRight.y) / 4;
+        
+        ctx.font = 'bold 14px system-ui, -apple-system, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        
+        // Text shadow
+        ctx.shadowColor = 'rgba(0, 0, 0, 0.8)';
+        ctx.shadowBlur = 4;
+        ctx.shadowOffsetX = 1;
+        ctx.shadowOffsetY = 1;
+        
+        ctx.fillStyle = `rgba(255, 255, 255, ${overlayOpacity * 0.9})`;
+        ctx.fillText('📄 DOCUMENT READY', centerX, centerY);
+        
+        // Reset shadow
+        ctx.shadowColor = 'transparent';
+        ctx.shadowBlur = 0;
+        ctx.shadowOffsetX = 0;
+        ctx.shadowOffsetY = 0;
+      }
       
       ctx.restore();
     }
@@ -1015,7 +1224,11 @@
     });
     
     // Live scanner event listeners
-    startLiveButton.addEventListener('click', startLiveScanning);
+    startLiveButton.addEventListener('click', () => {
+      if (!isLiveScanning && !isInitializing) {
+        startLiveScanning();
+      }
+    });
     stopLiveButton.addEventListener('click', stopLiveScanning);
     captureButton.addEventListener('click', captureDocument);
     window.addEventListener('resize', function() { resizeCanvas(); drawImage(); });
