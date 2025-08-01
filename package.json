@@ -1,6 +1,6 @@
 {
   "name": "scanic",
-  "version": "0.1.7",
+  "version": "0.1.8",
   "description": "Modern document scanner in pure JavaScript and Wasm",
   "type": "module",
   "main": "dist/scanic.umd.js",
