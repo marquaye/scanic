@@ -316,42 +316,127 @@ function invert3x3(m) {
 }
 
 function warpTransform(ctx, image, matrix, outWidth, outHeight) {
-  // Inverse matrix for mapping output to input
+  // Triangle subdivision approach - uses GPU-accelerated affine transforms
+  // Split the quad into a grid, then draw each cell as 2 triangles with affine transforms
+  
+  const srcWidth = image.width || image.naturalWidth;
+  const srcHeight = image.height || image.naturalHeight;
+  
+  // Inverse matrix for mapping output coords to source coords
   const inv = invert3x3(matrix);
-  // Get source image data
+  
+  // Helper: map output point to source point using perspective transform
+  function mapPoint(x, y) {
+    const denom = inv[2][0] * x + inv[2][1] * y + inv[2][2];
+    return {
+      x: (inv[0][0] * x + inv[0][1] * y + inv[0][2]) / denom,
+      y: (inv[1][0] * x + inv[1][1] * y + inv[1][2]) / denom
+    };
+  }
+  
+  // Grid subdivisions - 64x64 = 8192 triangles
+  const gridX = 64;
+  const gridY = 64;
+  const cellW = outWidth / gridX;
+  const cellH = outHeight / gridY;
+  
+  // Build source canvas once
   const srcCanvas = document.createElement('canvas');
-  srcCanvas.width = image.width || image.naturalWidth;
-  srcCanvas.height = image.height || image.naturalHeight;
+  srcCanvas.width = srcWidth;
+  srcCanvas.height = srcHeight;
   const srcCtx = srcCanvas.getContext('2d');
-  srcCtx.drawImage(image, 0, 0, srcCanvas.width, srcCanvas.height);
-  const srcData = srcCtx.getImageData(0, 0, srcCanvas.width, srcCanvas.height);
-  const out = ctx.createImageData(outWidth, outHeight);
-  for (let y = 0; y < outHeight; y++) {
-    for (let x = 0; x < outWidth; x++) {
-      // Map (x, y) in output to (srcX, srcY) in input
-      const denom = inv[2][0] * x + inv[2][1] * y + inv[2][2];
-      const srcX = (inv[0][0] * x + inv[0][1] * y + inv[0][2]) / denom;
-      const srcY = (inv[1][0] * x + inv[1][1] * y + inv[1][2]) / denom;
-      // Bilinear sample
-      const sx = Math.max(0, Math.min(srcCanvas.width - 2, srcX));
-      const sy = Math.max(0, Math.min(srcCanvas.height - 2, srcY));
-      const ix = Math.floor(sx), iy = Math.floor(sy);
-      const dx = sx - ix, dy = sy - iy;
-      for (let c = 0; c < 4; c++) {
-        // Bilinear interpolation
-        const i00 = srcData.data[(iy * srcCanvas.width + ix) * 4 + c];
-        const i10 = srcData.data[(iy * srcCanvas.width + (ix + 1)) * 4 + c];
-        const i01 = srcData.data[((iy + 1) * srcCanvas.width + ix) * 4 + c];
-        const i11 = srcData.data[((iy + 1) * srcCanvas.width + (ix + 1)) * 4 + c];
-        out.data[(y * outWidth + x) * 4 + c] =
-          (1 - dx) * (1 - dy) * i00 +
-          dx * (1 - dy) * i10 +
-          (1 - dx) * dy * i01 +
-          dx * dy * i11;
-      }
+  srcCtx.drawImage(image, 0, 0, srcWidth, srcHeight);
+  
+  // High quality results
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'high';
+  
+  // Draw each grid cell as 2 triangles
+  ctx.save();
+  
+  for (let gy = 0; gy < gridY; gy++) {
+    for (let gx = 0; gx < gridX; gx++) {
+      // Destination quad corners (in output space)
+      const dx0 = gx * cellW;
+      const dy0 = gy * cellH;
+      const dx1 = (gx + 1) * cellW;
+      const dy1 = (gy + 1) * cellH;
+      
+      // Map to source quad corners
+      const s00 = mapPoint(dx0, dy0);
+      const s10 = mapPoint(dx1, dy0);
+      const s01 = mapPoint(dx0, dy1);
+      const s11 = mapPoint(dx1, dy1);
+      
+      // Draw 2 triangles per cell
+      // Triangle 1: top-left, top-right, bottom-left
+      drawTexturedTriangle(ctx, srcCanvas,
+        s00.x, s00.y, s10.x, s10.y, s01.x, s01.y,  // source triangle
+        dx0, dy0, dx1, dy0, dx0, dy1               // dest triangle
+      );
+      
+      // Triangle 2: top-right, bottom-right, bottom-left
+      drawTexturedTriangle(ctx, srcCanvas,
+        s10.x, s10.y, s11.x, s11.y, s01.x, s01.y,  // source triangle
+        dx1, dy0, dx1, dy1, dx0, dy1               // dest triangle
+      );
     }
   }
-  ctx.putImageData(out, 0, 0);
+  
+  ctx.restore();
+}
+
+// Draw a textured triangle using affine transform + clipping
+function drawTexturedTriangle(ctx, img,
+  sx0, sy0, sx1, sy1, sx2, sy2,  // source triangle coords
+  dx0, dy0, dx1, dy1, dx2, dy2   // dest triangle coords
+) {
+  // Compute affine transform that maps source triangle to dest triangle
+  const denom = (sx0 - sx2) * (sy1 - sy2) - (sx1 - sx2) * (sy0 - sy2);
+  if (Math.abs(denom) < 1e-10) return; 
+  
+  const invDenom = 1 / denom;
+  const a = ((dx0 - dx2) * (sy1 - sy2) - (dx1 - dx2) * (sy0 - sy2)) * invDenom;
+  const b = ((dx1 - dx2) * (sx0 - sx2) - (dx0 - dx2) * (sx1 - sx2)) * invDenom;
+  const c = dx0 - a * sx0 - b * sy0;
+  
+  const d = ((dy0 - dy2) * (sy1 - sy2) - (dy1 - dy2) * (sy0 - sy2)) * invDenom;
+  const e = ((dy1 - dy2) * (sx0 - sx2) - (dy0 - dy2) * (sx1 - sx2)) * invDenom;
+  const f = dy0 - d * sx0 - e * sy0;
+  
+  ctx.save();
+  
+  // SEAM FIX: Robust Centroid-based Expansion
+  // We expand the clipping path by 1px in the direction of the triangle's center to ensure overlap.
+  const expand = 1.0; 
+  const centerX = (dx0 + dx1 + dx2) / 3;
+  const centerY = (dy0 + dy1 + dy2) / 3;
+  
+  const grow = (x, y) => {
+    const vx = x - centerX;
+    const vy = y - centerY;
+    const len = Math.sqrt(vx * vx + vy * vy);
+    if (len < 1e-6) return { x, y };
+    return {
+      x: x + (vx / len) * expand,
+      y: y + (vy / len) * expand
+    };
+  };
+
+  const p0 = grow(dx0, dy0);
+  const p1 = grow(dx1, dy1);
+  const p2 = grow(dx2, dy2);
+
+  ctx.beginPath();
+  ctx.moveTo(p0.x, p0.y);
+  ctx.lineTo(p1.x, p1.y);
+  ctx.lineTo(p2.x, p2.y);
+  ctx.closePath();
+  ctx.clip();
+  
+  ctx.setTransform(a, d, b, e, c, f);
+  ctx.drawImage(img, 0, 0);
+  ctx.restore();
 }
 
 
