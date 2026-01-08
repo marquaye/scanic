@@ -11,13 +11,13 @@ import { cannyEdgeDetector } from './edgeDetection.js';
 
 
 /**
- * Prepares image and optionally downscales using createImageBitmap for hardware acceleration.
- * Falls back to canvas if createImageBitmap is not available.
+ * Prepares image, downscales, and converts to grayscale in a single operation.
+ * Uses OffscreenCanvas and CSS filters for maximum performance.
  * @param {HTMLImageElement|HTMLCanvasElement|ImageData} image - Input image
  * @param {number} maxDimension - Maximum dimension for processing (default 800)
- * @returns {Promise<Object>} { imageData, scaleFactor, originalDimensions, scaledDimensions }
+ * @returns {Promise<Object>} { grayscaleData, scaleFactor, originalDimensions, scaledDimensions }
  */
-async function prepareAndScaleImage(image, maxDimension = 800) {
+async function prepareScaleAndGrayscale(image, maxDimension = 800) {
   let originalWidth, originalHeight;
   
   // Get original dimensions
@@ -35,94 +35,64 @@ async function prepareAndScaleImage(image, maxDimension = 800) {
   let targetWidth, targetHeight, scaleFactor;
   
   if (maxCurrentDimension <= maxDimension) {
-    // No scaling needed
     targetWidth = originalWidth;
     targetHeight = originalHeight;
     scaleFactor = 1;
   } else {
-    // Scale down to fit within maxDimension
     const scale = maxDimension / maxCurrentDimension;
     targetWidth = Math.round(originalWidth * scale);
     targetHeight = Math.round(originalHeight * scale);
-    scaleFactor = 1 / scale; // Inverse for scaling corners back up
+    scaleFactor = 1 / scale;
   }
   
-  // Fast path: ImageData with no scaling needed
-  if (image instanceof ImageData && scaleFactor === 1) {
-    return {
-      imageData: image,
-      scaleFactor: 1,
-      originalDimensions: { width: originalWidth, height: originalHeight },
-      scaledDimensions: { width: targetWidth, height: targetHeight }
-    };
+  // Use OffscreenCanvas if available (faster, no DOM interaction)
+  const useOffscreen = typeof OffscreenCanvas !== 'undefined';
+  const canvas = useOffscreen 
+    ? new OffscreenCanvas(targetWidth, targetHeight)
+    : document.createElement('canvas');
+  
+  if (!useOffscreen) {
+    canvas.width = targetWidth;
+    canvas.height = targetHeight;
   }
   
-  // Try to use createImageBitmap for hardware-accelerated scaling
-  if (typeof createImageBitmap !== 'undefined') {
-    try {
-      let bitmap;
-      
-      if (image instanceof ImageData) {
-        // For ImageData, create bitmap then resize
-        bitmap = await createImageBitmap(image, {
-          resizeWidth: targetWidth,
-          resizeHeight: targetHeight,
-          resizeQuality: 'medium'
-        });
-      } else {
-        // For HTMLImageElement/HTMLCanvasElement, directly create resized bitmap
-        bitmap = await createImageBitmap(image, 0, 0, originalWidth, originalHeight, {
-          resizeWidth: targetWidth,
-          resizeHeight: targetHeight,
-          resizeQuality: 'medium'
-        });
-      }
-      
-      // Draw bitmap to canvas and get ImageData
-      const canvas = document.createElement('canvas');
-      canvas.width = targetWidth;
-      canvas.height = targetHeight;
-      const ctx = canvas.getContext('2d');
-      ctx.drawImage(bitmap, 0, 0);
-      bitmap.close(); // Free the bitmap memory
-      
-      const imageData = ctx.getImageData(0, 0, targetWidth, targetHeight);
-      
-      return {
-        imageData,
-        scaleFactor,
-        originalDimensions: { width: originalWidth, height: originalHeight },
-        scaledDimensions: { width: targetWidth, height: targetHeight }
-      };
-    } catch (e) {
-      // Fall through to canvas fallback
-      console.warn('createImageBitmap failed, falling back to canvas:', e);
-    }
-  }
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
   
-  // Fallback: Use canvas-based scaling
-  const canvas = document.createElement('canvas');
-  canvas.width = targetWidth;
-  canvas.height = targetHeight;
-  const ctx = canvas.getContext('2d');
+  // Apply grayscale filter during draw - GPU accelerated!
+  ctx.filter = 'grayscale(1)';
   ctx.imageSmoothingEnabled = true;
   ctx.imageSmoothingQuality = 'medium';
   
   if (image instanceof ImageData) {
-    const tempCanvas = document.createElement('canvas');
-    tempCanvas.width = originalWidth;
-    tempCanvas.height = originalHeight;
+    // For ImageData, need to put on temp canvas first
+    const tempCanvas = useOffscreen
+      ? new OffscreenCanvas(originalWidth, originalHeight)
+      : document.createElement('canvas');
+    if (!useOffscreen) {
+      tempCanvas.width = originalWidth;
+      tempCanvas.height = originalHeight;
+    }
     const tempCtx = tempCanvas.getContext('2d');
     tempCtx.putImageData(image, 0, 0);
     ctx.drawImage(tempCanvas, 0, 0, originalWidth, originalHeight, 0, 0, targetWidth, targetHeight);
   } else {
+    // Direct draw with scaling + grayscale filter
     ctx.drawImage(image, 0, 0, originalWidth, originalHeight, 0, 0, targetWidth, targetHeight);
   }
   
+  // Get the grayscale image data
   const imageData = ctx.getImageData(0, 0, targetWidth, targetHeight);
   
+  // Extract single-channel grayscale (R=G=B after filter, so just take R)
+  const grayscaleData = new Uint8ClampedArray(targetWidth * targetHeight);
+  const data = imageData.data;
+  for (let i = 0, j = 0; i < data.length; i += 4, j++) {
+    grayscaleData[j] = data[i]; // R channel (same as G and B after grayscale filter)
+  }
+  
   return {
-    imageData,
+    grayscaleData,
+    imageData, // Keep full RGBA for debug visualization
     scaleFactor,
     originalDimensions: { width: originalWidth, height: originalHeight },
     scaledDimensions: { width: targetWidth, height: targetHeight }
@@ -130,13 +100,11 @@ async function prepareAndScaleImage(image, maxDimension = 800) {
 }
 
 // Internal function to detect document in image
-// Now accepts pre-scaled imageData and scaling info
-async function detectDocumentInternal(imageData, scaleFactor, options = {}) {
+// Now accepts pre-computed grayscale data (from prepareScaleAndGrayscale)
+async function detectDocumentInternal(grayscaleData, width, height, scaleFactor, options = {}) {
   // Always create a debug object to collect timings (even if not in debug mode)
   const debugInfo = options.debug ? {} : { _timingsOnly: true };
   const timings = [];
-  
-  const { width, height } = imageData;
   
   if (debugInfo && !debugInfo._timingsOnly) {
     debugInfo.preprocessing = {
@@ -146,15 +114,17 @@ async function detectDocumentInternal(imageData, scaleFactor, options = {}) {
     };
   }
   
-  // Run edge detection on the (already scaled) image
-  const edges = await cannyEdgeDetector(imageData, {
+  // Run edge detection on pre-computed grayscale data (skip grayscale conversion)
+  const edges = await cannyEdgeDetector(grayscaleData, {
+    width,
+    height,
     lowThreshold: options.lowThreshold || 75,   // Match OpenCV values
     highThreshold: options.highThreshold || 200, // Match OpenCV values
     dilationKernelSize: options.dilationKernelSize || 3, // Match OpenCV value 
     dilationIterations: options.dilationIterations || 1,
     debug: debugInfo,
-    skipNMS: false, // options.skipNMS // Optional flag to skip non-max suppression
-    useWasmBlur: true, // option to use wasm blur
+    skipGrayscale: true, // Skip grayscale - already done in prep
+    useWasmBlur: true,
   });
   
   // Extract edge detection timings (skip the 'Total' entry)
@@ -458,14 +428,20 @@ export async function scanDocument(image, options = {}) {
   const debug = !!options.debug;
   const maxProcessingDimension = options.maxProcessingDimension || 800;
 
-  // Combined image preparation + downscaling (uses createImageBitmap for hardware acceleration)
+  // Combined image preparation + downscaling + grayscale (OffscreenCanvas + CSS filter)
   let t0 = performance.now();
-  const { imageData, scaleFactor, originalDimensions, scaledDimensions } = 
-    await prepareAndScaleImage(image, maxProcessingDimension);
-  timings.push({ step: 'Image Prep + Scale', ms: (performance.now() - t0).toFixed(2) });
+  const { grayscaleData, imageData, scaleFactor, originalDimensions, scaledDimensions } = 
+    await prepareScaleAndGrayscale(image, maxProcessingDimension);
+  timings.push({ step: 'Image Prep + Scale + Gray', ms: (performance.now() - t0).toFixed(2) });
 
-  // Detect document (pass pre-scaled data and scale factor)
-  const detection = await detectDocumentInternal(imageData, scaleFactor, options);
+  // Detect document (pass pre-computed grayscale data)
+  const detection = await detectDocumentInternal(
+    grayscaleData, 
+    scaledDimensions.width, 
+    scaledDimensions.height, 
+    scaleFactor, 
+    options
+  );
   
   // Merge detailed detection timings
   if (detection.timings) {

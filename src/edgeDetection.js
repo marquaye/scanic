@@ -409,14 +409,38 @@ export function dilateEdges(edges, width, height, kernelSize = 5) {
  * @param {boolean} [options.useWasmHysteresis=false] - Use WASM for hysteresis thresholding
  * @param {boolean} [options.useWasmFullCanny=false] - Use the full WASM Canny implementation
  * @param {object} [options.debug={}] - Object to store intermediate results if provided
+ * @param {boolean} [options.skipGrayscale=false] - Skip grayscale conversion (input is already grayscale Uint8ClampedArray)
+ * @param {number} [options.width] - Image width (required if skipGrayscale is true)
+ * @param {number} [options.height] - Image height (required if skipGrayscale is true)
  * @returns {Promise<Uint8ClampedArray>} Binary edge image (0 or 255)
  */
-export async function cannyEdgeDetector(imageData, options = {}) {
+export async function cannyEdgeDetector(input, options = {}) {
   // Timing table setup
   const timings = [];
   const tStart = performance.now();
 
-  const { width, height } = imageData;
+  // Handle both ImageData and pre-computed grayscale Uint8ClampedArray
+  const skipGrayscale = options.skipGrayscale || false;
+  let width, height, grayscale;
+  
+  if (skipGrayscale) {
+    // Input is already grayscale Uint8ClampedArray
+    width = options.width;
+    height = options.height;
+    grayscale = input;
+    if (options.debug) options.debug.grayscale = grayscale;
+  } else {
+    // Input is ImageData - extract dimensions and convert to grayscale
+    width = input.width;
+    height = input.height;
+    
+    let t0 = performance.now();
+    grayscale = convertToGrayscale(input);
+    let t1 = performance.now();
+    timings.push({ step: 'Grayscale', ms: (t1 - t0).toFixed(2) });
+    if (options.debug) options.debug.grayscale = grayscale;
+  }
+
   let lowThreshold = options.lowThreshold !== undefined ? options.lowThreshold : 75;
   let highThreshold = options.highThreshold !== undefined ? options.highThreshold : 200;
   const kernelSize = options.kernelSize || 5; // Match jscanify's 5x5 kernel
@@ -437,12 +461,8 @@ export async function cannyEdgeDetector(imageData, options = {}) {
       [lowThreshold, highThreshold] = [highThreshold, lowThreshold];
   }
 
-  // Step 1: Convert to grayscale
-  let t0 = performance.now();
-  const grayscale = convertToGrayscale(imageData);
-  let t1 = performance.now();
-  timings.push({ step: 'Grayscale', ms: (t1 - t0).toFixed(2) });
-  if (options.debug) options.debug.grayscale = grayscale;
+  // Timing variables
+  let t0, t1;
 
   // Step 2: Apply Gaussian blur (JS or WASM)
   let blurred;
