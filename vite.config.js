@@ -13,6 +13,10 @@ export default defineConfig({
     sourcemap: true,
     minify: true
   },
+  test: {
+    environment: 'jsdom',
+    globals: true
+  },
   server: {
     open: './dev/debug.html'
   }

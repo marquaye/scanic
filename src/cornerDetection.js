@@ -70,8 +70,6 @@ export function findCornerPoints(contour, options = {}) {
       return null; 
   }
 
-  // Debug info
-  console.log('Corner points:', corners);
   return corners;
 }
 

@@ -1,16 +1,25 @@
 {
   "name": "scanic",
-  "version": "0.1.8",
+  "version": "1.0.0",
   "description": "Modern document scanner in pure JavaScript and Wasm",
   "type": "module",
-  "main": "dist/scanic.umd.js",
+  "main": "dist/scanic.umd.cjs",
   "module": "dist/scanic.js",
-  "types": "dist/scanic.d.ts",
+  "types": "src/scanic.d.ts",
+  "exports": {
+    ".": {
+      "types": "./src/scanic.d.ts",
+      "import": "./dist/scanic.js",
+      "require": "./dist/scanic.umd.cjs"
+    }
+  },
   "scripts": {
     "dev": "vite",
     "build": "vite build",
     "build:gh-pages": "vite build && cp index.html dist/ && cp -r src dist/ && cp -r testImages dist/ && cp -r public/* dist/ 2>/dev/null || true",
     "build:wasm": "docker compose -f dev/docker-compose.yml up --build",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "preview": "vite preview",
     "prepublishOnly": "npm run build",
     "release": "node scripts/release.js"
@@ -40,6 +49,9 @@
     "LICENSE"
   ],
   "devDependencies": {
-    "vite": "^6.3.4"
+    "canvas": "^3.2.0",
+    "jsdom": "^27.4.0",
+    "vite": "^6.3.4",
+    "vitest": "^4.0.16"
   }
 }

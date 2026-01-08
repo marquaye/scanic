@@ -15,7 +15,18 @@ import init, {
 } from '../wasm_blur/pkg/wasm_blur.js';
 
 // Initialize the wasm module
-const wasmReady = init();
+let wasmReadyPromise = null;
+
+/**
+ * Initializes the WASM module if not already initialized
+ * @returns {Promise}
+ */
+export function initializeWasm() {
+  if (!wasmReadyPromise) {
+    wasmReadyPromise = init();
+  }
+  return wasmReadyPromise;
+}
 
 /**
  * Converts ImageData to grayscale (separate from blur for consistency with jscanify)
@@ -469,7 +480,7 @@ export async function cannyEdgeDetector(input, options = {}) {
   t0 = performance.now();
   if (useWasmBlur) {
     try {
-      await wasmReady; // Ensure wasm is initialized
+      await initializeWasm(); // Ensure wasm is initialized
       blurred = wasmBlur(grayscale, width, height, kernelSize, sigma);
     } catch (e) {
       blurred = gaussianBlurGrayscale(grayscale, width, height, kernelSize, sigma);
@@ -488,7 +499,7 @@ export async function cannyEdgeDetector(input, options = {}) {
   let dx, dy;
   if (useWasmGradients) {
     try {
-      await wasmReady; // Ensure wasm is initialized
+      await initializeWasm(); // Ensure wasm is initialized
       const gradientResult = wasmGradients(blurred, width, height);
       dx = new Int16Array(gradientResult.gx);
       dy = new Int16Array(gradientResult.gy);
@@ -510,7 +521,7 @@ export async function cannyEdgeDetector(input, options = {}) {
   let suppressed;
   if (useWasmNMS) {
     try {
-      await wasmReady;
+      await initializeWasm();
       suppressed = await wasmMaximumSuppression(dx, dy, width, height, L2gradient);
     } catch (e) {
       suppressed = nonMaximumSuppression(dx, dy, width, height, L2gradient);
@@ -529,7 +540,7 @@ export async function cannyEdgeDetector(input, options = {}) {
   let edgeMap;
   if (useWasmHysteresis) {
     try {
-      await wasmReady;
+      await initializeWasm();
       edgeMap = wasmHysteresis(suppressed, width, height, finalLowThreshold, finalHighThreshold);
     } catch (e) {
       console.warn("WASM hysteresis failed, falling back to JS:", e);
@@ -557,7 +568,7 @@ export async function cannyEdgeDetector(input, options = {}) {
   if (applyDilation) {
     if (useWasmDilation) {
       try {
-        await wasmReady; // Ensure wasm is initialized
+        await initializeWasm(); // Ensure wasm is initialized
         finalEdges = wasmDilate(cannyEdges, width, height, dilationKernelSize);
       } catch (e) {
         finalEdges = dilateEdges(cannyEdges, width, height, dilationKernelSize);
@@ -613,7 +624,7 @@ export async function cannyEdgeDetectorWasm(imageData, options = {}) {
   // Directly call the WASM canny_edge_detector_full function
   let result;
   try {
-    await wasmReady; // Ensure wasm is initialized
+    await initializeWasm(); // Ensure wasm is initialized
     console.log('Using WASM Full Canny');
     result = wasmFullCanny(imageData.data, imageData.width, imageData.height, options.lowThreshold, options.highThreshold, options.sigma, options.kernelSize, options.L2gradient, options.applyDilation, options.dilationKernelSize);
   } catch (e) {

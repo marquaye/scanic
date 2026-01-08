@@ -7,7 +7,62 @@
 
 import { detectDocumentContour } from './contourDetection.js';
 import { findCornerPoints } from './cornerDetection.js';
-import { cannyEdgeDetector } from './edgeDetection.js';
+import { cannyEdgeDetector, initializeWasm } from './edgeDetection.js';
+
+/**
+ * Global initialization helper for convenience.
+ */
+export async function initialize() {
+  return await initializeWasm();
+}
+
+/**
+ * Unified Scanner class for better state and configuration management.
+ */
+export class Scanner {
+  constructor(options = {}) {
+    this.defaultOptions = {
+      maxProcessingDimension: 800,
+      mode: 'detect',
+      output: 'canvas',
+      ...options
+    };
+    this.initialized = false;
+  }
+
+  /**
+   * Warm up the scanner (load WASM, etc.)
+   */
+  async initialize() {
+    if (this.initialized) return;
+    await initializeWasm();
+    this.initialized = true;
+  }
+
+  /**
+   * Scan an image for a document.
+   * @param {HTMLImageElement|HTMLCanvasElement|ImageData} image 
+   * @param {Object} options Override default options
+   */
+  async scan(image, options = {}) {
+    if (!this.initialized) await this.initialize();
+    const combinedOptions = { ...this.defaultOptions, ...options };
+    return await scanDocument(image, combinedOptions);
+  }
+
+  /**
+   * Extract a document from an image using manual corners.
+   * @param {HTMLImageElement|HTMLCanvasElement|ImageData} image 
+   * @param {Object} corners 
+   * @param {Object} options 
+   */
+  async extract(image, corners, options = {}) {
+    if (!this.initialized) await this.initialize();
+    const combinedOptions = { ...this.defaultOptions, ...options };
+    return await extractDocument(image, corners, combinedOptions);
+  }
+}
+
 
 
 /**
@@ -20,13 +75,18 @@ import { cannyEdgeDetector } from './edgeDetection.js';
 async function prepareScaleAndGrayscale(image, maxDimension = 800) {
   let originalWidth, originalHeight;
   
+  // Robust check for ImageData without relying on global ImageData class
+  const isImageData = image && typeof image.width === 'number' && typeof image.height === 'number' && image.data;
+
   // Get original dimensions
-  if (image instanceof ImageData) {
+  if (isImageData) {
     originalWidth = image.width;
     originalHeight = image.height;
-  } else {
+  } else if (image) {
     originalWidth = image.width || image.naturalWidth;
     originalHeight = image.height || image.naturalHeight;
+  } else {
+    throw new Error('No image provided');
   }
   
   const maxCurrentDimension = Math.max(originalWidth, originalHeight);
@@ -63,7 +123,7 @@ async function prepareScaleAndGrayscale(image, maxDimension = 800) {
   ctx.imageSmoothingEnabled = true;
   ctx.imageSmoothingQuality = 'medium';
   
-  if (image instanceof ImageData) {
+  if (isImageData) {
     // For ImageData, need to put on temp canvas first
     const tempCanvas = useOffscreen
       ? new OffscreenCanvas(originalWidth, originalHeight)

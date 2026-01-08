@@ -7,19 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-01-08
+
 ### Added
-- Automated release workflow with GitHub Actions
-- NPM package publishing on version tags
-- Continuous Integration (CI) workflow
-- CHANGELOG.md for release tracking
+- **Scanner Class**: Added a stateful `Scanner` class for persistent WebAssembly instances and improved performance in batch processing.
+- **TypeScript Support**: Full `.d.ts` type definitions for all public APIs and options.
+- **Regression Testing**: Implemented a comprehensive test suite using `vitest`, `jsdom`, and real test images to ensure detection stability.
+- **Turbocharged Warp**: Implemented **Triangle Subdivision** for perspective transforms, reducing processing time from ~700ms to <10ms by utilizing GPU-accelerated Canvas APIs.
+- **Centroid Expansion**: Added vector-based centroid expansion to eliminate "patch line" artifacts in warped images.
 
 ### Changed
-- Updated package.json to include WASM files in NPM package
-- Improved .npmignore to properly exclude development files
-- Added prepublishOnly script to ensure build before publishing
+- Reorganized exports in `package.json` to properly support modern build tools and TypeScript resolution.
+- Refactored WASM instantiation to be lazy-loaded and thread-safe.
+- Improved `scanDocument` API with cleaner options handling.
 
 ### Fixed
-- Package structure for proper NPM distribution
+- Fixed visual artifacts at the seams of triangle patches in perspective transformations.
+- Resolved environmental issues when running in Node.js/JSDOM environments.
 
 ## [0.1.1] - 2025-01-09
 

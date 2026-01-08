@@ -28,44 +28,23 @@ function run(command, options = {}) {
   }
 }
 
-function updateVersion(type = 'patch') {
-  console.log(`\n📦 Bumping ${type} version...`);
-  const packagePath = path.join(process.cwd(), 'package.json');
-  const packageJson = JSON.parse(fs.readFileSync(packagePath, 'utf8'));
-  
-  const [major, minor, patch] = packageJson.version.split('.').map(Number);
-  
-  let newVersion;
-  switch (type) {
-    case 'major':
-      newVersion = `${major + 1}.0.0`;
-      break;
-    case 'minor':
-      newVersion = `${major}.${minor + 1}.0`;
-      break;
-    case 'patch':
-    default:
-      newVersion = `${major}.${minor}.${patch + 1}`;
-      break;
-  }
-  
-  const oldVersion = packageJson.version;
-  packageJson.version = newVersion;
-  fs.writeFileSync(packagePath, JSON.stringify(packageJson, null, 2) + '\n');
-  
-  console.log(`✅ Version updated: ${oldVersion} → ${newVersion}`);
-  return newVersion;
-}
-
 async function main() {
   console.log('🚀 Starting Scanic Release Process...\n');
   
   try {
-    // Check if we're in a clean git state
+    // 1. Check if we're in a clean git state
     console.log('📋 Checking git status...');
-    run('git status --porcelain', { stdio: 'pipe' });
+    const status = execSync('git status --porcelain', { encoding: 'utf8' });
+    if (status.trim() !== '') {
+      console.error('❌ Git working directory is not clean. Please commit or stash changes.');
+      process.exit(1);
+    }
     
-    // Build WASM module (optional if already built)
+    // 2. Run Tests
+    console.log('\n🧪 Running tests...');
+    run('npm test');
+    
+    // 3. Build WASM module (optional if already built)
     console.log('\n🦀 Building WASM module...');
     const wasmResult = run('docker-compose -f dev/docker-compose.yml up --build', { optional: true });
     
@@ -86,21 +65,16 @@ async function main() {
     
     // Update version
     const releaseType = process.argv[2] || 'patch';
-    const newVersion = updateVersion(releaseType);
+    console.log(`\n📦 Bumping ${releaseType} version...`);
+    run(`npm version ${releaseType} -m "chore: release v%s"`);
     
-    // Commit changes
-    console.log('\n📝 Committing changes...');
-    run('git add .');
-    run(`git commit -m "chore: release v${newVersion}"`);
-    
-    // Create tag
-    console.log('\n🏷️  Creating tag...');
-    run(`git tag -a v${newVersion} -m "Release v${newVersion}"`);
+    // Get the new version from package.json
+    const packageJson = JSON.parse(fs.readFileSync(path.join(process.cwd(), 'package.json'), 'utf8'));
+    const newVersion = packageJson.version;
     
     // Push to GitHub
     console.log('\n🚀 Pushing to GitHub...');
-    run('git push origin main');
-    run('git push origin --tags');
+    run('git push origin main --follow-tags');
     
     console.log(`\n✅ Release v${newVersion} completed successfully!`);
     console.log('🎉 GitHub Action will now handle NPM publishing and GitHub release creation.');
