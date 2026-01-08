@@ -16,7 +16,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "build:gh-pages": "vite build && cp demo.html dist/ && cp -r src dist/ && cp -r testImages dist/ && cp -r public/* dist/ 2>/dev/null || true",
+    "build:gh-pages": "vite build && node scripts/post-build.js",
     "build:wasm": "docker compose -f dev/docker-compose.yml up --build",
     "test": "vitest run",
     "test:watch": "vitest",
