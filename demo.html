@@ -3,1240 +3,466 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Scanic - Debug UI</title>
+  <title>Scanic Live Demo - Modern Document Scanner</title>
   <link rel="icon" type="image/x-icon" href="./public/favicon.ico">
   <style>
+    :root {
+      --primary: #6366f1;
+      --primary-hover: #4f46e5;
+      --bg: #f8fafc;
+      --card-bg: #ffffff;
+      --text: #1e293b;
+      --text-muted: #64748b;
+      --border: #e2e8f0;
+      --success: #22c55e;
+      --danger: #ef4444;
+      --radius: 12px;
+      --shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+    }
+
     body {
-      font-family: system-ui, -apple-system, sans-serif;
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      background-color: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+      margin: 0;
+      padding: 0;
+    }
+
+    .app-container {
       max-width: 1200px;
       margin: 0 auto;
-      padding: 20px;
-      background-color: #f5f5f5;
+      padding: 2rem;
     }
-    h1 {
-      color: #333;
-      border-bottom: 1px solid #ddd;
-      padding-bottom: 10px;
-    }
-    .container {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 20px;
-    }
-    .panel {
-      background-color: white;
-      padding: 15px;
-      border-radius: 8px;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    }
-    .preview {
-      flex: 1;
-      min-width: 500px;
-      position: relative;
-      max-width: 800px;
-    }
-    .live-panel {
-      flex: 1;
-      min-width: 400px;
-      position: relative;
-    }
-    button {
-      background-color: #4CAF50;
-      color: white;
-      border: none;
-      cursor: pointer;
-      font-weight: bold;
-      margin-top: 10px;
-      padding: 10px 20px;
-      border-radius: 4px;
-      transition: all 0.2s ease;
-    }
-    button:hover {
-      background-color: #45a049;
-      transform: translateY(-1px);
-    }
-    button:disabled {
-      background-color: #cccccc !important;
-      cursor: not-allowed !important;
-      transform: none !important;
-    }
-    canvas {
-      max-width: 100%;
-      height: auto;
-      border: 1px solid #ddd;
-      transition: opacity 0.3s ease;
-    }
-    canvas.loading {
-      opacity: 0.7;
-    }
-    #dropZone {
-      border: 2px dashed #ccc;
-      border-radius: 8px;
-      padding: 30px;
-      text-align: center;
-      cursor: pointer;
-      margin-bottom: 15px;
-      background-color: #f9f9f9;
-    }
-    #dropZone:hover {
-      border-color: #999;
-      background-color: #f0f0f0;
-    }
-    .sample-images {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
-      gap: 10px;
-      margin-top: 15px;
-    }
-    .sample-image {
-      width: 100%;
-      height: 100px;
-      object-fit: cover;
-      cursor: pointer;
-      border: 1px solid #ddd;
-      transition: transform 0.2s;
-      border-radius: 4px;
-    }
-    .sample-image:hover {
-      transform: scale(1.05);
-      box-shadow: 0 2px 6px rgba(0,0,0,0.2);
-    }
-    .live-controls {
-      display: flex;
-      gap: 10px;
-      margin-bottom: 15px;
-      flex-wrap: wrap;
-    }
-    .live-controls button {
-      flex: 1;
-      min-width: 120px;
-    }
-    .live-stats {
-      background-color: #f0f0f0;
-      padding: 10px;
-      border-radius: 4px;
-      font-family: monospace;
-      font-size: 12px;
-      margin-top: 10px;
-    }
-    .live-video {
-      width: 100%;
-      max-height: 400px;
-      object-fit: contain;
-      border: 1px solid #ddd;
-      border-radius: 4px;
-    }
-    .status-indicator {
-      display: inline-block;
-      width: 10px;
-      height: 10px;
-      border-radius: 50%;
-      margin-right: 5px;
-      transition: all 0.3s ease;
-    }
-    .status-active { 
-      background-color: #00ff00; 
-      box-shadow: 0 0 8px rgba(0, 255, 0, 0.6);
-    }
-    .status-inactive { 
-      background-color: #ff0000;
-      box-shadow: 0 0 8px rgba(255, 0, 0, 0.6);
-    }
-    .status-detecting { 
-      background-color: #ffff00;
-      box-shadow: 0 0 8px rgba(255, 255, 0, 0.6);
-      animation: pulse 1.5s infinite;
-    }
-    @keyframes pulse {
-      0%, 100% { opacity: 1; }
-      50% { opacity: 0.5; }
-    }
-    .capture-button {
-      background-color: #ff4444 !important;
-    }
-    .capture-button:hover {
-      background-color: #cc3333 !important;
-    }
-    .capture-button:disabled {
-      background-color: #cccccc !important;
-      cursor: not-allowed;
-    }
-    .header {
+
+    header {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-bottom: 20px;
+      margin-bottom: 2rem;
     }
-    .repo-link {
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      color: white;
-      text-decoration: none;
-      padding: 8px 16px;
-      border-radius: 6px;
-      font-weight: 500;
-      transition: all 0.2s ease;
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .brand img {
+      height: 48px;
+    }
+
+    .brand h1 {
+      font-size: 1.5rem;
+      font-weight: 800;
+      margin: 0;
+      letter-spacing: -0.025em;
+    }
+
+    .nav-links {
+      display: flex;
+      gap: 16px;
+    }
+
+    .btn-github {
       display: flex;
       align-items: center;
       gap: 8px;
+      padding: 8px 16px;
+      background: #000;
+      color: white;
+      text-decoration: none;
+      border-radius: var(--radius);
+      font-weight: 500;
       font-size: 14px;
+      transition: opacity 0.2s;
     }
-    .repo-link:hover {
-      background: linear-gradient(135deg, #5a6fd8 0%, #6a4190 100%);
-      transform: translateY(-1px);
-      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
     }
-    .repo-link svg {
-      width: 16px;
-      height: 16px;
-      fill: currentColor;
+
+    @media (max-width: 900px) {
+      .grid { grid-template-columns: 1fr; }
+    }
+
+    .card {
+      background: var(--card-bg);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 1.5rem;
+      border: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+    }
+
+    .card h2 {
+      margin-top: 0;
+      font-size: 1.1rem;
+      margin-bottom: 1.5rem;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .drop-zone {
+      border: 2px dashed var(--border);
+      border-radius: var(--radius);
+      padding: 3rem 1rem;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.2s;
+      background: #fafafa;
+    }
+
+    .drop-zone:hover {
+      border-color: var(--primary);
+      background: #f5f3ff;
+    }
+
+    .drop-zone p {
+      margin: 0;
+      color: var(--text-muted);
+    }
+
+    .samples {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+      gap: 12px;
+      margin-top: 20px;
+    }
+
+    .sample-img {
+      width: 100%;
+      aspect-ratio: 1;
+      object-fit: cover;
+      border-radius: 8px;
+      cursor: pointer;
+      border: 2px solid transparent;
+      transition: all 0.2s;
+    }
+
+    .sample-img:hover {
+      transform: translateY(-2px);
+      border-color: var(--primary);
+    }
+
+    .btn {
+      padding: 10px 20px;
+      border-radius: 8px;
+      border: none;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .btn-primary { background: var(--primary); color: white; }
+    .btn-primary:hover { background: var(--primary-hover); }
+    .btn-secondary { background: var(--bg); color: var(--text); border: 1px solid var(--border); }
+    .btn-danger { background: var(--danger); color: white; }
+
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    canvas {
+      width: 100%;
+      height: auto;
+      border-radius: 8px;
+      background: #000;
+      margin-top: 1rem;
+    }
+
+    .stats {
+      margin-top: 1rem;
+      padding: 12px;
+      background: #f1f5f9;
+      border-radius: 8px;
+      font-family: ui-monospace, monospace;
+      font-size: 0.75rem;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--text-muted);
+      display: inline-block;
+    }
+
+    .status-active { background: var(--success); box-shadow: 0 0 10px var(--success); }
+
+    .controls {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 1rem;
+    }
+
+    .hidden { display: none; }
+
+    #extracted-container {
+      margin-top: 2rem;
+      border-top: 2px solid var(--border);
+      padding-top: 2rem;
+    }
+
+    #extracted-container h2 {
+      margin-bottom: 1rem;
+    }
+
+    #staticCanvas {
+      max-width: 100%;
+      height: auto;
+      background: #eee;
     }
   </style>
 </head>
 <body>
-  <div class="header">
-    <h1>Scanic</h1>
-    <a href="https://github.com/marquaye/scanic" target="_blank" rel="noopener" class="repo-link">
-      <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-        <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
-      </svg>
-      View on GitHub
-    </a>
-  </div>
-    
-  <div class="container">
-    <div class="panel preview">
-      <h3>Document Scanner Demo</h3>
-      
-      <div id="dropZone">
-        <p>Drag & drop an image here<br>or click to select a file</p>
-        <input type="file" id="fileInput" accept="image/*" style="display: none">
+  <div class="app-container">
+    <header>
+      <div class="brand">
+        <img src="./public/scanic-logo-bg.png" alt="Scanic">
+        <h1>Scanic Live</h1>
       </div>
-      
-      <h4>Sample Images</h4>
-      <div class="sample-images" id="sampleImagesContainer">
-        <!-- Will be populated with sample images -->
+      <div class="nav-links">
+        <a href="https://github.com/marquaye/scanic" class="btn-github">
+          <svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/></svg>
+          GitHub
+        </a>
       </div>
-      
-      <div id="canvasContainerRewrite" style="position: relative; margin-top: 20px;">
-        <canvas id="previewCanvasRewrite"></canvas>
+    </header>
+
+    <div class="grid">
+      <!-- Upload Section -->
+      <div class="card">
+        <h2>📷 Static Image</h2>
+        <div class="drop-zone" id="dropZone">
+          <p>Drop document image here or click to upload</p>
+          <input type="file" id="fileInput" class="hidden" accept="image/*">
+        </div>
+        
+        <div class="samples" id="samples">
+          <img src="testImages/test.png" class="sample-img" alt="Sample 1">
+          <img src="testImages/test2.png" class="sample-img" alt="Sample 2">
+        </div>
+      </div>
+
+      <!-- Live Section -->
+      <div class="card">
+        <h2>
+          <span class="status-dot" id="streamDot"></span>
+          🎥 Live Scanner
+        </h2>
+        
+        <div class="controls">
+          <button class="btn btn-primary" id="btnStart">Start Camera</button>
+          <button class="btn btn-secondary hidden" id="btnStop">Stop</button>
+          <button class="btn btn-danger hidden" id="btnCapture">Capture</button>
+        </div>
+
+        <canvas id="liveCanvas"></canvas>
+
+        <div class="stats">
+          <span>Resolution: <strong id="statRes">-</strong></span>
+          <span>Detection: <strong id="statDetect">-</strong></span>
+          <span>Processing: <strong id="statTime">0ms</strong></span>
+          <span>Status: <strong id="statStatus">Idle</strong></span>
+        </div>
       </div>
     </div>
-    
-    <!-- Live Scanner Panel -->
-    <div class="panel live-panel">
-      <h3>
-        <span class="status-indicator" id="liveStatusIndicator"></span>
-        Live Document Scanner
-      </h3>
-      
-      <div class="live-controls">
-        <button id="startLiveButton">Start Live</button>
-        <button id="stopLiveButton" disabled>Stop</button>
-        <button id="captureButton" class="capture-button" disabled>⏳ Detecting...</button>
-      </div>
-      
-      <canvas id="liveCanvas" class="live-video"></canvas>
-      
-      <div class="live-stats" id="liveStats">
-        <div>Status: <span id="liveStatus">Stopped</span></div>
-        <div>Render FPS: <span id="liveFPS">0</span></div>
-        <div>Detection FPS: <span id="liveDetectionFPS">0</span></div>
-        <div>Resolution: <span id="liveResolution">-</span></div>
-        <div>Document: <span id="liveDocumentStatus">Not detected</span></div>
+
+    <!-- Results Section -->
+    <div id="extracted-container" class="hidden">
+      <h2>✨ Scanned Result</h2>
+      <canvas id="staticCanvas"></canvas>
+      <div style="margin-top: 1rem;">
+        <button class="btn btn-secondary" id="btnDownload">Download PNG</button>
+        <button class="btn btn-secondary" onclick="document.getElementById('extracted-container').classList.add('hidden')">Close</button>
       </div>
     </div>
   </div>
-  
-  <!-- Import our library from dist -->
+
   <script type="module">
-    import * as scanic from './dist/scanic.js';
-    
-    // Make scanic available globally for the rest of the script
-    window.scanic = scanic;
-    
-    console.log("Scanic ES6 module loaded successfully.");
-    
-    // Initialize after module is loaded
-    window.initializeScanicDemo();
-  </script>
-  
-  <!-- Import original jscanify -->
-  <script src="./legacy/jscanify.js"></script>
-  
-  <script>
-    // Global flag and scanner instances
-    let scanicApi = null; // Will be populated by the module script
-    let liveStream = null; // MediaStream from webcam
-    let liveVideo = null; // Video element for webcam
-    let liveAnimationId = null; // Animation frame ID
-    let currentImage = null;
-    let isLiveScanning = false;
-    let lastDetectionTime = 0;
-    let detectionInterval = 150; // ms between detections (reduced for smoother experience)
-    let stableDetections = 0;
-    let requiredStableFrames = 2; // Reduced for faster response
-    let lastCorners = null;
-    let isInitializing = false; // Flag to prevent double initialization
-    let videoReady = false; // Flag to track video readiness
+    import { Scanner, scanDocument } from './dist/scanic.js';
 
-    // Initialize Scanic demo after module loads
-    window.initializeScanicDemo = function() {
-      scanicApi = window.scanic;
-      console.log("Scanic library initialized successfully.");
-      
-      // Check webcam support after API is loaded
-      setTimeout(checkWebcamSupport, 100);
-    };
+    const scanner = new Scanner();
+    let isLive = false;
+    let stream = null;
+    let video = null;
+    let animationId = null;
 
-  
-    // --- DOM elements ---
+    // DOM Elements
+    const liveCanvas = document.getElementById('liveCanvas');
+    const staticCanvas = document.getElementById('staticCanvas');
+    const extractedContainer = document.getElementById('extracted-container');
+    const ctx = liveCanvas.getContext('2d');
+    const btnStart = document.getElementById('btnStart');
+    const btnStop = document.getElementById('btnStop');
+    const btnCapture = document.getElementById('btnCapture');
+    const btnDownload = document.getElementById('btnDownload');
+    const streamDot = document.getElementById('streamDot');
     const fileInput = document.getElementById('fileInput');
     const dropZone = document.getElementById('dropZone');
-    const previewCanvasRewrite = document.getElementById('previewCanvasRewrite');
-    const canvasContainerRewrite = document.getElementById('canvasContainerRewrite');
-    const sampleImagesContainer = document.getElementById('sampleImagesContainer');
-    
-    // Live scanner elements
-    const startLiveButton = document.getElementById('startLiveButton');
-    const stopLiveButton = document.getElementById('stopLiveButton');
-    const captureButton = document.getElementById('captureButton');
-    const liveCanvas = document.getElementById('liveCanvas');
-    const liveStatusIndicator = document.getElementById('liveStatusIndicator');
-    const liveStatus = document.getElementById('liveStatus');
-    const liveFPS = document.getElementById('liveFPS');
-    const liveDetectionFPS = document.getElementById('liveDetectionFPS');
-    const liveResolution = document.getElementById('liveResolution');
-    const liveDocumentStatus = document.getElementById('liveDocumentStatus');
 
-    // --- Live Scanner Functions ---
-    async function initLiveScanner() {
-      if (isInitializing) {
-        console.log('Already initializing webcam...');
-        return;
-      }
-      
-      if (!scanicApi) {
-        alert('Scanic API not available. Please ensure the module is loaded.');
-        return;
-      }
-      
-      isInitializing = true;
-      updateLiveStatus('Initializing camera...', 'inactive');
-      startLiveButton.disabled = true;
-      
-      try {
-        // Request webcam access
-        liveStream = await navigator.mediaDevices.getUserMedia({ 
-          video: { 
-            width: { ideal: 1280 }, 
-            height: { ideal: 720 },
-            facingMode: 'environment' // Prefer rear camera on mobile
-          } 
-        });
-        
-        // Create video element if not exists
-        if (!liveVideo) {
-          liveVideo = document.createElement('video');
-          liveVideo.autoplay = true;
-          liveVideo.playsInline = true;
-          liveVideo.muted = true;
-        }
-        
-        // Set up video stream
-        liveVideo.srcObject = liveStream;
-        
-        // Wait for video to be ready
-        await new Promise((resolve, reject) => {
-          const timeout = setTimeout(() => reject(new Error('Video load timeout')), 10000);
-          liveVideo.onloadedmetadata = () => {
-            clearTimeout(timeout);
-            resolve();
-          };
-          liveVideo.onerror = () => {
-            clearTimeout(timeout);
-            reject(new Error('Video load error'));
-          };
-        });
-        
-        // Ensure video is playing
-        await liveVideo.play();
-        
-        // Set canvas size to match video
-        liveCanvas.width = liveVideo.videoWidth;
-        liveCanvas.height = liveVideo.videoHeight;
-        
-        videoReady = true;
-        updateLiveStatus('Camera ready', 'active');
-        startLiveButton.disabled = false;
-        
-        liveResolution.textContent = `${liveVideo.videoWidth}x${liveVideo.videoHeight}`;
-        console.log('Webcam initialized successfully');
-        
-      } catch (error) {
-        console.error('Failed to initialize webcam:', error);
-        updateLiveStatus('Camera access failed: ' + error.message, 'inactive');
-        startLiveButton.disabled = false;
-        videoReady = false;
-      } finally {
-        isInitializing = false;
-      }
-    }
+    // Stats
+    const statRes = document.getElementById('statRes');
+    const statDetect = document.getElementById('statDetect');
+    const statTime = document.getElementById('statTime');
+    const statStatus = document.getElementById('statStatus');
+
+    // --- Static Scanner Logic ---
+    dropZone.onclick = () => fileInput.click();
+    fileInput.onchange = (e) => processFile(e.target.files[0]);
     
-    function startLiveScanning() {
-      // Prevent multiple calls
-      if (isLiveScanning) {
-        console.log('Live scanning already active');
-        return;
-      }
-      
-      // Initialize if not ready
-      if (!videoReady || !liveStream || !liveVideo) {
-        console.log('Initializing camera before starting...');
-        initLiveScanner().then(() => {
-          if (videoReady) {
-            startLiveScanning();
-          }
-        });
-        return;
-      }
-      
-      isLiveScanning = true;
-      updateLiveStatus('Scanning...', 'active');
-      startLiveButton.disabled = true;
-      stopLiveButton.disabled = false;
-      
-      // Reset detection state
-      stableDetections = 0;
-      lastCorners = null;
-      lastDetectionTime = 0;
-      
-      // Start the animation loop
-      liveLoop();
-    }
-    
-    function stopLiveScanning() {
-      isLiveScanning = false;
-      videoReady = false;
-      isInitializing = false;
-      
-      if (liveAnimationId) {
-        cancelAnimationFrame(liveAnimationId);
-        liveAnimationId = null;
-      }
-      
-      if (liveStream) {
-        liveStream.getTracks().forEach(track => track.stop());
-        liveStream = null;
-      }
-      
-      if (liveVideo) {
-        liveVideo.srcObject = null;
-        liveVideo = null;
-      }
-      
-      updateLiveStatus('Stopped', 'inactive');
-      startLiveButton.disabled = false;
-      stopLiveButton.disabled = true;
-      captureButton.disabled = true;
-      captureButton.textContent = '⏳ Detecting...';
-      liveDocumentStatus.textContent = 'Not detected';
-      liveFPS.textContent = '0';
-      liveDetectionFPS.textContent = '0';
-      liveResolution.textContent = '-';
-      
-      // Clear canvas
-      const ctx = liveCanvas.getContext('2d');
-      ctx.clearRect(0, 0, liveCanvas.width, liveCanvas.height);
-    }
-    
-    let lastFrameTime = 0;
-    let frameCount = 0;
-    let lastFPSUpdate = 0;
-    let detectionCount = 0;
-    let lastDetectionFPSUpdate = 0;
-    
-    function liveLoop() {
-      if (!isLiveScanning || !liveVideo) return;
-      
-      const now = performance.now();
-      const ctx = liveCanvas.getContext('2d');
-      
-      // Draw current video frame first
-      if (liveVideo.readyState >= 2) {
-        // Clear canvas and draw fresh video frame
-        ctx.clearRect(0, 0, liveCanvas.width, liveCanvas.height);
-        ctx.drawImage(liveVideo, 0, 0, liveCanvas.width, liveCanvas.height);
-        
-        // Calculate and update render FPS
-        frameCount++;
-        if (now - lastFPSUpdate > 1000) {
-          const fps = Math.round((frameCount * 1000) / (now - lastFPSUpdate));
-          liveFPS.textContent = fps;
-          frameCount = 0;
-          lastFPSUpdate = now;
-        }
-        
-        // Run detection at specified interval
-        if (now - lastDetectionTime > detectionInterval) {
-          performDetection(ctx, now);
-          lastDetectionTime = now;
-        } else if (lastCorners) {
-          // Draw the last known detection to maintain smooth overlay
-          drawLiveDocumentOverlay(lastCorners, ctx);
-        }
-      }
-      
-      liveAnimationId = requestAnimationFrame(liveLoop);
-    }
-    
-    async function performDetection(ctx, now) {
-      try {
-        // Get image data from canvas - use a smaller region for better performance
-        const imageData = ctx.getImageData(0, 0, liveCanvas.width, liveCanvas.height);
-        
-        // Use scanDocument for detection
-        const result = await scanicApi.scanDocument(imageData, {
-          mode: 'detect',
-          lowThreshold: 50,
-          highThreshold: 150,
-          minArea: 1000,
-          epsilon: 0.02,
-          dilationKernelSize: 3,
-          maxProcessingDimension: 350 // Reduced for better performance
-        });
-        
-        // Update detection FPS
-        detectionCount++;
-        if (now - lastDetectionFPSUpdate > 1000) {
-          const detectionFPS = Math.round((detectionCount * 1000) / (now - lastDetectionFPSUpdate));
-          liveDetectionFPS.textContent = detectionFPS;
-          detectionCount = 0;
-          lastDetectionFPSUpdate = now;
-        }
-        
-        if (result.success && result.corners) {
-          // Check if detection is stable (with slightly more tolerance for smoothness)
-          const isStable = areCornersSimilar(result.corners, lastCorners, 25);
-          
-          if (isStable) {
-            stableDetections++;
-          } else {
-            stableDetections = Math.max(0, stableDetections - 1); // Gradual decrease instead of reset
-          }
-          
-          lastCorners = result.corners;
-          
-          // Draw overlay with current corners
-          drawLiveDocumentOverlay(result.corners, ctx);
-          
-          // Update status based on stability
-          if (stableDetections >= requiredStableFrames) {
-            liveDocumentStatus.textContent = `📄 Document Ready`;
-            liveStatusIndicator.className = 'status-indicator status-detecting';
-            captureButton.disabled = false;
-            captureButton.textContent = '📸 Capture & Extract';
-          } else {
-            liveDocumentStatus.textContent = `🔍 Detecting... (${stableDetections}/${requiredStableFrames})`;
-            liveStatusIndicator.className = 'status-indicator status-active';
-            captureButton.disabled = true;
-            captureButton.textContent = '⏳ Detecting...';
-          }
-        } else {
-          // No document detected - gradual fade out of stability
-          if (stableDetections > 0) {
-            stableDetections = Math.max(0, stableDetections - 1);
-          }
-          
-          if (stableDetections === 0) {
-            lastCorners = null;
-            liveDocumentStatus.textContent = 'No document detected';
-            liveStatusIndicator.className = 'status-indicator status-active';
-            captureButton.disabled = true;
-            captureButton.textContent = '⏳ Detecting...';
-          }
-        }
-        
-      } catch (error) {
-        console.error('Detection error:', error);
-        // Don't reset everything on error, just log it
-      }
-    }
-    
-    function areCornersSimilar(corners1, corners2, threshold = 25) {
-      if (!corners1 || !corners2) return false;
-      
-      const cornerNames = ['topLeft', 'topRight', 'bottomRight', 'bottomLeft'];
-      for (const name of cornerNames) {
-        const c1 = corners1[name];
-        const c2 = corners2[name];
-        const distance = Math.sqrt(Math.pow(c1.x - c2.x, 2) + Math.pow(c1.y - c2.y, 2));
-        if (distance > threshold) return false;
-      }
-      return true;
-    }
-    
-    function drawLiveDocumentOverlay(corners, ctx) {
-      // Draw the video frame first (ensures clean base)
-      if (liveVideo && liveVideo.readyState >= 2) {
-        ctx.drawImage(liveVideo, 0, 0, liveCanvas.width, liveCanvas.height);
-      }
-      
-      // Modern, subtle overlay for live detection
-      ctx.save();
-      
-      // Dynamic opacity based on stability
-      const baseOpacity = 0.6;
-      const stabilityBonus = Math.min(stableDetections / requiredStableFrames, 1) * 0.3;
-      const overlayOpacity = baseOpacity + stabilityBonus;
-      
-      // 1. Draw subtle document area highlight with gradient
-      const gradient = ctx.createLinearGradient(
-        corners.topLeft.x, corners.topLeft.y,
-        corners.bottomRight.x, corners.bottomRight.y
-      );
-      gradient.addColorStop(0, `rgba(0, 150, 255, 0.05)`);
-      gradient.addColorStop(0.5, `rgba(0, 200, 255, 0.08)`);
-      gradient.addColorStop(1, `rgba(0, 150, 255, 0.05)`);
-      
-      ctx.fillStyle = gradient;
-      ctx.beginPath();
-      ctx.moveTo(corners.topLeft.x, corners.topLeft.y);
-      ctx.lineTo(corners.topRight.x, corners.topRight.y);
-      ctx.lineTo(corners.bottomRight.x, corners.bottomRight.y);
-      ctx.lineTo(corners.bottomLeft.x, corners.bottomLeft.y);
-      ctx.closePath();
-      ctx.fill();
-      
-      // 2. Draw modern corner brackets instead of full border
-      const cornerSize = 20;
-      const cornerThickness = 3;
-      const cornerColor = `rgba(0, 150, 255, ${overlayOpacity})`;
-      
-      ctx.strokeStyle = cornerColor;
-      ctx.lineWidth = cornerThickness;
-      ctx.lineCap = 'round';
-      ctx.lineJoin = 'round';
-      ctx.shadowColor = 'rgba(0, 150, 255, 0.4)';
-      ctx.shadowBlur = 6;
-      
-      // Helper function to draw L-shaped corner brackets
-      function drawCornerBracket(corner, angle) {
-        const x = corner.x;
-        const y = corner.y;
-        
-        // Calculate bracket arms based on angle
-        const cos = Math.cos(angle);
-        const sin = Math.sin(angle);
-        
-        const arm1X = x + cos * cornerSize;
-        const arm1Y = y + sin * cornerSize;
-        const arm2X = x + sin * cornerSize;
-        const arm2Y = y - cos * cornerSize;
-        
-        ctx.beginPath();
-        ctx.moveTo(arm1X, arm1Y);
-        ctx.lineTo(x, y);
-        ctx.lineTo(arm2X, arm2Y);
-        ctx.stroke();
-      }
-      
-      // Draw corner brackets
-      drawCornerBracket(corners.topLeft, Math.PI * 0.25);     // 45°
-      drawCornerBracket(corners.topRight, Math.PI * 0.75);    // 135°
-      drawCornerBracket(corners.bottomRight, Math.PI * 1.25); // 225°
-      drawCornerBracket(corners.bottomLeft, Math.PI * 1.75);  // 315°
-      
-      // 3. Draw subtle dashed border connecting corners
-      ctx.shadowBlur = 0;
-      ctx.strokeStyle = `rgba(0, 150, 255, ${overlayOpacity * 0.5})`;
-      ctx.lineWidth = 1.5;
-      ctx.setLineDash([10, 8]);
-      
-      ctx.beginPath();
-      ctx.moveTo(corners.topLeft.x, corners.topLeft.y);
-      ctx.lineTo(corners.topRight.x, corners.topRight.y);
-      ctx.lineTo(corners.bottomRight.x, corners.bottomRight.y);
-      ctx.lineTo(corners.bottomLeft.x, corners.bottomLeft.y);
-      ctx.closePath();
-      ctx.stroke();
-      
-      // 4. Draw elegant corner indicators
-      ctx.setLineDash([]); // Reset line dash
-      const indicatorSize = 4;
-      
-      const corners_array = [corners.topLeft, corners.topRight, corners.bottomRight, corners.bottomLeft];
-      corners_array.forEach(corner => {
-        // Outer glow
-        ctx.shadowColor = 'rgba(0, 150, 255, 0.6)';
-        ctx.shadowBlur = 8;
-        ctx.fillStyle = `rgba(255, 255, 255, ${overlayOpacity})`;
-        
-        ctx.beginPath();
-        ctx.arc(corner.x, corner.y, indicatorSize, 0, 2 * Math.PI);
-        ctx.fill();
-        
-        // Inner ring
-        ctx.shadowBlur = 0;
-        ctx.strokeStyle = `rgba(0, 150, 255, ${overlayOpacity})`;
-        ctx.lineWidth = 2;
-        ctx.stroke();
-      });
-      
-      // 5. Add subtle scanning animation for active detection
-      if (stableDetections > 0) {
-        const time = Date.now() * 0.002;
-        const animOpacity = (Math.sin(time) + 1) * 0.1 + 0.05;
-        
-        ctx.strokeStyle = `rgba(0, 200, 255, ${animOpacity})`;
-        ctx.lineWidth = 2;
-        ctx.setLineDash([6, 4]);
-        ctx.shadowColor = 'rgba(0, 200, 255, 0.3)';
-        ctx.shadowBlur = 10;
-        
-        ctx.beginPath();
-        ctx.moveTo(corners.topLeft.x, corners.topLeft.y);
-        ctx.lineTo(corners.topRight.x, corners.topRight.y);
-        ctx.lineTo(corners.bottomRight.x, corners.bottomRight.y);
-        ctx.lineTo(corners.bottomLeft.x, corners.bottomLeft.y);
-        ctx.closePath();
-        ctx.stroke();
-      }
-      
-      // 6. Add "DOCUMENT DETECTED" text overlay when stable
-      if (stableDetections >= requiredStableFrames) {
-        const centerX = (corners.topLeft.x + corners.topRight.x + corners.bottomLeft.x + corners.bottomRight.x) / 4;
-        const centerY = (corners.topLeft.y + corners.topRight.y + corners.bottomLeft.y + corners.bottomRight.y) / 4;
-        
-        ctx.font = 'bold 14px system-ui, -apple-system, sans-serif';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        
-        // Text shadow
-        ctx.shadowColor = 'rgba(0, 0, 0, 0.8)';
-        ctx.shadowBlur = 4;
-        ctx.shadowOffsetX = 1;
-        ctx.shadowOffsetY = 1;
-        
-        ctx.fillStyle = `rgba(255, 255, 255, ${overlayOpacity * 0.9})`;
-        ctx.fillText('📄 DOCUMENT READY', centerX, centerY);
-        
-        // Reset shadow
-        ctx.shadowColor = 'transparent';
-        ctx.shadowBlur = 0;
-        ctx.shadowOffsetX = 0;
-        ctx.shadowOffsetY = 0;
-      }
-      
-      ctx.restore();
-    }
-    
-    async function captureDocument() {
-      if (!isLiveScanning || !lastCorners) {
-        alert('No stable document detection available');
-        return;
-      }
-      
-      try {
-        captureButton.disabled = true;
-        captureButton.textContent = 'Capturing...';
-        
-        // Get current frame from video
-        const captureCanvas = document.createElement('canvas');
-        captureCanvas.width = liveVideo.videoWidth;
-        captureCanvas.height = liveVideo.videoHeight;
-        const captureCtx = captureCanvas.getContext('2d');
-        captureCtx.drawImage(liveVideo, 0, 0);
-        
-        // Create a copy for showing original with overlay
-        const originalCanvas = document.createElement('canvas');
-        originalCanvas.width = captureCanvas.width;
-        originalCanvas.height = captureCanvas.height;
-        const originalCtx = originalCanvas.getContext('2d');
-        originalCtx.drawImage(captureCanvas, 0, 0);
-        
-        // Scale corners to full video resolution
-        const scaleX = liveVideo.videoWidth / liveCanvas.width;
-        const scaleY = liveVideo.videoHeight / liveCanvas.height;
-        
-        const scaledCorners = {
-          topLeft: { x: lastCorners.topLeft.x * scaleX, y: lastCorners.topLeft.y * scaleY },
-          topRight: { x: lastCorners.topRight.x * scaleX, y: lastCorners.topRight.y * scaleY },
-          bottomRight: { x: lastCorners.bottomRight.x * scaleX, y: lastCorners.bottomRight.y * scaleY },
-          bottomLeft: { x: lastCorners.bottomLeft.x * scaleX, y: lastCorners.bottomLeft.y * scaleY }
-        };
-        
-        // Draw overlay on original
-        drawLiveDocumentOverlay(scaledCorners, originalCtx);
-        
-        // Extract document using scanDocument with extract mode
-        const imageData = captureCtx.getImageData(0, 0, captureCanvas.width, captureCanvas.height);
-        const extractResult = await scanicApi.scanDocument(imageData, {
-          mode: 'extract',
-          output: 'canvas',
-          lowThreshold: 50,
-          highThreshold: 150,
-          minArea: 1000,
-          epsilon: 0.02,
-          dilationKernelSize: 3
-        });
-        
-        if (extractResult.success && extractResult.output) {
-          // Show results in new window
-          showCaptureResults(originalCanvas, extractResult.output);
-        } else {
-          alert('Failed to extract document');
-        }
-        
-      } catch (error) {
-        console.error('Failed to capture document:', error);
-        alert('Failed to capture document: ' + error.message);
-      } finally {
-        captureButton.disabled = false;
-        captureButton.textContent = '📸 Capture & Extract';
-      }
-    }
-    
-    function showCaptureResults(originalCanvas, extractedCanvas) {
-      const newWindow = window.open('', '_blank', 'width=1200,height=700');
-      const originalDataURL = originalCanvas.toDataURL();
-      const extractedDataURL = extractedCanvas.toDataURL();
-      
-      const htmlContent = `
-        <html>
-          <head>
-            <title>Captured Document - Scanic</title>
-            <style>
-              body { 
-                margin: 0; 
-                padding: 20px; 
-                background: #f0f0f0; 
-                font-family: system-ui, -apple-system, sans-serif;
-              }
-              .container {
-                display: flex;
-                gap: 20px;
-                justify-content: center;
-                flex-wrap: wrap;
-              }
-              .panel {
-                background: white;
-                padding: 15px;
-                border-radius: 8px;
-                box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-                text-align: center;
-                max-width: 500px;
-              }
-              canvas {
-                max-width: 100%;
-                height: auto;
-                border: 1px solid #ddd;
-                border-radius: 4px;
-              }
-              h2 { 
-                margin-top: 0; 
-                color: #333;
-              }
-              h3 {
-                color: #666;
-                margin-bottom: 10px;
-              }
-              .controls {
-                margin-top: 20px;
-                text-align: center;
-              }
-              button {
-                background: #4CAF50;
-                color: white;
-                border: none;
-                padding: 10px 20px;
-                margin: 0 5px;
-                border-radius: 4px;
-                cursor: pointer;
-                font-weight: bold;
-              }
-              button:hover {
-                background: #45a049;
-              }
-              .highlight {
-                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-              }
-              .highlight:hover {
-                background: linear-gradient(135deg, #5a6fd8 0%, #6a4190 100%);
-              }
-            </style>
-          </head>
-          <body>
-            <h2>📄 Document Capture Results</h2>
-            <div class="container">
-              <div class="panel">
-                <h3>🎯 Original with Detection</h3>
-                <canvas id="originalCanvas"></canvas>
-                <p><small>Shows the original frame with detected document outline</small></p>
-              </div>
-              <div class="panel">
-                <h3>✨ Perspective Corrected</h3>
-                <canvas id="extractedCanvas"></canvas>
-                <p><small>Document extracted and perspective-corrected for scanning</small></p>
-              </div>
-            </div>
-            <div class="controls">
-              <button onclick="downloadCanvas('extractedCanvas', 'scanned-document')" class="highlight">
-                📥 Download Scanned Document
-              </button>
-              <button onclick="downloadCanvas('originalCanvas', 'original-with-detection')">
-                📥 Download Original
-              </button>
-              <button onclick="window.close()">❌ Close</button>
-            </div>
-            
-            <script>
-              const originalCanvas = document.getElementById('originalCanvas');
-              const extractedCanvas = document.getElementById('extractedCanvas');
-              
-              // Load original image
-              const originalCtx = originalCanvas.getContext('2d');
-              originalCanvas.width = ${originalCanvas.width};
-              originalCanvas.height = ${originalCanvas.height};
-              const originalImg = new Image();
-              originalImg.onload = function() {
-                originalCtx.drawImage(originalImg, 0, 0);
-              };
-              originalImg.src = '${originalDataURL}';
-              
-              // Load extracted image
-              const extractedCtx = extractedCanvas.getContext('2d');
-              extractedCanvas.width = ${extractedCanvas.width};
-              extractedCanvas.height = ${extractedCanvas.height};
-              const extractedImg = new Image();
-              extractedImg.onload = function() {
-                extractedCtx.drawImage(extractedImg, 0, 0);
-              };
-              extractedImg.src = '${extractedDataURL}';
-              
-              function downloadCanvas(canvasId, filename) {
-                const canvas = document.getElementById(canvasId);
-                const link = document.createElement('a');
-                link.download = filename + '-' + new Date().toISOString().slice(0,19).replace(/:/g, '-') + '.png';
-                link.href = canvas.toDataURL('image/png', 1.0);
-                link.click();
-              }
-            <\/script>
-          </body>
-        </html>
-      `;
-      newWindow.document.write(htmlContent);
-    }
-    
-    function updateLiveStatus(status, indicatorClass) {
-      liveStatus.textContent = status;
-      liveStatusIndicator.className = `status-indicator status-${indicatorClass}`;
-    }
-    
-    // Check webcam availability on load
-    async function checkWebcamSupport() {
-      try {
-        const devices = await navigator.mediaDevices.enumerateDevices();
-        const videoDevices = devices.filter(device => device.kind === 'videoinput');
-        
-        if (videoDevices.length === 0) {
-          updateLiveStatus('No webcam available', 'inactive');
-          startLiveButton.disabled = true;
-          console.warn('No video input devices found');
-        } else {
-          console.log(`Webcam available: ${videoDevices.length} device(s) found`);
-          updateLiveStatus('Webcam ready', 'inactive');
-        }
-      } catch (error) {
-        updateLiveStatus('Webcam check failed', 'inactive');  
-        startLiveButton.disabled = true;
-        console.warn('Failed to check webcam availability:', error);
-      }
+    document.querySelectorAll('.sample-img').forEach(img => {
+      img.onclick = () => processUrl(img.src);
+    });
+
+    async function processUrl(url) {
+      const img = new Image();
+      img.crossOrigin = "anonymous";
+      img.onload = () => processImage(img);
+      img.src = url;
     }
 
-    // --- Functions ---
-    function loadSampleImage() {
-      // Load first test image automatically
-      loadImageFromSrc('./testImages/test.png');
-    }
-
-    function loadSampleImages() {
-      const testImagePaths = [
-        './testImages/test.png',
-        './testImages/test2.png',
-        './testImages/test3.jpg',
-        './testImages/test4.JPG',
-        './testImages/test5.JPG',
-        './testImages/test6.JPG',
-        './testImages/test7.JPG',
-        './testImages/test8.JPG',
-        './testImages/test9.jpg',
-        './testImages/test10.jpg',
-      ];
-      sampleImagesContainer.innerHTML = '';
-      testImagePaths.forEach((path, index) => {
-        const img = document.createElement('img');
-        img.src = path;
-        img.classList.add('sample-image');
-        img.alt = `Sample image ${index + 1}`;
-        img.title = `Sample image ${index + 1}`;
-        img.addEventListener('click', () => {
-          loadImageFromSrc(path);
-        });
-        sampleImagesContainer.appendChild(img);
-      });
-    }
-
-    function handleFileSelect(file) {
-      if (!file || !file.type.startsWith('image/')) {
-        alert('Please select an image file');
-        return;
-      }
+    async function processFile(file) {
+      if (!file) return;
       const reader = new FileReader();
-      reader.onload = function(e) {
-        loadImageFromSrc(e.target.result);
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => processImage(img);
+        img.src = e.target.result;
       };
       reader.readAsDataURL(file);
     }
-    
-    function loadImageFromSrc(src) {
-        const img = new Image();
-        img.onload = function() {
-          currentImage = img;
-             resizeCanvas();
-             drawImage();
-             processImage();
-        };
-        img.onerror = () => alert("Failed to load image");
-        img.src = src;
-    }
 
-    function drawImage() {
-      if (!currentImage) return;
-      // Draw on preview canvas
-      const ctxRewrite = previewCanvasRewrite.getContext('2d');
-      ctxRewrite.clearRect(0, 0, previewCanvasRewrite.width, previewCanvasRewrite.height);
-      ctxRewrite.drawImage(currentImage, 0, 0, previewCanvasRewrite.width, previewCanvasRewrite.height);
-    }
-
-    function resizeCanvas() {
-      if (!currentImage) return;
-      const maxWidth = canvasContainerRewrite.clientWidth;
-      const scale = Math.min(1, maxWidth / currentImage.width);
-      const scaledWidth = currentImage.width * scale;
-      const scaledHeight = currentImage.height * scale;
-
-      previewCanvasRewrite.width = scaledWidth;
-      previewCanvasRewrite.height = scaledHeight;
-    }
-
-    async function processImage() {
-      if (!currentImage) {
-        return;
+    async function processImage(img) {
+      extractedContainer.classList.remove('hidden');
+      statStatus.textContent = 'Processing static image...';
+      
+      const result = await scanDocument(img, { mode: 'extract' });
+      if (result.success) {
+        staticCanvas.width = result.output.width;
+        staticCanvas.height = result.output.height;
+        staticCanvas.getContext('2d').drawImage(result.output, 0, 0);
+        extractedContainer.scrollIntoView({ behavior: 'smooth' });
+        statStatus.textContent = 'Processed static image';
       }
-      if (!scanicApi) {
-        console.log('Scanic library module not loaded yet.');
-        return;
-      }
+    }
 
-      const options = {
-        lowThreshold: 50,
-        highThreshold: 150,
-        minArea: 1000,
-        epsilon: 0.02,
-        dilationKernelSize: 5,
-        debug: false,
-        mode: 'detect', // Use detect mode to get corners only
-        output: 'canvas',
-      };
-
-      // --- Process with Scanic unified API ---
+    // --- Live Scanner Logic ---
+    btnStart.onclick = async () => {
       try {
-        const result = await scanicApi.scanDocument(currentImage, options);
+        statStatus.textContent = 'Initializing WASM...';
+        await scanner.initialize();
         
-        // Clear and redraw the original image
-        const ctx = previewCanvasRewrite.getContext('2d');
-        ctx.clearRect(0, 0, previewCanvasRewrite.width, previewCanvasRewrite.height);
-        ctx.drawImage(currentImage, 0, 0, previewCanvasRewrite.width, previewCanvasRewrite.height);
+        stream = await navigator.mediaDevices.getUserMedia({ 
+          video: { facingMode: 'environment', width: { ideal: 1280 } } 
+        });
         
-        // If document detected, draw the sleek border overlay
+        video = document.createElement('video');
+        video.srcObject = stream;
+        video.autoplay = true;
+        
+        await video.play();
+        
+        liveCanvas.width = video.videoWidth;
+        liveCanvas.height = video.videoHeight;
+        statRes.textContent = `${video.videoWidth}x${video.videoHeight}`;
+        
+        isLive = true;
+        btnStart.classList.add('hidden');
+        btnStop.classList.remove('hidden');
+        btnCapture.classList.remove('hidden');
+        streamDot.classList.add('status-active');
+        statStatus.textContent = 'Scanning...';
+        
+        requestAnimationFrame(loop);
+      } catch (err) {
+        console.error(err);
+        alert('Camera access denied or unavailable');
+        statStatus.textContent = 'Camera Error';
+      }
+    };
+
+    btnStop.onclick = () => {
+      isLive = false;
+      if (stream) stream.getTracks().forEach(t => t.stop());
+      cancelAnimationFrame(animationId);
+      btnStart.classList.remove('hidden');
+      btnStop.classList.add('hidden');
+      btnCapture.classList.add('hidden');
+      streamDot.classList.remove('status-active');
+      statStatus.textContent = 'Idle';
+    };
+
+    async function loop() {
+      if (!isLive) return;
+
+      const t0 = performance.now();
+      ctx.drawImage(video, 0, 0);
+
+      // Process every other frame for performance
+      if (true) {
+        const result = await scanner.scan(liveCanvas, { mode: 'detect' });
+        statTime.textContent = `${Math.round(performance.now() - t0)}ms`;
+        
         if (result.success && result.corners) {
-          drawDocumentOverlay(result.corners, ctx);
+          statDetect.textContent = 'YES';
+          ctx.strokeStyle = '#6366f1';
+          ctx.lineWidth = 10;
+          ctx.lineCap = 'round';
+          ctx.lineJoin = 'round';
+          ctx.beginPath();
+          ctx.moveTo(result.corners.topLeft.x, result.corners.topLeft.y);
+          ctx.lineTo(result.corners.topRight.x, result.corners.topRight.y);
+          ctx.lineTo(result.corners.bottomRight.x, result.corners.bottomRight.y);
+          ctx.lineTo(result.corners.bottomLeft.x, result.corners.bottomLeft.y);
+          ctx.closePath();
+          ctx.stroke();
+
+          // Draw corner points
+          ctx.fillStyle = '#ffffff';
+          [result.corners.topLeft, result.corners.topRight, result.corners.bottomRight, result.corners.bottomLeft].forEach(p => {
+             ctx.beginPath();
+             ctx.arc(p.x, p.y, 8, 0, Math.PI * 2);
+             ctx.fill();
+             ctx.stroke();
+          });
+        } else {
+          statDetect.textContent = 'NO';
         }
-        
-      } catch (error) {
-        console.error('Error processing rewrite:', error);
       }
+
+      animationId = requestAnimationFrame(loop);
     }
 
-    // Function to draw the sleek document border overlay
-    function drawDocumentOverlay(corners, ctx) {
-      const canvas = ctx.canvas;
-      const scaleX = canvas.width / currentImage.width;
-      const scaleY = canvas.height / currentImage.height;
-      
-      // Scale corners to canvas coordinates
-      const scaledCorners = {
-        topLeft: [corners.topLeft.x * scaleX, corners.topLeft.y * scaleY],
-        topRight: [corners.topRight.x * scaleX, corners.topRight.y * scaleY],
-        bottomRight: [corners.bottomRight.x * scaleX, corners.bottomRight.y * scaleY],
-        bottomLeft: [corners.bottomLeft.x * scaleX, corners.bottomLeft.y * scaleY]
-      };
-      
-      // Save context
-      ctx.save();
-      
-      // Modern sleek design with gradient and corner brackets
-      
-      // 1. Draw subtle semi-transparent overlay on document area
-      ctx.fillStyle = 'rgba(0, 150, 255, 0.08)';
-      ctx.beginPath();
-      ctx.moveTo(scaledCorners.topLeft[0], scaledCorners.topLeft[1]);
-      ctx.lineTo(scaledCorners.topRight[0], scaledCorners.topRight[1]);
-      ctx.lineTo(scaledCorners.bottomRight[0], scaledCorners.bottomRight[1]);
-      ctx.lineTo(scaledCorners.bottomLeft[0], scaledCorners.bottomLeft[1]);
-      ctx.closePath();
-      ctx.fill();
-      
-      // 2. Draw modern L-shaped corner brackets pointing toward adjacent corners
-      const cornerSize = 25;
-      const cornerThickness = 4;
-      const cornerColor = '#0096FF';
-      
-      ctx.strokeStyle = cornerColor;
-      ctx.lineWidth = cornerThickness;
-      ctx.lineCap = 'round';
-      ctx.lineJoin = 'round';
-      ctx.shadowColor = 'rgba(0, 150, 255, 0.6)';
-      ctx.shadowBlur = 8;
-      
-      // Helper function to calculate direction vector and normalize it
-      function getDirection(from, to) {
-        const dx = to[0] - from[0];
-        const dy = to[1] - from[1];
-        const length = Math.sqrt(dx * dx + dy * dy);
-        return [dx / length, dy / length];
+    btnCapture.onclick = async () => {
+      statStatus.textContent = 'Extracting...';
+      const result = await scanner.scan(liveCanvas, { mode: 'extract' });
+      if (result.success) {
+        extractedContainer.classList.remove('hidden');
+        staticCanvas.width = result.output.width;
+        staticCanvas.height = result.output.height;
+        staticCanvas.getContext('2d').drawImage(result.output, 0, 0);
+        extractedContainer.scrollIntoView({ behavior: 'smooth' });
+        statStatus.textContent = 'Captured!';
+        setTimeout(() => statStatus.textContent = 'Scanning...', 2000);
       }
-      
-      // Draw L-shaped corner brackets for each corner
-      const cornerPoints = [
-        { name: 'topLeft', pos: scaledCorners.topLeft, neighbors: [scaledCorners.topRight, scaledCorners.bottomLeft] },
-        { name: 'topRight', pos: scaledCorners.topRight, neighbors: [scaledCorners.topLeft, scaledCorners.bottomRight] },
-        { name: 'bottomRight', pos: scaledCorners.bottomRight, neighbors: [scaledCorners.topRight, scaledCorners.bottomLeft] },
-        { name: 'bottomLeft', pos: scaledCorners.bottomLeft, neighbors: [scaledCorners.topLeft, scaledCorners.bottomRight] }
-      ];
-      
-      cornerPoints.forEach(corner => {
-        const [x, y] = corner.pos;
-        const [neighbor1, neighbor2] = corner.neighbors;
-        
-        // Get direction vectors to neighboring corners
-        const dir1 = getDirection(corner.pos, neighbor1);
-        const dir2 = getDirection(corner.pos, neighbor2);
-        
-        // Calculate end points for the L-shaped bracket
-        const end1 = [x + dir1[0] * cornerSize, y + dir1[1] * cornerSize];
-        const end2 = [x + dir2[0] * cornerSize, y + dir2[1] * cornerSize];
-        
-        // Draw L-shaped bracket
-        ctx.beginPath();
-        ctx.moveTo(end1[0], end1[1]);
-        ctx.lineTo(x, y);
-        ctx.lineTo(end2[0], end2[1]);
-        ctx.stroke();
-      });
-      
-      // 3. Draw subtle connecting lines (dashed)
-      ctx.shadowBlur = 0;
-      ctx.strokeStyle = 'rgba(0, 150, 255, 0.4)';
-      ctx.lineWidth = 2;
-      ctx.setLineDash([8, 12]);
-      
-      ctx.beginPath();
-      ctx.moveTo(scaledCorners.topLeft[0], scaledCorners.topLeft[1]);
-      ctx.lineTo(scaledCorners.topRight[0], scaledCorners.topRight[1]);
-      ctx.lineTo(scaledCorners.bottomRight[0], scaledCorners.bottomRight[1]);
-      ctx.lineTo(scaledCorners.bottomLeft[0], scaledCorners.bottomLeft[1]);
-      ctx.closePath();
-      ctx.stroke();
-      
-      // 4. Draw sleek corner indicators (small rounded squares instead of circles)
-      ctx.setLineDash([]); // Reset line dash
-      const cornerIndicatorSize = 3;
-      
-      Object.values(scaledCorners).forEach(([x, y]) => {
-        ctx.fillStyle = '#FFFFFF';
-        ctx.shadowColor = 'rgba(0, 150, 255, 0.8)';
-        ctx.shadowBlur = 4;
-        
-        // Draw small rounded square
-        ctx.beginPath();
-        ctx.roundRect(x - cornerIndicatorSize, y - cornerIndicatorSize, 
-                     cornerIndicatorSize * 2, cornerIndicatorSize * 2, 2);
-        ctx.fill();
-        
-        // Add blue border
-        ctx.shadowBlur = 0;
-        ctx.strokeStyle = '#0096FF';
-        ctx.lineWidth = 1;
-        ctx.stroke();
-      });
-      
-      // 5. Add scanning animation effect (optional pulsing)
-      const time = Date.now() * 0.003;
-      const pulseOpacity = (Math.sin(time) + 1) * 0.15 + 0.1;
-      
-      ctx.strokeStyle = `rgba(0, 150, 255, ${pulseOpacity})`;
-      ctx.lineWidth = 1;
-      ctx.setLineDash([]);
-      ctx.shadowColor = 'rgba(0, 150, 255, 0.3)';
-      ctx.shadowBlur = 15;
-      
-      ctx.beginPath();
-      ctx.moveTo(scaledCorners.topLeft[0], scaledCorners.topLeft[1]);
-      ctx.lineTo(scaledCorners.topRight[0], scaledCorners.topRight[1]);
-      ctx.lineTo(scaledCorners.bottomRight[0], scaledCorners.bottomRight[1]);
-      ctx.lineTo(scaledCorners.bottomLeft[0], scaledCorners.bottomLeft[1]);
-      ctx.closePath();
-      ctx.stroke();
-      
-      // Restore context
-      ctx.restore();
-    }
+    };
 
-    // --- Event Listeners ---
-    fileInput.addEventListener('change', function() { handleFileSelect(this.files[0]); });
-    dropZone.addEventListener('click', function() { fileInput.click(); });
-    dropZone.addEventListener('dragover', function(e) { 
-      e.preventDefault(); 
-      e.stopPropagation(); 
-      this.style.backgroundColor = '#e9e9e9'; 
-    });
-    dropZone.addEventListener('dragleave', function(e) { 
-      e.preventDefault(); 
-      e.stopPropagation(); 
-      this.style.backgroundColor = '#f9f9f9'; 
-    });
-    dropZone.addEventListener('drop', function(e) {
-      e.preventDefault();
-      e.stopPropagation();
-      this.style.backgroundColor = '#f9f9f9';
-      handleFileSelect(e.dataTransfer.files[0]);
-    });
-    
-    // Live scanner event listeners
-    startLiveButton.addEventListener('click', () => {
-      if (!isLiveScanning && !isInitializing) {
-        startLiveScanning();
-      }
-    });
-    stopLiveButton.addEventListener('click', stopLiveScanning);
-    captureButton.addEventListener('click', captureDocument);
-    window.addEventListener('resize', function() { resizeCanvas(); drawImage(); });
-
-    // --- Initialization ---
-    loadSampleImages();
-    updateLiveStatus('Initializing...', 'inactive');
-
+    btnDownload.onclick = () => {
+      const link = document.createElement('a');
+      link.download = 'scanic-document.png';
+      link.href = staticCanvas.toDataURL();
+      link.click();
+    };
   </script>
 </body>
 </html>
