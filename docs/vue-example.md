@@ -182,7 +182,9 @@ export default {
 
 <script setup>
 import { ref, onUnmounted } from 'vue';
-import { scanDocument } from 'scanic';
+import { Scanner } from 'scanic';
+
+const scanner = new Scanner();
 
 const isScanning = ref(false);
 const documentDetected = ref(false);
@@ -196,6 +198,9 @@ let animationId = null;
 
 const startCamera = async () => {
   try {
+    // Initialize WASM once before starting the loop
+    await scanner.initialize();
+    
     stream = await navigator.mediaDevices.getUserMedia({ video: true });
     
     video = document.createElement('video');
@@ -236,7 +241,7 @@ const scanLoop = async () => {
   if (Math.random() < 0.3) {
     try {
       const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-      const result = await scanDocument(imageData, { mode: 'detect' });
+      const result = await scanner.scan(imageData, { mode: 'detect' });
       
       if (result.success && result.corners) {
         documentDetected.value = true;
@@ -272,7 +277,7 @@ const captureDocument = async () => {
     ctx.drawImage(video, 0, 0);
     
     const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-    const result = await scanDocument(imageData, { mode: 'extract', output: 'canvas' });
+    const result = await scanner.scan(imageData, { mode: 'extract', output: 'canvas' });
     
     if (result.success && result.output) {
       capturedDocument.value = result.output;

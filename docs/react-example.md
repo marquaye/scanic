@@ -91,7 +91,7 @@ export default DocumentScanner;
 
 ```jsx
 import React, { useState, useRef, useEffect } from 'react';
-import { scanDocument } from 'scanic';
+import { Scanner } from 'scanic';
 
 function LiveScanner() {
   const [isScanning, setIsScanning] = useState(false);
@@ -102,9 +102,13 @@ function LiveScanner() {
   const streamRef = useRef(null);
   const videoRef = useRef(null);
   const animationIdRef = useRef(null);
+  const scannerRef = useRef(new Scanner());
 
   const startCamera = async () => {
     try {
+      // Initialize scanner once
+      await scannerRef.current.initialize();
+
       streamRef.current = await navigator.mediaDevices.getUserMedia({ video: true });
       
       videoRef.current = document.createElement('video');
@@ -150,7 +154,7 @@ function LiveScanner() {
     if (Math.random() < 0.3) {
       try {
         const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-        const result = await scanDocument(imageData, { mode: 'detect' });
+        const result = await scannerRef.current.scan(imageData, { mode: 'detect' });
         
         if (result.success && result.corners) {
           setDocumentDetected(true);
@@ -186,7 +190,7 @@ function LiveScanner() {
       ctx.drawImage(videoRef.current, 0, 0);
       
       const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-      const result = await scanDocument(imageData, { mode: 'extract', output: 'canvas' });
+      const result = await scannerRef.current.scan(imageData, { mode: 'extract', output: 'canvas' });
       
       if (result.success && result.output) {
         setCapturedDocument(result.output);
