@@ -1,4 +1,4 @@
-FROM rust:1.83
+FROM rust:1.92
 
 # Install dependencies for wasm-pack
 RUN apt-get update && apt-get install -y curl pkg-config libssl-dev
