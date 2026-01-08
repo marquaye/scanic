@@ -164,6 +164,7 @@ export function detectDocumentContour(edges, options = {}) {
 
 /**
  * Traces a contour boundary using border following.
+ * Optimized to minimize object allocations.
  * @param {Int32Array} labels - The label map (modified during tracing)
  * @param {number} width - Padded width of the label map
  * @param {number} height - Padded height of the label map
@@ -174,15 +175,26 @@ export function detectDocumentContour(edges, options = {}) {
  */
 function traceContour(labels, width, height, startPoint, initialDirection, contourId) {
     const points = [];
-    const visitedPoints = new Set(); // Use a Set for efficient duplicate checking
-    let currentPoint = { ...startPoint };
+    // Use Set with numeric keys (y * width + x) - much faster than string keys
+    const visited = new Set();
+    
+    // Avoid object creation in hot loop - use primitive coordinates
+    let currentX = startPoint.x;
+    let currentY = startPoint.y;
+    const startX = currentX;
+    const startY = currentY;
+    
     let prevDirection = -1; // Store the direction from which we arrived at currentPoint
 
     // Mark the starting pixel with the contour ID
-    labels[startPoint.y * width + startPoint.x] = contourId;
+    labels[startY * width + startX] = contourId;
 
     let count = 0; // Safety break
     const maxSteps = width * height; // Max possible steps
+    
+    // Pre-extract delta values for faster access in hot loop
+    const dx = [0, 1, 1, 1, 0, -1, -1, -1];
+    const dy = [-1, -1, 0, 1, 1, 1, 0, -1];
 
     while (count++ < maxSteps) {
         // Determine the direction to start searching from (relative to the direction we came from)
@@ -200,9 +212,9 @@ function traceContour(labels, width, height, startPoint, initialDirection, conto
             // Find the first non-zero pixel starting from `initialDirection` clockwise.
             let found = false;
             for (let i = 0; i < 8; i++) {
-                searchDirection = (initialDirection + i) % 8;
-                const nextX = currentPoint.x + deltas[searchDirection].dx;
-                const nextY = currentPoint.y + deltas[searchDirection].dy;
+                searchDirection = (initialDirection + i) & 7; // Faster than % 8
+                const nextX = currentX + dx[searchDirection];
+                const nextY = currentY + dy[searchDirection];
                 if (nextX >= 0 && nextX < width && nextY >= 0 && nextY < height && labels[nextY * width + nextX] > 0) {
                     found = true;
                     break;
@@ -212,64 +224,65 @@ function traceContour(labels, width, height, startPoint, initialDirection, conto
 
         } else {
             // Subsequent steps: Start search from (prevDirection + 2) % 8 clockwise
-             searchDirection = (prevDirection + 2) % 8;
+             searchDirection = (prevDirection + 2) & 7;
         }
 
 
-        let nextPoint = null;
+        let nextX = -1;
+        let nextY = -1;
         let nextDirection = -1;
 
         // Search clockwise for the next boundary pixel
         for (let i = 0; i < 8; i++) {
-            const checkDirection = (searchDirection + i) % 8;
-            const checkX = currentPoint.x + deltas[checkDirection].dx;
-            const checkY = currentPoint.y + deltas[checkDirection].dy;
+            const checkDirection = (searchDirection + i) & 7;
+            const checkX = currentX + dx[checkDirection];
+            const checkY = currentY + dy[checkDirection];
 
             // Check bounds (should be within padded area)
             if (checkX >= 0 && checkX < width && checkY >= 0 && checkY < height) {
-                const pixelLabel = labels[checkY * width + checkX];
-                if (pixelLabel > 0) { // Found a foreground pixel (labeled or unlabeled)
-                    nextPoint = { x: checkX, y: checkY };
+                if (labels[checkY * width + checkX] > 0) { // Found a foreground pixel (labeled or unlabeled)
+                    nextX = checkX;
+                    nextY = checkY;
                     // The direction *from* currentPoint *to* nextPoint is checkDirection
                     nextDirection = checkDirection;
                     // The direction *from* which we will arrive *at* nextPoint is (checkDirection + 4) % 8
-                    prevDirection = (checkDirection + 4) % 8;
+                    prevDirection = (checkDirection + 4) & 7;
                     break;
                 }
             }
         }
 
-        if (!nextPoint) {
+        if (nextX === -1) {
             // Should not happen in a well-formed contour, maybe isolated pixel?
              if (points.length === 0) { // If it's just the start point
-                 points.push({ ...currentPoint }); // Add the single point
+                 points.push({ x: currentX, y: currentY }); // Add the single point
              }
-            console.warn(`Contour tracing stopped unexpectedly at (${currentPoint.x-1}, ${currentPoint.y-1}) for contour ${contourId}`);
+            console.warn(`Contour tracing stopped unexpectedly at (${currentX-1}, ${currentY-1}) for contour ${contourId}`);
             break;
         }
 
         // Add the *current* point to the list before moving
-        const pointKey = `${currentPoint.x},${currentPoint.y}`;
-        if (visitedPoints.has(pointKey)) {
-            // console.warn(`Duplicate point detected at (${currentPoint.x}, ${currentPoint.y}) for contour ${contourId}`);
-            // console.warn(points)
-            // console.warn(filtered)
-            return points; // Avoid infinite loops on duplicate points
+        // Use numeric key for Set (much faster than string concatenation)
+        const visitedKey = currentY * width + currentX;
+        if (visited.has(visitedKey)) {
+            // Duplicate point detected - return to avoid infinite loops
+            return points;
         }
-        points.push({ ...currentPoint });
-        visitedPoints.add(pointKey);
-        
+        points.push({ x: currentX, y: currentY });
+        visited.add(visitedKey);
 
         // Mark the next pixel if it's unlabeled
-        if (labels[nextPoint.y * width + nextPoint.x] === 1) {
-            labels[nextPoint.y * width + nextPoint.x] = contourId;
+        const nextIdx = nextY * width + nextX;
+        if (labels[nextIdx] === 1) {
+            labels[nextIdx] = contourId;
         }
 
         // Move to the next point
-        currentPoint = nextPoint;
+        currentX = nextX;
+        currentY = nextY;
 
         // Check if we returned to the start point
-        if (currentPoint.x === startPoint.x && currentPoint.y === startPoint.y) {
+        if (currentX === startX && currentY === startY) {
             // Check if we came from the same direction as the initial step search ended.
             // This is complex, let's use a simpler check: if we are back at start, we are done.
             // OpenCV has more sophisticated checks involving i4 == i0 && i3 == i1.
@@ -288,60 +301,88 @@ function traceContour(labels, width, height, startPoint, initialDirection, conto
 /**
  * Simplifies a contour polygon using CHAIN_APPROX_SIMPLE.
  * Removes intermediate points that lie on the straight line segment between their neighbors.
+ * Optimized to avoid modulo operations in hot loop.
  * @param {Array} points - Array of contour points {x, y}
  * @returns {Array} Simplified array of points
  */
 function simplifyChainApproxSimple(points) {
-    if (points.length <= 2) {
+    const n = points.length;
+    if (n <= 2) {
         return points;
     }
 
     const simplifiedPoints = [];
-    const n = points.length;
+    
+    // Cache first and last points for wrap-around
+    const lastPoint = points[n - 1];
+    const firstPoint = points[0];
+    
+    // Check first point (prev = last, next = second)
+    let prevPoint = lastPoint;
+    let currentPoint = firstPoint;
+    let nextPoint = points[1];
+    
+    let dx1 = currentPoint.x - prevPoint.x;
+    let dy1 = currentPoint.y - prevPoint.y;
+    let dx2 = nextPoint.x - currentPoint.x;
+    let dy2 = nextPoint.y - currentPoint.y;
+    
+    if (dx1 * dy2 !== dy1 * dx2) {
+        simplifiedPoints.push(currentPoint);
+    }
+    
+    // Middle points (no wrap-around needed)
+    for (let i = 1; i < n - 1; i++) {
+        prevPoint = points[i - 1];
+        currentPoint = points[i];
+        nextPoint = points[i + 1];
 
-    for (let i = 0; i < n; i++) {
-        const prevPoint = points[(i + n - 1) % n]; // Handle wrap around
-        const currentPoint = points[i];
-        const nextPoint = points[(i + 1) % n]; // Handle wrap around
+        dx1 = currentPoint.x - prevPoint.x;
+        dy1 = currentPoint.y - prevPoint.y;
+        dx2 = nextPoint.x - currentPoint.x;
+        dy2 = nextPoint.y - currentPoint.y;
 
-        // Check for collinearity: (y2-y1)*(x3-x2) == (y3-y2)*(x2-x1)
-        const dx1 = currentPoint.x - prevPoint.x;
-        const dy1 = currentPoint.y - prevPoint.y;
-        const dx2 = nextPoint.x - currentPoint.x;
-        const dy2 = nextPoint.y - currentPoint.y;
-
-        // If points are not collinear, keep the current point
         if (dx1 * dy2 !== dy1 * dx2) {
             simplifiedPoints.push(currentPoint);
         }
     }
+    
+    // Check last point (prev = second-to-last, next = first)
+    prevPoint = points[n - 2];
+    currentPoint = lastPoint;
+    nextPoint = firstPoint;
+    
+    dx1 = currentPoint.x - prevPoint.x;
+    dy1 = currentPoint.y - prevPoint.y;
+    dx2 = nextPoint.x - currentPoint.x;
+    dy2 = nextPoint.y - currentPoint.y;
+    
+    if (dx1 * dy2 !== dy1 * dx2) {
+        simplifiedPoints.push(currentPoint);
+    }
 
     // Handle cases where all points are collinear (e.g., straight line)
-    // In this case, the above loop might remove all points. Keep first and last?
-    // OpenCV keeps the two endpoints of the line segment.
-    if (simplifiedPoints.length === 0 && n > 0) {
-         // If all points were collinear, return the start and end points of the original sequence
-         // This requires knowing the original start/end, which isn't trivial with wrap-around.
-         // Let's return the first and the point furthest from the first.
+    if (simplifiedPoints.length === 0) {
          if (n === 1) return [points[0]];
          if (n === 2) return points;
 
-         // Find the point most distant from the first point to represent the line segment
+         // Find the point most distant from the first point
          let maxDistSq = 0;
          let farthestIdx = 1;
-         const p0 = points[0];
-         for(let i = 1; i < n; i++) {
+         const p0x = firstPoint.x;
+         const p0y = firstPoint.y;
+         for (let i = 1; i < n; i++) {
              const pi = points[i];
-             const distSq = (pi.x - p0.x)**2 + (pi.y - p0.y)**2;
+             const dx = pi.x - p0x;
+             const dy = pi.y - p0y;
+             const distSq = dx * dx + dy * dy;
              if (distSq > maxDistSq) {
                  maxDistSq = distSq;
                  farthestIdx = i;
              }
          }
-         // Ensure order if needed, but for simple approx, just two points is fine.
-         return [points[0], points[farthestIdx]];
+         return [firstPoint, points[farthestIdx]];
     }
-
 
     return simplifiedPoints;
 }

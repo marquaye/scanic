@@ -10,75 +10,144 @@ import { findCornerPoints } from './cornerDetection.js';
 import { cannyEdgeDetector } from './edgeDetection.js';
 
 
-// Helper function to calculate smart adaptive downscale factor
-function calculateAdaptiveDownscale(imageData, maxDimension = 800) {
-  const { width, height } = imageData;
-  const maxCurrentDimension = Math.max(width, height);
+/**
+ * Prepares image and optionally downscales using createImageBitmap for hardware acceleration.
+ * Falls back to canvas if createImageBitmap is not available.
+ * @param {HTMLImageElement|HTMLCanvasElement|ImageData} image - Input image
+ * @param {number} maxDimension - Maximum dimension for processing (default 800)
+ * @returns {Promise<Object>} { imageData, scaleFactor, originalDimensions, scaledDimensions }
+ */
+async function prepareAndScaleImage(image, maxDimension = 800) {
+  let originalWidth, originalHeight;
   
-  // If image is already smaller than target, no scaling needed
+  // Get original dimensions
+  if (image instanceof ImageData) {
+    originalWidth = image.width;
+    originalHeight = image.height;
+  } else {
+    originalWidth = image.width || image.naturalWidth;
+    originalHeight = image.height || image.naturalHeight;
+  }
+  
+  const maxCurrentDimension = Math.max(originalWidth, originalHeight);
+  
+  // Calculate target dimensions
+  let targetWidth, targetHeight, scaleFactor;
+  
   if (maxCurrentDimension <= maxDimension) {
+    // No scaling needed
+    targetWidth = originalWidth;
+    targetHeight = originalHeight;
+    scaleFactor = 1;
+  } else {
+    // Scale down to fit within maxDimension
+    const scale = maxDimension / maxCurrentDimension;
+    targetWidth = Math.round(originalWidth * scale);
+    targetHeight = Math.round(originalHeight * scale);
+    scaleFactor = 1 / scale; // Inverse for scaling corners back up
+  }
+  
+  // Fast path: ImageData with no scaling needed
+  if (image instanceof ImageData && scaleFactor === 1) {
     return {
-      scaledImageData: imageData,
+      imageData: image,
       scaleFactor: 1,
-      originalDimensions: { width, height },
-      scaledDimensions: { width, height }
+      originalDimensions: { width: originalWidth, height: originalHeight },
+      scaledDimensions: { width: targetWidth, height: targetHeight }
     };
   }
   
-  // Calculate scale factor to fit within maxDimension
-  const scaleFactor = maxDimension / maxCurrentDimension;
-  const scaledWidth = Math.round(width * scaleFactor);
-  const scaledHeight = Math.round(height * scaleFactor);
+  // Try to use createImageBitmap for hardware-accelerated scaling
+  if (typeof createImageBitmap !== 'undefined') {
+    try {
+      let bitmap;
+      
+      if (image instanceof ImageData) {
+        // For ImageData, create bitmap then resize
+        bitmap = await createImageBitmap(image, {
+          resizeWidth: targetWidth,
+          resizeHeight: targetHeight,
+          resizeQuality: 'medium'
+        });
+      } else {
+        // For HTMLImageElement/HTMLCanvasElement, directly create resized bitmap
+        bitmap = await createImageBitmap(image, 0, 0, originalWidth, originalHeight, {
+          resizeWidth: targetWidth,
+          resizeHeight: targetHeight,
+          resizeQuality: 'medium'
+        });
+      }
+      
+      // Draw bitmap to canvas and get ImageData
+      const canvas = document.createElement('canvas');
+      canvas.width = targetWidth;
+      canvas.height = targetHeight;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(bitmap, 0, 0);
+      bitmap.close(); // Free the bitmap memory
+      
+      const imageData = ctx.getImageData(0, 0, targetWidth, targetHeight);
+      
+      return {
+        imageData,
+        scaleFactor,
+        originalDimensions: { width: originalWidth, height: originalHeight },
+        scaledDimensions: { width: targetWidth, height: targetHeight }
+      };
+    } catch (e) {
+      // Fall through to canvas fallback
+      console.warn('createImageBitmap failed, falling back to canvas:', e);
+    }
+  }
   
-  // Create scaled image data
-  const tempCanvas = document.createElement('canvas');
-  tempCanvas.width = width;
-  tempCanvas.height = height;
-  const tempCtx = tempCanvas.getContext('2d');
-  tempCtx.putImageData(imageData, 0, 0);
-
-  const scaledCanvas = document.createElement('canvas');
-  scaledCanvas.width = scaledWidth;
-  scaledCanvas.height = scaledHeight;
-  const scaledCtx = scaledCanvas.getContext('2d');
+  // Fallback: Use canvas-based scaling
+  const canvas = document.createElement('canvas');
+  canvas.width = targetWidth;
+  canvas.height = targetHeight;
+  const ctx = canvas.getContext('2d');
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'medium';
   
-  // Use high-quality scaling
-  scaledCtx.imageSmoothingEnabled = true;
-  scaledCtx.imageSmoothingQuality = 'high';
-  scaledCtx.drawImage(tempCanvas, 0, 0, width, height, 0, 0, scaledWidth, scaledHeight);
+  if (image instanceof ImageData) {
+    const tempCanvas = document.createElement('canvas');
+    tempCanvas.width = originalWidth;
+    tempCanvas.height = originalHeight;
+    const tempCtx = tempCanvas.getContext('2d');
+    tempCtx.putImageData(image, 0, 0);
+    ctx.drawImage(tempCanvas, 0, 0, originalWidth, originalHeight, 0, 0, targetWidth, targetHeight);
+  } else {
+    ctx.drawImage(image, 0, 0, originalWidth, originalHeight, 0, 0, targetWidth, targetHeight);
+  }
   
-  const scaledImageData = scaledCtx.getImageData(0, 0, scaledWidth, scaledHeight);
+  const imageData = ctx.getImageData(0, 0, targetWidth, targetHeight);
   
   return {
-    scaledImageData,
-    scaleFactor: 1 / scaleFactor, // Return inverse for compatibility with existing code
-    originalDimensions: { width, height },
-    scaledDimensions: { width: scaledWidth, height: scaledHeight }
+    imageData,
+    scaleFactor,
+    originalDimensions: { width: originalWidth, height: originalHeight },
+    scaledDimensions: { width: targetWidth, height: targetHeight }
   };
 }
 
 // Internal function to detect document in image
-async function detectDocumentInternal(imageData, options = {}) {
-  const debugInfo = options.debug ? {} : null;
+// Now accepts pre-scaled imageData and scaling info
+async function detectDocumentInternal(imageData, scaleFactor, options = {}) {
+  // Always create a debug object to collect timings (even if not in debug mode)
+  const debugInfo = options.debug ? {} : { _timingsOnly: true };
+  const timings = [];
   
-  // Smart adaptive downscaling - ensure largest dimension doesn't exceed maxProcessingDimension
-  const maxProcessingDimension = options.maxProcessingDimension || 800;
-  const { scaledImageData, scaleFactor, originalDimensions, scaledDimensions } = 
-    calculateAdaptiveDownscale(imageData, maxProcessingDimension);
+  const { width, height } = imageData;
   
-  if (debugInfo) {
+  if (debugInfo && !debugInfo._timingsOnly) {
     debugInfo.preprocessing = {
-      originalDimensions,
-      scaledDimensions,
+      scaledDimensions: { width, height },
       scaleFactor,
-      maxProcessingDimension
+      maxProcessingDimension: options.maxProcessingDimension || 800
     };
   }
   
-  const { width, height } = scaledImageData; // Use scaled dimensions
-  
-  // Run edge detection on the adaptively scaled image
-  const edges = await cannyEdgeDetector(scaledImageData, {
+  // Run edge detection on the (already scaled) image
+  const edges = await cannyEdgeDetector(imageData, {
     lowThreshold: options.lowThreshold || 75,   // Match OpenCV values
     highThreshold: options.highThreshold || 200, // Match OpenCV values
     dilationKernelSize: options.dilationKernelSize || 3, // Match OpenCV value 
@@ -88,20 +157,30 @@ async function detectDocumentInternal(imageData, options = {}) {
     useWasmBlur: true, // option to use wasm blur
   });
   
+  // Extract edge detection timings (skip the 'Total' entry)
+  if (debugInfo.timings) {
+    debugInfo.timings.forEach(t => {
+      if (t.step !== 'Edge Detection Total') timings.push(t);
+    });
+  }
+  
   // Detect contours from edges
+  let t0 = performance.now();
   const contours = detectDocumentContour(edges, {
     minArea: (options.minArea || 1000) / (scaleFactor * scaleFactor), // Adjust minArea for scaled image
     debug: debugInfo,
     width: width,     
     height: height    
   });
+  timings.push({ step: 'Find Contours', ms: (performance.now() - t0).toFixed(2) });
 
   if (!contours || contours.length === 0) {
     console.log('No document detected');
     return {
       success: false,
       message: 'No document detected',
-      debug: debugInfo
+      debug: debugInfo._timingsOnly ? null : debugInfo,
+      timings: timings
     };
   }
   
@@ -109,9 +188,11 @@ async function detectDocumentInternal(imageData, options = {}) {
   const documentContour = contours[0]; 
   
   // Find corner points on the scaled image
+  t0 = performance.now();
   const cornerPoints = findCornerPoints(documentContour, { 
       epsilon: options.epsilon // Pass epsilon for approximation
   });
+  timings.push({ step: 'Corner Detection', ms: (performance.now() - t0).toFixed(2) });
   
   // Scale corner points back to original image size
   let finalCorners = cornerPoints;
@@ -129,7 +210,8 @@ async function detectDocumentInternal(imageData, options = {}) {
     success: true,
     contour: documentContour,
     corners: finalCorners,
-    debug: debugInfo
+    debug: debugInfo._timingsOnly ? null : debugInfo,
+    timings: timings
   };
 }
 
@@ -365,41 +447,43 @@ export async function extractDocument(image, corners, options = {}) {
  *   - output: 'canvas' | 'imagedata' | 'dataurl' (default: 'canvas')
  *   - debug: boolean
  *   - ...other detection options
- * @returns {Promise<{output, corners, contour, debug, success, message}>}
+ * @returns {Promise<{output, corners, contour, debug, success, message, timings}>}
  */
 export async function scanDocument(image, options = {}) {
+  const timings = [];
+  const totalStart = performance.now();
+  
   const mode = options.mode || 'detect';
   const outputType = options.output || 'canvas';
   const debug = !!options.debug;
+  const maxProcessingDimension = options.maxProcessingDimension || 800;
 
-  // Prepare input image data
-  let imageData, width, height;
-  if (image instanceof ImageData) {
-    imageData = image;
-    width = image.width;
-    height = image.height;
-  } else {
-    // HTMLImageElement or HTMLCanvasElement
-    const tempCanvas = document.createElement('canvas');
-    tempCanvas.width = image.width || image.naturalWidth;
-    tempCanvas.height = image.height || image.naturalHeight;
-    const tempCtx = tempCanvas.getContext('2d');
-    tempCtx.drawImage(image, 0, 0, tempCanvas.width, tempCanvas.height);
-    imageData = tempCtx.getImageData(0, 0, tempCanvas.width, tempCanvas.height);
-    width = tempCanvas.width;
-    height = tempCanvas.height;
+  // Combined image preparation + downscaling (uses createImageBitmap for hardware acceleration)
+  let t0 = performance.now();
+  const { imageData, scaleFactor, originalDimensions, scaledDimensions } = 
+    await prepareAndScaleImage(image, maxProcessingDimension);
+  timings.push({ step: 'Image Prep + Scale', ms: (performance.now() - t0).toFixed(2) });
+
+  // Detect document (pass pre-scaled data and scale factor)
+  const detection = await detectDocumentInternal(imageData, scaleFactor, options);
+  
+  // Merge detailed detection timings
+  if (detection.timings) {
+    detection.timings.forEach(t => timings.push(t));
   }
-
-  // Detect document
-  const detection = await detectDocumentInternal(imageData, options);
+  
   if (!detection.success) {
+    const totalEnd = performance.now();
+    timings.unshift({ step: 'Total', ms: (totalEnd - totalStart).toFixed(2) });
+    console.table(timings);
     return {
       output: null,
       corners: null,
       contour: null,
       debug: detection.debug,
       success: false,
-      message: detection.message || 'No document detected'
+      message: detection.message || 'No document detected',
+      timings
     };
   }
 
@@ -411,13 +495,16 @@ export async function scanDocument(image, options = {}) {
     output = null;
   } else if (mode === 'extract') {
     // Return only the cropped/warped document
+    t0 = performance.now();
     resultCanvas = document.createElement('canvas');
     const ctx = resultCanvas.getContext('2d');
     unwarpImage(ctx, image, detection.corners);
+    timings.push({ step: 'Perspective Transform', ms: (performance.now() - t0).toFixed(2) });
   }
 
   // Prepare output in requested format (only if not detect mode)
   if (mode !== 'detect' && resultCanvas) {
+    t0 = performance.now();
     if (outputType === 'canvas') {
       output = resultCanvas;
     } else if (outputType === 'imagedata') {
@@ -427,7 +514,12 @@ export async function scanDocument(image, options = {}) {
     } else {
       output = resultCanvas;
     }
+    timings.push({ step: 'Output Conversion', ms: (performance.now() - t0).toFixed(2) });
   }
+
+  const totalEnd = performance.now();
+  timings.unshift({ step: 'Total', ms: (totalEnd - totalStart).toFixed(2) });
+  console.table(timings);
 
   return {
     output,
@@ -435,6 +527,7 @@ export async function scanDocument(image, options = {}) {
     contour: detection.contour,
     debug: detection.debug,
     success: true,
-    message: 'Document detected'
+    message: 'Document detected',
+    timings
   };
 }

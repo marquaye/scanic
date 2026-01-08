@@ -564,13 +564,19 @@ export async function cannyEdgeDetector(imageData, options = {}) {
     options.debug.edgeMap = edgeMap; // Uint8Array (0, 1, 2 values from hysteresis)
     options.debug.cannyEdges = cannyEdges; // Uint8ClampedArray (0 or 255, before dilation)
     options.debug.finalEdges = finalEdges; // Uint8ClampedArray (0 or 255, after dilation if applied)
+  }
+  
+  // Always store timings in debug object (create minimal one if needed)
+  if (options.debug) {
     options.debug.timings = timings;
+  } else if (!options.debug) {
+    // Create a minimal debug object just for timings if none provided
+    options.debug = { timings: timings };
   }
 
   const tEnd = performance.now();
-  timings.unshift({ step: 'Total', ms: (tEnd - tStart).toFixed(2) });
-  // Print timing table
-  console.table(timings);
+  timings.unshift({ step: 'Edge Detection Total', ms: (tEnd - tStart).toFixed(2) });
+  // Timings available via options.debug.timings
 
   return finalEdges; // Return the final binary edge image
 }
