@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Scanic Live Demo - Modern Document Scanner</title>
-  <link rel="icon" type="image/x-icon" href="./public/favicon.ico">
+  <link rel="icon" type="image/x-icon" href="./favicon.ico">
   <style>
     :root {
       --primary: #6366f1;
@@ -227,7 +227,7 @@
   <div class="app-container">
     <header>
       <div class="brand">
-        <img src="./public/scanic-logo-bg.png" alt="Scanic">
+        <img src="./scanic-logo-bg.png" alt="Scanic">
         <h1>Scanic Live</h1>
       </div>
       <div class="nav-links">
@@ -289,7 +289,9 @@
   </div>
 
   <script type="module">
-    import { Scanner, scanDocument } from './dist/scanic.js';
+    // On GitHub Pages, demo.html and scanic.js are in the same directory (root of gh-pages branch)
+    // Locally, you can run 'npm run build' and open 'dist/demo.html'
+    import { Scanner, scanDocument } from './scanic.js';
 
     const scanner = new Scanner();
     let isLive = false;
