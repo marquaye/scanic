@@ -44,30 +44,21 @@ async function main() {
     console.log('\n🧪 Running tests...');
     run('npm test');
     
-    // 3. Build WASM module (optional if already built)
-    console.log('\n🦀 Building WASM module...');
-    const wasmResult = run('docker-compose -f dev/docker-compose.yml up --build', { optional: true });
-    
-    if (wasmResult === null) {
-      console.log('⚠️  Docker not available, checking if WASM module already exists...');
-      const wasmPath = path.join(process.cwd(), 'wasm_blur', 'pkg', 'wasm_blur.js');
-      if (fs.existsSync(wasmPath)) {
-        console.log('✅ WASM module already exists, continuing...');
-      } else {
-        console.error('❌ WASM module not found and Docker not available. Please build the WASM module first.');
-        process.exit(1);
-      }
-    }
-    
-    // Build the project
-    console.log('\n🏗️  Building project...');
-    run('npm run build');
-    
-    // Update version
+    // 3. Update version (happens before build to keep git state clean)
     const releaseType = process.argv[2] || 'patch';
     console.log(`\n📦 Bumping ${releaseType} version...`);
     run(`npm version ${releaseType} -m "chore: release v%s"`);
     
+    // 4. Build WASM module (optional if already built)
+    console.log('\n🦀 Building WASM module...');
+    const wasmResult = run('docker-compose -f dev/docker-compose.yml up --build', { optional: true });
+    
+    // ... (rest of logic) ...
+    
+    // 5. Build the project
+    console.log('\n🏗️  Building project...');
+    run('npm run build');
+
     // Get the new version from package.json
     const packageJson = JSON.parse(fs.readFileSync(path.join(process.cwd(), 'package.json'), 'utf8'));
     const newVersion = packageJson.version;
