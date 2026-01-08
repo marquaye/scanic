@@ -23,10 +23,10 @@ function copyRecursive(src, dest) {
 try {
     console.log('📦 Post-build: Copying assets to dist...');
     
-    // Copy demo.html
+    // Copy demo.html to dist/index.html to make it the default page on GH Pages
     if (fs.existsSync('demo.html')) {
-        fs.copyFileSync('demo.html', path.join(distDir, 'demo.html'));
-        console.log('  - demo.html copied');
+        fs.copyFileSync('demo.html', path.join(distDir, 'index.html'));
+        console.log('  - demo.html copied as index.html');
     }
 
     // Copy testImages
