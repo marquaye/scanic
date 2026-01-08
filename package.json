@@ -43,8 +43,10 @@
     "url": "https://github.com/marquaye/scanic/issues"
   },
   "files": [
-    "dist",
-    "wasm_blur/pkg",
+    "dist/scanic.js",
+    "dist/scanic.umd.cjs",
+    "src/scanic.d.ts",
+    "wasm_blur/pkg/wasm_blur_bg.wasm",
     "README.md",
     "LICENSE"
   ],

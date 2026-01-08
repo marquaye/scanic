@@ -10,8 +10,14 @@ export default defineConfig({
       formats: ['es', 'umd']
     },
     outDir: 'dist',
-    sourcemap: true,
-    minify: true
+    sourcemap: 'hidden',
+    minify: 'terser',
+    terserOptions: {
+      compress: {
+        drop_console: true,
+        drop_debugger: true
+      }
+    }
   },
   test: {
     environment: 'jsdom',
