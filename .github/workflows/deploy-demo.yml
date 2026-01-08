@@ -1,0 +1,45 @@
+name: Deploy Demo
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'demo.html'
+      - 'public/**'
+      - 'testImages/**'
+      - 'src/**'
+      - 'scripts/post-build.js'
+      - 'package.json'
+      - '.github/workflows/deploy-demo.yml'
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        cache: 'npm'
+        
+    - name: Install dependencies
+      run: npm ci
+      
+    - name: Build project and demo
+      run: npm run build:gh-pages
+        
+    - name: Deploy to GitHub Pages
+      uses: peaceiris/actions-gh-pages@v3
+      with:
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        publish_dir: ./dist
