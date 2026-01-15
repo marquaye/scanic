@@ -65,7 +65,7 @@ yarn add scanic
 ## 🎮 Demo
 
 Try the interactive scanner in your browser:
-👉 [**Open Scanic Live Demo**](https://marquaye.github.io/scanic/demo.html)
+👉 [**Open Scanic Live Demo**](https://marquaye.github.io/scanic)
 
 ---
 
