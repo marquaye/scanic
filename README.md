@@ -312,7 +312,7 @@ const result = await scanDocument(img, { mode: 'extract' });
 
 | Feature | Scanic | jscanify | OpenCV.js |
 | :--- | :--- | :--- | :--- |
-| **Download Size** | **~100KB** | ~1MB | ~30MB |
+| **Download Size** | **~100KB** | ~31MB | ~30MB |
 | **Perspective Speed** | **~10ms** | ~200ms | ~5ms |
 | **WASM Optimized** | ✅ Yes | ❌ No | ✅ Yes |
 | **GPU Acceleration** | ✅ Yes | ❌ No | ❌ No |
