@@ -17,7 +17,7 @@
 
 Scanic is a high-performance document scanner library that brings professional-grade document edge detection and perspective correction to the browser and Node.js. By combining **Rust-powered WebAssembly** for pixel crunching and **GPU-accelerated Canvas** for image warping, Scanic delivers near-native performance (~10ms transforms) with a tiny footprint.
 
-[**Live Demo**](https://marquaye.github.io/scanic/demo.html) | [**Framework Examples**](#💻-framework-examples) | [**API Reference**](#⚙️-api-reference)
+[**Live Demo**](https://marquaye.github.io/scanic) | [**Framework Examples**](#💻-framework-examples) | [**API Reference**](#⚙️-api-reference)
 
 ---
 
@@ -65,7 +65,7 @@ yarn add scanic
 ## 🎮 Demo
 
 Try the interactive scanner in your browser:
-👉 [**Open Scanic Live Demo**](https://marquaye.github.io/scanic/demo.html)
+👉 [**Open Scanic Live Demo**](https://marquaye.github.io/scanic)
 
 ---
 
