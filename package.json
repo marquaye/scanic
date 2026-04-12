@@ -19,6 +19,8 @@
     "build:gh-pages": "vite build && node scripts/post-build.js",
     "build:wasm": "docker compose -f dev/docker-compose.yml up --build",
     "test": "vitest run",
+    "baseline:update": "node scripts/baseline.js --update",
+    "baseline:check": "node scripts/baseline.js",
     "test:watch": "vitest",
     "preview": "vite preview",
     "prepublishOnly": "npm run build",

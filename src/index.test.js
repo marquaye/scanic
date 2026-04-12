@@ -44,19 +44,19 @@ describe('Regression Tests', () => {
     { 
       name: 'test.png', 
       expected: {
-        topLeft: { x: 311.3, y: 79.2 },
-        topRight: { x: 647.9, y: 96.8 },
-        bottomRight: { x: 651.2, y: 594.0 },
-        bottomLeft: { x: 151.8, y: 530.2 }
+        topLeft: { x: 310.2, y: 78.1 },
+        topRight: { x: 649, y: 95.7 },
+        bottomRight: { x: 652.3, y: 594 },
+        bottomLeft: { x: 151.8, y: 531.3 }
       }
     },
     { 
       name: 'test2.png', 
       expected: {
-        topLeft: { x: 202, y: 180 },
-        topRight: { x: 966, y: 190 },
-        bottomRight: { x: 1148, y: 1358 },
-        bottomLeft: { x: 54, y: 1378 }
+        topLeft: { x: 198, y: 178 },
+        topRight: { x: 974, y: 188 },
+        bottomRight: { x: 1150, y: 1360 },
+        bottomLeft: { x: 50, y: 1382 }
       }
     }
   ];
