@@ -118,8 +118,7 @@ async function prepareScaleAndGrayscale(image, maxDimension = 800) {
   
   const ctx = canvas.getContext('2d', { willReadFrequently: true });
   
-  // Apply grayscale filter during draw - GPU accelerated!
-  ctx.filter = 'grayscale(1)';
+  // Draw scaled image without CSS filter
   ctx.imageSmoothingEnabled = true;
   ctx.imageSmoothingQuality = 'medium';
   
@@ -136,18 +135,18 @@ async function prepareScaleAndGrayscale(image, maxDimension = 800) {
     tempCtx.putImageData(image, 0, 0);
     ctx.drawImage(tempCanvas, 0, 0, originalWidth, originalHeight, 0, 0, targetWidth, targetHeight);
   } else {
-    // Direct draw with scaling + grayscale filter
     ctx.drawImage(image, 0, 0, originalWidth, originalHeight, 0, 0, targetWidth, targetHeight);
   }
   
-  // Get the grayscale image data
+  // Get image data and compute grayscale in a single pass (BT.709 luminance)
   const imageData = ctx.getImageData(0, 0, targetWidth, targetHeight);
-  
-  // Extract single-channel grayscale (R=G=B after filter, so just take R)
-  const grayscaleData = new Uint8ClampedArray(targetWidth * targetHeight);
   const data = imageData.data;
+  const pixelCount = targetWidth * targetHeight;
+  const grayscaleData = new Uint8ClampedArray(pixelCount);
   for (let i = 0, j = 0; i < data.length; i += 4, j++) {
-    grayscaleData[j] = data[i]; // R channel (same as G and B after grayscale filter)
+    const gray = (data[i] * 54 + data[i + 1] * 183 + data[i + 2] * 19) >> 8;
+    grayscaleData[j] = gray;
+    data[i] = data[i + 1] = data[i + 2] = gray; // update RGBA for debug viz
   }
   
   return {
@@ -178,8 +177,8 @@ async function detectDocumentInternal(grayscaleData, width, height, scaleFactor,
   const edges = await cannyEdgeDetector(grayscaleData, {
     width,
     height,
-    lowThreshold: options.lowThreshold || 75,   // Match OpenCV values
-    highThreshold: options.highThreshold || 200, // Match OpenCV values
+    lowThreshold: options.lowThreshold,          // undefined → adaptive
+    highThreshold: options.highThreshold,         // undefined → adaptive
     dilationKernelSize: options.dilationKernelSize || 3, // Match OpenCV value 
     dilationIterations: options.dilationIterations || 1,
     debug: debugInfo,
@@ -376,127 +375,81 @@ function invert3x3(m) {
 }
 
 function warpTransform(ctx, image, matrix, outWidth, outHeight) {
-  // Triangle subdivision approach - uses GPU-accelerated affine transforms
-  // Split the quad into a grid, then draw each cell as 2 triangles with affine transforms
-  
+  // Pixel-level bilinear interpolation approach.
+  // For each output pixel, compute the corresponding source coordinate via the
+  // inverse perspective matrix, then sample the source image with bilinear
+  // blending.  This replaces the 8 192-triangle Canvas 2D approach and is
+  // both faster (no ctx.save/clip/setTransform/drawImage/restore per triangle)
+  // and produces seamless output (no triangle-seam artifacts).
+
   const srcWidth = image.width || image.naturalWidth;
   const srcHeight = image.height || image.naturalHeight;
-  
-  // Inverse matrix for mapping output coords to source coords
-  const inv = invert3x3(matrix);
-  
-  // Helper: map output point to source point using perspective transform
-  function mapPoint(x, y) {
-    const denom = inv[2][0] * x + inv[2][1] * y + inv[2][2];
-    return {
-      x: (inv[0][0] * x + inv[0][1] * y + inv[0][2]) / denom,
-      y: (inv[1][0] * x + inv[1][1] * y + inv[1][2]) / denom
-    };
-  }
-  
-  // Grid subdivisions - 64x64 = 8192 triangles
-  const gridX = 64;
-  const gridY = 64;
-  const cellW = outWidth / gridX;
-  const cellH = outHeight / gridY;
-  
-  // Build source canvas once
+
+  // Read source pixels once
   const srcCanvas = document.createElement('canvas');
   srcCanvas.width = srcWidth;
   srcCanvas.height = srcHeight;
-  const srcCtx = srcCanvas.getContext('2d');
+  const srcCtx = srcCanvas.getContext('2d', { willReadFrequently: true });
   srcCtx.drawImage(image, 0, 0, srcWidth, srcHeight);
-  
-  // High quality results
-  ctx.imageSmoothingEnabled = true;
-  ctx.imageSmoothingQuality = 'high';
-  
-  // Draw each grid cell as 2 triangles
-  ctx.save();
-  
-  for (let gy = 0; gy < gridY; gy++) {
-    for (let gx = 0; gx < gridX; gx++) {
-      // Destination quad corners (in output space)
-      const dx0 = gx * cellW;
-      const dy0 = gy * cellH;
-      const dx1 = (gx + 1) * cellW;
-      const dy1 = (gy + 1) * cellH;
-      
-      // Map to source quad corners
-      const s00 = mapPoint(dx0, dy0);
-      const s10 = mapPoint(dx1, dy0);
-      const s01 = mapPoint(dx0, dy1);
-      const s11 = mapPoint(dx1, dy1);
-      
-      // Draw 2 triangles per cell
-      // Triangle 1: top-left, top-right, bottom-left
-      drawTexturedTriangle(ctx, srcCanvas,
-        s00.x, s00.y, s10.x, s10.y, s01.x, s01.y,  // source triangle
-        dx0, dy0, dx1, dy0, dx0, dy1               // dest triangle
-      );
-      
-      // Triangle 2: top-right, bottom-right, bottom-left
-      drawTexturedTriangle(ctx, srcCanvas,
-        s10.x, s10.y, s11.x, s11.y, s01.x, s01.y,  // source triangle
-        dx1, dy0, dx1, dy1, dx0, dy1               // dest triangle
-      );
+  const srcData = srcCtx.getImageData(0, 0, srcWidth, srcHeight).data;
+
+  // Inverse matrix for mapping output coords → source coords
+  const inv = invert3x3(matrix);
+  // Destructure for tight inner loop
+  const i00 = inv[0][0], i01 = inv[0][1], i02 = inv[0][2];
+  const i10 = inv[1][0], i11 = inv[1][1], i12 = inv[1][2];
+  const i20 = inv[2][0], i21 = inv[2][1], i22 = inv[2][2];
+
+  const outData = ctx.createImageData(outWidth, outHeight);
+  const dst = outData.data;
+  const maxSrcX = srcWidth - 1;
+  const maxSrcY = srcHeight - 1;
+
+  for (let oy = 0; oy < outHeight; oy++) {
+    // Precompute the y-dependent part of the inverse transform
+    const iy1 = i01 * oy + i02;
+    const iy2 = i11 * oy + i12;
+    const iy3 = i21 * oy + i22;
+
+    for (let ox = 0; ox < outWidth; ox++) {
+      const w = i20 * ox + iy3;
+      const invW = 1 / w;
+      const sx = (i00 * ox + iy1) * invW;
+      const sy = (i10 * ox + iy2) * invW;
+
+      // Clamp to source bounds
+      const csx = sx < 0 ? 0 : sx > maxSrcX ? maxSrcX : sx;
+      const csy = sy < 0 ? 0 : sy > maxSrcY ? maxSrcY : sy;
+
+      // Bilinear interpolation
+      const x0 = csx | 0;        // floor
+      const y0 = csy | 0;
+      const x1 = x0 < maxSrcX ? x0 + 1 : x0;
+      const y1 = y0 < maxSrcY ? y0 + 1 : y0;
+      const fx = csx - x0;
+      const fy = csy - y0;
+      const fx1 = 1 - fx;
+      const fy1 = 1 - fy;
+
+      const w00 = fx1 * fy1;
+      const w10 = fx  * fy1;
+      const w01 = fx1 * fy;
+      const w11 = fx  * fy;
+
+      const idx00 = (y0 * srcWidth + x0) << 2;
+      const idx10 = (y0 * srcWidth + x1) << 2;
+      const idx01 = (y1 * srcWidth + x0) << 2;
+      const idx11 = (y1 * srcWidth + x1) << 2;
+
+      const di = (oy * outWidth + ox) << 2;
+      dst[di]     = srcData[idx00]     * w00 + srcData[idx10]     * w10 + srcData[idx01]     * w01 + srcData[idx11]     * w11 + 0.5 | 0;
+      dst[di + 1] = srcData[idx00 + 1] * w00 + srcData[idx10 + 1] * w10 + srcData[idx01 + 1] * w01 + srcData[idx11 + 1] * w11 + 0.5 | 0;
+      dst[di + 2] = srcData[idx00 + 2] * w00 + srcData[idx10 + 2] * w10 + srcData[idx01 + 2] * w01 + srcData[idx11 + 2] * w11 + 0.5 | 0;
+      dst[di + 3] = 255;
     }
   }
-  
-  ctx.restore();
-}
 
-// Draw a textured triangle using affine transform + clipping
-function drawTexturedTriangle(ctx, img,
-  sx0, sy0, sx1, sy1, sx2, sy2,  // source triangle coords
-  dx0, dy0, dx1, dy1, dx2, dy2   // dest triangle coords
-) {
-  // Compute affine transform that maps source triangle to dest triangle
-  const denom = (sx0 - sx2) * (sy1 - sy2) - (sx1 - sx2) * (sy0 - sy2);
-  if (Math.abs(denom) < 1e-10) return; 
-  
-  const invDenom = 1 / denom;
-  const a = ((dx0 - dx2) * (sy1 - sy2) - (dx1 - dx2) * (sy0 - sy2)) * invDenom;
-  const b = ((dx1 - dx2) * (sx0 - sx2) - (dx0 - dx2) * (sx1 - sx2)) * invDenom;
-  const c = dx0 - a * sx0 - b * sy0;
-  
-  const d = ((dy0 - dy2) * (sy1 - sy2) - (dy1 - dy2) * (sy0 - sy2)) * invDenom;
-  const e = ((dy1 - dy2) * (sx0 - sx2) - (dy0 - dy2) * (sx1 - sx2)) * invDenom;
-  const f = dy0 - d * sx0 - e * sy0;
-  
-  ctx.save();
-  
-  // SEAM FIX: Robust Centroid-based Expansion
-  // We expand the clipping path by 1px in the direction of the triangle's center to ensure overlap.
-  const expand = 1.0; 
-  const centerX = (dx0 + dx1 + dx2) / 3;
-  const centerY = (dy0 + dy1 + dy2) / 3;
-  
-  const grow = (x, y) => {
-    const vx = x - centerX;
-    const vy = y - centerY;
-    const len = Math.sqrt(vx * vx + vy * vy);
-    if (len < 1e-6) return { x, y };
-    return {
-      x: x + (vx / len) * expand,
-      y: y + (vy / len) * expand
-    };
-  };
-
-  const p0 = grow(dx0, dy0);
-  const p1 = grow(dx1, dy1);
-  const p2 = grow(dx2, dy2);
-
-  ctx.beginPath();
-  ctx.moveTo(p0.x, p0.y);
-  ctx.lineTo(p1.x, p1.y);
-  ctx.lineTo(p2.x, p2.y);
-  ctx.closePath();
-  ctx.clip();
-  
-  ctx.setTransform(a, d, b, e, c, f);
-  ctx.drawImage(img, 0, 0);
-  ctx.restore();
+  ctx.putImageData(outData, 0, 0);
 }
 
 

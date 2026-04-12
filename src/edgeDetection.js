@@ -452,8 +452,48 @@ export async function cannyEdgeDetector(input, options = {}) {
     if (options.debug) options.debug.grayscale = grayscale;
   }
 
-  let lowThreshold = options.lowThreshold !== undefined ? options.lowThreshold : 75;
-  let highThreshold = options.highThreshold !== undefined ? options.highThreshold : 200;
+  let lowThreshold = options.lowThreshold !== undefined ? options.lowThreshold : null;
+  let highThreshold = options.highThreshold !== undefined ? options.highThreshold : null;
+
+  // ── Adaptive thresholds: compute from gradient magnitudes if not provided
+  if (lowThreshold === null || highThreshold === null) {
+    // Quick 3×3 Sobel gradient magnitude scan on raw grayscale (O(n), single pass).
+    // Uses L1 norm (|gx|+|gy|) to match the default Canny magnitude scale.
+    const HIST_SIZE = 1024;
+    const hist = new Uint32Array(HIST_SIZE);
+    let nonZeroCount = 0;
+    for (let y = 1; y < height - 1; y++) {
+      for (let x = 1; x < width - 1; x++) {
+        const idx = y * width + x;
+        const gx =
+          -grayscale[idx - width - 1] + grayscale[idx - width + 1]
+          - 2 * grayscale[idx - 1] + 2 * grayscale[idx + 1]
+          - grayscale[idx + width - 1] + grayscale[idx + width + 1];
+        const gy =
+          -grayscale[idx - width - 1] - 2 * grayscale[idx - width] - grayscale[idx - width + 1]
+          + grayscale[idx + width - 1] + 2 * grayscale[idx + width] + grayscale[idx + width + 1];
+        let mag = Math.abs(gx) + Math.abs(gy);
+        if (mag >= HIST_SIZE) mag = HIST_SIZE - 1;
+        if (mag > 0) {
+          hist[mag]++;
+          nonZeroCount++;
+        }
+      }
+    }
+    // Use the 70th percentile of non-zero gradient magnitudes as pivot
+    const targetCount = Math.round(nonZeroCount * 0.7);
+    let cumulative = 0;
+    let pivot = 75; // fallback
+    for (let i = 1; i < HIST_SIZE; i++) {
+      cumulative += hist[i];
+      if (cumulative >= targetCount) {
+        pivot = i;
+        break;
+      }
+    }
+    if (lowThreshold === null) lowThreshold = Math.max(5, Math.round(pivot * 0.5));
+    if (highThreshold === null) highThreshold = Math.min(500, Math.round(pivot * 1.5));
+  }
   const kernelSize = options.kernelSize || 5; // Match jscanify's 5x5 kernel
   const sigma = options.sigma || 0; // Let the blur function calculate sigma
   const L2gradient = options.L2gradient === undefined ? false : options.L2gradient;
@@ -464,7 +504,7 @@ export async function cannyEdgeDetector(input, options = {}) {
   const useWasmDilation = true;
   const useWasmNMS = true;
   const useWasmHysteresis = options.useWasmHysteresis !== undefined ? options.useWasmHysteresis : false;
-  const useWasmFullCanny = false;
+  const useWasmFullCanny = options.useWasmFullCanny !== undefined ? options.useWasmFullCanny : true;
 
   // Ensure high threshold is greater than low threshold
   if (lowThreshold >= highThreshold) {
@@ -472,6 +512,45 @@ export async function cannyEdgeDetector(input, options = {}) {
       [lowThreshold, highThreshold] = [highThreshold, lowThreshold];
   }
 
+  // ── Fast path: single WASM call for entire Canny pipeline ──────────
+  // Eliminates 4 intermediate JS↔WASM data marshalling round-trips by
+  // keeping blur → gradients → NMS → hysteresis → dilation in WASM memory.
+  if (useWasmFullCanny) {
+    try {
+      await initializeWasm();
+      const t0w = performance.now();
+      const finalEdges = new Uint8ClampedArray(
+        wasmFullCanny(
+          grayscale, width, height,
+          lowThreshold, highThreshold,
+          kernelSize, sigma,
+          L2gradient,
+          applyDilation, dilationKernelSize
+        )
+      );
+      const t1w = performance.now();
+
+      // Record a single combined timing entry. Individual phases ran entirely
+      // inside WASM linear memory without returning to JS in between.
+      const wasmMs = (t1w - t0w).toFixed(2);
+      timings.push({ step: 'Edge Processing (WASM)', ms: wasmMs });
+
+      if (options.debug) {
+        options.debug.finalEdges = finalEdges;
+        options.debug.timings = timings;
+      } else {
+        options.debug = { timings };
+      }
+
+      const tEnd = performance.now();
+      timings.unshift({ step: 'Edge Detection Total', ms: (tEnd - tStart).toFixed(2) });
+      return finalEdges;
+    } catch (_) {
+      // WASM full Canny unavailable — fall through to step-by-step path
+    }
+  }
+
+  // ── Fallback: step-by-step path (individual WASM/JS calls) ─────────
   // Timing variables
   let t0, t1;
 
