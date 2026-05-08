@@ -388,6 +388,14 @@ Contributions are welcome! Whether it's reporting a bug, suggesting a feature, o
       <br/>
       <em>Language and translation services</em>
     </td>
+    <td align="center" width="250">
+      <a href="https://mein-kreativbuch.de/" target="_blank">
+        <br/>
+        <strong>mein-kreativbuch.de</strong>
+      </a>
+      <br/>
+       <em>Unique and personalized children's books</em>
+    </td>
   </tr>
 </table>
 
