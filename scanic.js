@@ -257,9 +257,9 @@ function simplifyContour(points, epsilon = 1) {
   const firstPoint = points[0];
   const lastPoint = points[points.length - 1];
   for (let i = 1; i < points.length - 1; i++) {
-    const distance = perpendicularDistance(points[i], firstPoint, lastPoint);
-    if (distance > maxDistance) {
-      maxDistance = distance;
+    const distance2 = perpendicularDistance(points[i], firstPoint, lastPoint);
+    if (distance2 > maxDistance) {
+      maxDistance = distance2;
       index = i;
     }
   }
@@ -314,6 +314,9 @@ function calculateContourPerimeter(points) {
   }
   return perimeter;
 }
+function distance(p1, p2) {
+  return Math.hypot(p2.x - p1.x, p2.y - p1.y);
+}
 function findCenter(points) {
   let sumX = 0;
   let sumY = 0;
@@ -332,18 +335,66 @@ function findCornerPoints(contour, options = {}) {
     return null;
   }
   const epsilon = options.epsilon || 0.02;
-  const approximation = approximatePolygon(contour, epsilon);
+  const approximation = approximatePolygon(contour.points, epsilon);
   let corners;
   if (approximation && approximation.length === 4) {
     corners = orderCornerPoints(approximation);
   } else {
-    corners = findCornersByCoordinateExtremes(contour.points);
+    corners = findCornersByQuadrants(contour.points);
+    if (!corners || !corners.topLeft || !corners.topRight || !corners.bottomRight || !corners.bottomLeft) {
+      corners = findCornersByCoordinateExtremes(contour.points);
+    }
   }
   if (!corners || !corners.topLeft || !corners.topRight || !corners.bottomRight || !corners.bottomLeft) {
     console.warn("Failed to find all four corners.", corners);
     return null;
   }
   return corners;
+}
+function findCornersByQuadrants(points) {
+  if (!points || points.length < 4) return null;
+  const center = findCenter(points);
+  let topLeft = null;
+  let topRight = null;
+  let bottomRight = null;
+  let bottomLeft = null;
+  let topLeftDist = 0;
+  let topRightDist = 0;
+  let bottomRightDist = 0;
+  let bottomLeftDist = 0;
+  for (const point of points) {
+    const dist = distance(point, center);
+    if (point.x < center.x && point.y < center.y) {
+      if (dist > topLeftDist) {
+        topLeft = point;
+        topLeftDist = dist;
+      }
+    } else if (point.x > center.x && point.y < center.y) {
+      if (dist > topRightDist) {
+        topRight = point;
+        topRightDist = dist;
+      }
+    } else if (point.x > center.x && point.y > center.y) {
+      if (dist > bottomRightDist) {
+        bottomRight = point;
+        bottomRightDist = dist;
+      }
+    } else if (point.x < center.x && point.y > center.y) {
+      if (dist > bottomLeftDist) {
+        bottomLeft = point;
+        bottomLeftDist = dist;
+      }
+    }
+  }
+  if (!topLeft || !topRight || !bottomRight || !bottomLeft) {
+    return null;
+  }
+  return {
+    topLeft,
+    topRight,
+    bottomRight,
+    bottomLeft
+  };
 }
 function findCornersByCoordinateExtremes(points) {
   if (!points || points.length === 0) return null;
@@ -574,9 +625,34 @@ async function __wbg_init(module_or_path) {
   return __wbg_finalize_init(instance, module);
 }
 let wasmReadyPromise = null;
+let hasLoggedFullCannyFallback = false;
+function isNodeRuntime() {
+  var _a;
+  return typeof process !== "undefined" && !!((_a = process.versions) == null ? void 0 : _a.node);
+}
+async function initializeWasmInternal() {
+  if (isNodeRuntime()) {
+    try {
+      const { readFile } = await Promise.resolve().then(() => __viteBrowserExternal);
+      const { fileURLToPath } = await Promise.resolve().then(() => __viteBrowserExternal);
+      const moduleUrl = new URL(import.meta.url);
+      moduleUrl.search = "";
+      moduleUrl.hash = "";
+      const wasmUrl = new URL("../wasm_blur/pkg/wasm_blur_bg.wasm", moduleUrl);
+      const wasmBytes = await readFile(fileURLToPath(wasmUrl));
+      return await __wbg_init({ module_or_path: wasmBytes });
+    } catch {
+      return await __wbg_init();
+    }
+  }
+  return await __wbg_init();
+}
 function initializeWasm() {
   if (!wasmReadyPromise) {
-    wasmReadyPromise = __wbg_init();
+    wasmReadyPromise = initializeWasmInternal().catch((error) => {
+      wasmReadyPromise = null;
+      throw error;
+    });
   }
   return wasmReadyPromise;
 }
@@ -850,7 +926,7 @@ async function cannyEdgeDetector(input, options = {}) {
   const applyDilation = options.applyDilation !== void 0 ? options.applyDilation : true;
   const dilationKernelSize = options.dilationKernelSize || 5;
   const useWasmHysteresis = options.useWasmHysteresis !== void 0 ? options.useWasmHysteresis : false;
-  const useWasmFullCanny = options.useWasmFullCanny !== void 0 ? options.useWasmFullCanny : true;
+  const useWasmFullCanny = options.useWasmFullCanny !== void 0 ? options.useWasmFullCanny : false;
   if (lowThreshold >= highThreshold) {
     console.warn(`Canny Edge Detector: lowThreshold (${lowThreshold}) should be lower than highThreshold (${highThreshold}). Swapping them.`);
     [lowThreshold, highThreshold] = [highThreshold, lowThreshold];
@@ -885,7 +961,12 @@ async function cannyEdgeDetector(input, options = {}) {
       const tEnd2 = performance.now();
       timings.unshift({ step: "Edge Detection Total", ms: (tEnd2 - tStart).toFixed(2) });
       return finalEdges2;
-    } catch (_) {
+    } catch (error) {
+      if (!hasLoggedFullCannyFallback) {
+        hasLoggedFullCannyFallback = true;
+        const reason = error instanceof Error ? error.message : String(error);
+        console.warn(`Full WASM Canny unavailable, using step-by-step path: ${reason}`);
+      }
     }
   }
   let t0, t1;
@@ -1093,6 +1174,165 @@ async function prepareScaleAndGrayscale(image, maxDimension = 800) {
     scaledDimensions: { width: targetWidth, height: targetHeight }
   };
 }
+function clamp01(value) {
+  if (value <= 0) return 0;
+  if (value >= 1) return 1;
+  return value;
+}
+function pointDistance(a, b) {
+  return Math.hypot(a.x - b.x, a.y - b.y);
+}
+function polygonAreaFromCorners(corners) {
+  if (!corners) return 0;
+  const points = [corners.topLeft, corners.topRight, corners.bottomRight, corners.bottomLeft];
+  let area = 0;
+  for (let i = 0; i < points.length; i++) {
+    const j = (i + 1) % points.length;
+    area += points[i].x * points[j].y - points[j].x * points[i].y;
+  }
+  return Math.abs(area) / 2;
+}
+function cornersAreFiniteAndDistinct(corners, minDistance = 6) {
+  const points = [corners == null ? void 0 : corners.topLeft, corners == null ? void 0 : corners.topRight, corners == null ? void 0 : corners.bottomRight, corners == null ? void 0 : corners.bottomLeft];
+  if (points.some((p) => !p || !Number.isFinite(p.x) || !Number.isFinite(p.y))) {
+    return false;
+  }
+  for (let i = 0; i < points.length; i++) {
+    for (let j = i + 1; j < points.length; j++) {
+      if (pointDistance(points[i], points[j]) < minDistance) {
+        return false;
+      }
+    }
+  }
+  return true;
+}
+function isConvexQuadrilateral(corners) {
+  const points = [corners.topLeft, corners.topRight, corners.bottomRight, corners.bottomLeft];
+  const crossSigns = [];
+  for (let i = 0; i < points.length; i++) {
+    const p0 = points[i];
+    const p1 = points[(i + 1) % points.length];
+    const p2 = points[(i + 2) % points.length];
+    const cross = (p1.x - p0.x) * (p2.y - p1.y) - (p1.y - p0.y) * (p2.x - p1.x);
+    if (Math.abs(cross) < 1e-6) {
+      continue;
+    }
+    crossSigns.push(Math.sign(cross));
+  }
+  if (crossSigns.length < 3) {
+    return false;
+  }
+  const firstSign = crossSigns[0];
+  return crossSigns.every((s) => s === firstSign);
+}
+function computeEdgeSupportScore(contour, edges, width, height) {
+  if (!(contour == null ? void 0 : contour.points) || contour.points.length === 0) {
+    return 0;
+  }
+  const sampleStep = Math.max(1, Math.floor(contour.points.length / 240));
+  let samples = 0;
+  let supported = 0;
+  for (let i = 0; i < contour.points.length; i += sampleStep) {
+    const p = contour.points[i];
+    const x = Math.max(0, Math.min(width - 1, p.x | 0));
+    const y = Math.max(0, Math.min(height - 1, p.y | 0));
+    samples++;
+    let localHit = false;
+    for (let oy = -1; oy <= 1 && !localHit; oy++) {
+      const ny = y + oy;
+      if (ny < 0 || ny >= height) continue;
+      for (let ox = -1; ox <= 1; ox++) {
+        const nx = x + ox;
+        if (nx < 0 || nx >= width) continue;
+        if (edges[ny * width + nx] > 0) {
+          localHit = true;
+          break;
+        }
+      }
+    }
+    if (localHit) supported++;
+  }
+  if (samples === 0) return 0;
+  return supported / samples;
+}
+function evaluateContourCandidate(contour, edges, width, height, options = {}) {
+  const epsilon = options.epsilon || 0.02;
+  const approx = approximatePolygon(contour.points, epsilon);
+  const approxCount = approx.length;
+  const corners = findCornerPoints(contour, { epsilon });
+  if (!corners) {
+    return {
+      contour,
+      corners: null,
+      score: 0,
+      confidence: 0,
+      isValid: false,
+      area: contour.area || 0,
+      fillRatio: 0,
+      coverageRatio: 0,
+      approxCount,
+      convex: false,
+      edgeSupport: 0,
+      aspectRatio: Infinity,
+      minSide: 0
+    };
+  }
+  const imageArea = width * height;
+  const area = contour.area || 0;
+  const box = contour.boundingBox || { minX: 0, minY: 0, maxX: 0, maxY: 0 };
+  const boxArea = Math.max(1, (box.maxX - box.minX + 1) * (box.maxY - box.minY + 1));
+  const fillRatio = area / boxArea;
+  const coverageRatio = polygonAreaFromCorners(corners) / Math.max(1, imageArea);
+  const sides = [
+    pointDistance(corners.topLeft, corners.topRight),
+    pointDistance(corners.topRight, corners.bottomRight),
+    pointDistance(corners.bottomRight, corners.bottomLeft),
+    pointDistance(corners.bottomLeft, corners.topLeft)
+  ];
+  const minSide = Math.min(...sides);
+  const avgWidth = (sides[0] + sides[2]) / 2;
+  const avgHeight = (sides[1] + sides[3]) / 2;
+  const aspectRatio = avgWidth > avgHeight ? avgWidth / Math.max(1e-6, avgHeight) : avgHeight / Math.max(1e-6, avgWidth);
+  const convex = isConvexQuadrilateral(corners);
+  const edgeSupport = computeEdgeSupportScore(contour, edges, width, height);
+  const quadLikeness = approxCount === 4 ? 1 : approxCount === 5 ? 0.82 : approxCount === 6 ? 0.62 : approxCount <= 8 ? 0.42 : 0.2;
+  const areaScore = clamp01(area / Math.max(1, imageArea * 0.4));
+  const fillScore = clamp01((fillRatio - 0.08) / 0.72);
+  const coverageScore = clamp01((coverageRatio - 0.03) / 0.82);
+  const minSideRatio = options.minDocumentSideRatio !== void 0 ? options.minDocumentSideRatio : 0.06;
+  const minCoverage = options.minDocumentCoverageRatio !== void 0 ? options.minDocumentCoverageRatio : 0.04;
+  const maxAspect = options.maxDocumentAspectRatio !== void 0 ? options.maxDocumentAspectRatio : 8;
+  const minSidePx = Math.min(width, height) * minSideRatio;
+  const geometryValid = cornersAreFiniteAndDistinct(corners) && convex && minSide >= minSidePx && coverageRatio >= minCoverage && aspectRatio <= maxAspect;
+  const score = areaScore * 0.32 + fillScore * 0.2 + quadLikeness * 0.2 + (convex ? 1 : 0) * 0.12 + edgeSupport * 0.08 + coverageScore * 0.08;
+  const confidence = geometryValid ? score : score * 0.45;
+  return {
+    contour,
+    corners,
+    score,
+    confidence,
+    isValid: geometryValid,
+    area,
+    fillRatio,
+    coverageRatio,
+    approxCount,
+    convex,
+    edgeSupport,
+    aspectRatio,
+    minSide
+  };
+}
+function selectBestContourCandidate(contours, edges, width, height, options = {}) {
+  const maxCandidateContours = options.maxCandidateContours || 12;
+  const candidates = contours.slice(0, maxCandidateContours).map((contour, index) => ({
+    rankByArea: index,
+    ...evaluateContourCandidate(contour, edges, width, height, options)
+  })).sort((a, b) => b.confidence - a.confidence || b.score - a.score);
+  return {
+    best: candidates[0] || null,
+    candidates
+  };
+}
 async function detectDocumentInternal(grayscaleData, width, height, scaleFactor, options = {}) {
   const debugInfo = options.debug ? {} : { _timingsOnly: true };
   const timings = [];
@@ -1116,7 +1356,9 @@ async function detectDocumentInternal(grayscaleData, width, height, scaleFactor,
     debug: debugInfo,
     skipGrayscale: true,
     // Skip grayscale - already done in prep
-    useWasmBlur: true
+    useWasmBlur: true,
+    useWasmHysteresis: options.useWasmHysteresis,
+    useWasmFullCanny: options.useWasmFullCanny
   });
   if (debugInfo.timings) {
     debugInfo.timings.forEach((t) => {
@@ -1141,13 +1383,37 @@ async function detectDocumentInternal(grayscaleData, width, height, scaleFactor,
       timings
     };
   }
-  const documentContour = contours[0];
   t0 = performance.now();
-  const cornerPoints = findCornerPoints(documentContour, {
-    epsilon: options.epsilon
-    // Pass epsilon for approximation
-  });
+  const { best, candidates } = selectBestContourCandidate(contours, edges, width, height, options);
   timings.push({ step: "Corner Detection", ms: (performance.now() - t0).toFixed(2) });
+  if (debugInfo && !debugInfo._timingsOnly) {
+    debugInfo.candidates = candidates.map((candidate) => ({
+      rankByArea: candidate.rankByArea,
+      area: candidate.area,
+      fillRatio: candidate.fillRatio,
+      coverageRatio: candidate.coverageRatio,
+      approxCount: candidate.approxCount,
+      convex: candidate.convex,
+      edgeSupport: candidate.edgeSupport,
+      aspectRatio: candidate.aspectRatio,
+      minSide: candidate.minSide,
+      score: candidate.score,
+      confidence: candidate.confidence,
+      isValid: candidate.isValid
+    }));
+    debugInfo.selectedCandidate = candidates[0] || null;
+  }
+  if (!best || !best.corners) {
+    return {
+      success: false,
+      message: "Document contour found but corner detection failed",
+      confidence: 0,
+      debug: debugInfo._timingsOnly ? null : debugInfo,
+      timings
+    };
+  }
+  const cornerPoints = best.corners;
+  const documentContour = best.contour;
   let finalCorners = cornerPoints;
   if (scaleFactor !== 1) {
     finalCorners = {
@@ -1161,6 +1427,7 @@ async function detectDocumentInternal(grayscaleData, width, height, scaleFactor,
     success: true,
     contour: documentContour,
     corners: finalCorners,
+    confidence: best.confidence,
     debug: debugInfo._timingsOnly ? null : debugInfo,
     timings
   };
@@ -1271,13 +1538,18 @@ function invert3x3(m) {
   ];
 }
 function warpTransform(ctx, image, matrix, outWidth, outHeight) {
+  const isImageData = image && typeof image.width === "number" && typeof image.height === "number" && image.data;
   const srcWidth = image.width || image.naturalWidth;
   const srcHeight = image.height || image.naturalHeight;
   const srcCanvas = document.createElement("canvas");
   srcCanvas.width = srcWidth;
   srcCanvas.height = srcHeight;
   const srcCtx = srcCanvas.getContext("2d", { willReadFrequently: true });
-  srcCtx.drawImage(image, 0, 0, srcWidth, srcHeight);
+  if (isImageData) {
+    srcCtx.putImageData(image, 0, 0);
+  } else {
+    srcCtx.drawImage(image, 0, 0, srcWidth, srcHeight);
+  }
   const srcData = srcCtx.getImageData(0, 0, srcWidth, srcHeight).data;
   const inv = invert3x3(matrix);
   const i00 = inv[0][0], i01 = inv[0][1], i02 = inv[0][2];
@@ -1390,6 +1662,7 @@ async function scanDocument(image, options = {}) {
       output: null,
       corners: null,
       contour: null,
+      confidence: detection.confidence || null,
       debug: detection.debug,
       success: false,
       message: detection.message || "No document detected",
@@ -1427,12 +1700,16 @@ async function scanDocument(image, options = {}) {
     output,
     corners: detection.corners,
     contour: detection.contour,
+    confidence: detection.confidence || null,
     debug: detection.debug,
     success: true,
     message: "Document detected",
     timings
   };
 }
+const __viteBrowserExternal = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
+  __proto__: null
+}, Symbol.toStringTag, { value: "Module" }));
 export {
   Scanner,
   extractDocument,
