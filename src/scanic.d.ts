@@ -19,8 +19,15 @@ export interface DetectionOptions {
   highThreshold?: number;
   dilationKernelSize?: number;
   dilationIterations?: number;
+  useWasmHysteresis?: boolean;
+  useWasmFullCanny?: boolean;
   minArea?: number;
   epsilon?: number;
+  minDetectionConfidence?: number;
+  maxCandidateContours?: number;
+  minDocumentCoverageRatio?: number;
+  minDocumentSideRatio?: number;
+  maxDocumentAspectRatio?: number;
 }
 
 export interface Timing {
@@ -31,6 +38,7 @@ export interface Timing {
 export interface ScannerResult {
   success: boolean;
   message: string;
+  confidence?: number | null;
   output: HTMLCanvasElement | ImageData | string | null;
   corners: CornerPoints | null;
   contour: Point[] | null;

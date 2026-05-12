@@ -5,7 +5,7 @@
  */
 
 
-import { detectDocumentContour } from './contourDetection.js';
+import { detectDocumentContour, approximatePolygon } from './contourDetection.js';
 import { findCornerPoints } from './cornerDetection.js';
 import { cannyEdgeDetector, initializeWasm } from './edgeDetection.js';
 
@@ -158,6 +158,216 @@ async function prepareScaleAndGrayscale(image, maxDimension = 800) {
   };
 }
 
+function clamp01(value) {
+  if (value <= 0) return 0;
+  if (value >= 1) return 1;
+  return value;
+}
+
+function pointDistance(a, b) {
+  return Math.hypot(a.x - b.x, a.y - b.y);
+}
+
+function polygonAreaFromCorners(corners) {
+  if (!corners) return 0;
+  const points = [corners.topLeft, corners.topRight, corners.bottomRight, corners.bottomLeft];
+  let area = 0;
+  for (let i = 0; i < points.length; i++) {
+    const j = (i + 1) % points.length;
+    area += points[i].x * points[j].y - points[j].x * points[i].y;
+  }
+  return Math.abs(area) / 2;
+}
+
+function cornersAreFiniteAndDistinct(corners, minDistance = 6) {
+  const points = [corners?.topLeft, corners?.topRight, corners?.bottomRight, corners?.bottomLeft];
+  if (points.some((p) => !p || !Number.isFinite(p.x) || !Number.isFinite(p.y))) {
+    return false;
+  }
+
+  for (let i = 0; i < points.length; i++) {
+    for (let j = i + 1; j < points.length; j++) {
+      if (pointDistance(points[i], points[j]) < minDistance) {
+        return false;
+      }
+    }
+  }
+
+  return true;
+}
+
+function isConvexQuadrilateral(corners) {
+  const points = [corners.topLeft, corners.topRight, corners.bottomRight, corners.bottomLeft];
+  const crossSigns = [];
+
+  for (let i = 0; i < points.length; i++) {
+    const p0 = points[i];
+    const p1 = points[(i + 1) % points.length];
+    const p2 = points[(i + 2) % points.length];
+    const cross = (p1.x - p0.x) * (p2.y - p1.y) - (p1.y - p0.y) * (p2.x - p1.x);
+    if (Math.abs(cross) < 1e-6) {
+      continue;
+    }
+    crossSigns.push(Math.sign(cross));
+  }
+
+  if (crossSigns.length < 3) {
+    return false;
+  }
+
+  const firstSign = crossSigns[0];
+  return crossSigns.every((s) => s === firstSign);
+}
+
+function computeEdgeSupportScore(contour, edges, width, height) {
+  if (!contour?.points || contour.points.length === 0) {
+    return 0;
+  }
+
+  const sampleStep = Math.max(1, Math.floor(contour.points.length / 240));
+  let samples = 0;
+  let supported = 0;
+
+  for (let i = 0; i < contour.points.length; i += sampleStep) {
+    const p = contour.points[i];
+    const x = Math.max(0, Math.min(width - 1, p.x | 0));
+    const y = Math.max(0, Math.min(height - 1, p.y | 0));
+    samples++;
+
+    let localHit = false;
+    for (let oy = -1; oy <= 1 && !localHit; oy++) {
+      const ny = y + oy;
+      if (ny < 0 || ny >= height) continue;
+      for (let ox = -1; ox <= 1; ox++) {
+        const nx = x + ox;
+        if (nx < 0 || nx >= width) continue;
+        if (edges[ny * width + nx] > 0) {
+          localHit = true;
+          break;
+        }
+      }
+    }
+
+    if (localHit) supported++;
+  }
+
+  if (samples === 0) return 0;
+  return supported / samples;
+}
+
+function evaluateContourCandidate(contour, edges, width, height, options = {}) {
+  const epsilon = options.epsilon || 0.02;
+  const approx = approximatePolygon(contour.points, epsilon);
+  const approxCount = approx.length;
+  const corners = findCornerPoints(contour, { epsilon });
+
+  if (!corners) {
+    return {
+      contour,
+      corners: null,
+      score: 0,
+      confidence: 0,
+      isValid: false,
+      area: contour.area || 0,
+      fillRatio: 0,
+      coverageRatio: 0,
+      approxCount,
+      convex: false,
+      edgeSupport: 0,
+      aspectRatio: Infinity,
+      minSide: 0
+    };
+  }
+
+  const imageArea = width * height;
+  const area = contour.area || 0;
+  const box = contour.boundingBox || { minX: 0, minY: 0, maxX: 0, maxY: 0 };
+  const boxArea = Math.max(1, (box.maxX - box.minX + 1) * (box.maxY - box.minY + 1));
+  const fillRatio = area / boxArea;
+  const coverageRatio = polygonAreaFromCorners(corners) / Math.max(1, imageArea);
+
+  const sides = [
+    pointDistance(corners.topLeft, corners.topRight),
+    pointDistance(corners.topRight, corners.bottomRight),
+    pointDistance(corners.bottomRight, corners.bottomLeft),
+    pointDistance(corners.bottomLeft, corners.topLeft)
+  ];
+  const minSide = Math.min(...sides);
+  const avgWidth = (sides[0] + sides[2]) / 2;
+  const avgHeight = (sides[1] + sides[3]) / 2;
+  const aspectRatio = avgWidth > avgHeight ? avgWidth / Math.max(1e-6, avgHeight) : avgHeight / Math.max(1e-6, avgWidth);
+
+  const convex = isConvexQuadrilateral(corners);
+  const edgeSupport = computeEdgeSupportScore(contour, edges, width, height);
+  const quadLikeness = approxCount === 4
+    ? 1
+    : approxCount === 5
+      ? 0.82
+      : approxCount === 6
+        ? 0.62
+        : approxCount <= 8
+          ? 0.42
+          : 0.2;
+
+  const areaScore = clamp01(area / Math.max(1, imageArea * 0.4));
+  const fillScore = clamp01((fillRatio - 0.08) / 0.72);
+  const coverageScore = clamp01((coverageRatio - 0.03) / 0.82);
+
+  const minSideRatio = options.minDocumentSideRatio !== undefined ? options.minDocumentSideRatio : 0.06;
+  const minCoverage = options.minDocumentCoverageRatio !== undefined ? options.minDocumentCoverageRatio : 0.04;
+  const maxAspect = options.maxDocumentAspectRatio !== undefined ? options.maxDocumentAspectRatio : 8;
+  const minSidePx = Math.min(width, height) * minSideRatio;
+
+  const geometryValid =
+    cornersAreFiniteAndDistinct(corners) &&
+    convex &&
+    minSide >= minSidePx &&
+    coverageRatio >= minCoverage &&
+    aspectRatio <= maxAspect;
+
+  const score =
+    areaScore * 0.32 +
+    fillScore * 0.2 +
+    quadLikeness * 0.2 +
+    (convex ? 1 : 0) * 0.12 +
+    edgeSupport * 0.08 +
+    coverageScore * 0.08;
+
+  const confidence = geometryValid ? score : score * 0.45;
+
+  return {
+    contour,
+    corners,
+    score,
+    confidence,
+    isValid: geometryValid,
+    area,
+    fillRatio,
+    coverageRatio,
+    approxCount,
+    convex,
+    edgeSupport,
+    aspectRatio,
+    minSide
+  };
+}
+
+function selectBestContourCandidate(contours, edges, width, height, options = {}) {
+  const maxCandidateContours = options.maxCandidateContours || 12;
+  const candidates = contours
+    .slice(0, maxCandidateContours)
+    .map((contour, index) => ({
+      rankByArea: index,
+      ...evaluateContourCandidate(contour, edges, width, height, options)
+    }))
+    .sort((a, b) => b.confidence - a.confidence || b.score - a.score);
+
+  return {
+    best: candidates[0] || null,
+    candidates
+  };
+}
+
 // Internal function to detect document in image
 // Now accepts pre-computed grayscale data (from prepareScaleAndGrayscale)
 async function detectDocumentInternal(grayscaleData, width, height, scaleFactor, options = {}) {
@@ -184,6 +394,8 @@ async function detectDocumentInternal(grayscaleData, width, height, scaleFactor,
     debug: debugInfo,
     skipGrayscale: true, // Skip grayscale - already done in prep
     useWasmBlur: true,
+    useWasmHysteresis: options.useWasmHysteresis,
+    useWasmFullCanny: options.useWasmFullCanny,
   });
   
   // Extract edge detection timings (skip the 'Total' entry)
@@ -213,15 +425,41 @@ async function detectDocumentInternal(grayscaleData, width, height, scaleFactor,
     };
   }
   
-  // Get the largest contour which is likely the document
-  const documentContour = contours[0]; 
-  
-  // Find corner points on the scaled image
+  // Score top contour candidates and choose the best valid quadrilateral.
   t0 = performance.now();
-  const cornerPoints = findCornerPoints(documentContour, { 
-      epsilon: options.epsilon // Pass epsilon for approximation
-  });
+  const { best, candidates } = selectBestContourCandidate(contours, edges, width, height, options);
   timings.push({ step: 'Corner Detection', ms: (performance.now() - t0).toFixed(2) });
+
+  if (debugInfo && !debugInfo._timingsOnly) {
+    debugInfo.candidates = candidates.map((candidate) => ({
+      rankByArea: candidate.rankByArea,
+      area: candidate.area,
+      fillRatio: candidate.fillRatio,
+      coverageRatio: candidate.coverageRatio,
+      approxCount: candidate.approxCount,
+      convex: candidate.convex,
+      edgeSupport: candidate.edgeSupport,
+      aspectRatio: candidate.aspectRatio,
+      minSide: candidate.minSide,
+      score: candidate.score,
+      confidence: candidate.confidence,
+      isValid: candidate.isValid
+    }));
+    debugInfo.selectedCandidate = candidates[0] || null;
+  }
+
+  if (!best || !best.corners) {
+    return {
+      success: false,
+      message: 'Document contour found but corner detection failed',
+      confidence: 0,
+      debug: debugInfo._timingsOnly ? null : debugInfo,
+      timings: timings
+    };
+  }
+
+  const cornerPoints = best.corners;
+  const documentContour = best.contour;
   
   // Scale corner points back to original image size
   let finalCorners = cornerPoints;
@@ -239,6 +477,7 @@ async function detectDocumentInternal(grayscaleData, width, height, scaleFactor,
     success: true,
     contour: documentContour,
     corners: finalCorners,
+    confidence: best.confidence,
     debug: debugInfo._timingsOnly ? null : debugInfo,
     timings: timings
   };
@@ -382,6 +621,7 @@ function warpTransform(ctx, image, matrix, outWidth, outHeight) {
   // both faster (no ctx.save/clip/setTransform/drawImage/restore per triangle)
   // and produces seamless output (no triangle-seam artifacts).
 
+  const isImageData = image && typeof image.width === 'number' && typeof image.height === 'number' && image.data;
   const srcWidth = image.width || image.naturalWidth;
   const srcHeight = image.height || image.naturalHeight;
 
@@ -390,7 +630,11 @@ function warpTransform(ctx, image, matrix, outWidth, outHeight) {
   srcCanvas.width = srcWidth;
   srcCanvas.height = srcHeight;
   const srcCtx = srcCanvas.getContext('2d', { willReadFrequently: true });
-  srcCtx.drawImage(image, 0, 0, srcWidth, srcHeight);
+  if (isImageData) {
+    srcCtx.putImageData(image, 0, 0);
+  } else {
+    srcCtx.drawImage(image, 0, 0, srcWidth, srcHeight);
+  }
   const srcData = srcCtx.getImageData(0, 0, srcWidth, srcHeight).data;
 
   // Inverse matrix for mapping output coords → source coords
@@ -554,6 +798,7 @@ export async function scanDocument(image, options = {}) {
       output: null,
       corners: null,
       contour: null,
+      confidence: detection.confidence || null,
       debug: detection.debug,
       success: false,
       message: detection.message || 'No document detected',
@@ -599,6 +844,7 @@ export async function scanDocument(image, options = {}) {
     output,
     corners: detection.corners,
     contour: detection.contour,
+    confidence: detection.confidence || null,
     debug: detection.debug,
     success: true,
     message: 'Document detected',

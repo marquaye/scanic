@@ -49,7 +49,7 @@ export function findCornerPoints(contour, options = {}) {
   
   // Try to find a quadrilateral approximation of the contour
   const epsilon = options.epsilon || 0.02;
-  const approximation = approximatePolygon(contour, epsilon);
+  const approximation = approximatePolygon(contour.points, epsilon);
   
   let corners;
   
@@ -58,9 +58,13 @@ export function findCornerPoints(contour, options = {}) {
     // console.log('Found 4-point approximation, using as corners');
     corners = orderCornerPoints(approximation);
   } else {
-    // console.log(`Polygon approximation gave ${approximation ? approximation.length : 'null'} points, using coordinate extremes method`);
-    // Fallback: Use the coordinate extremes method on the original contour points
-    corners = findCornersByCoordinateExtremes(contour.points); 
+    // Fallback 1: legacy-style farthest corner per quadrant, more robust against
+    // single-point outliers than pure coordinate-extremes.
+    corners = findCornersByQuadrants(contour.points);
+    if (!corners || !corners.topLeft || !corners.topRight || !corners.bottomRight || !corners.bottomLeft) {
+      // Fallback 2: coordinate-extremes heuristic.
+      corners = findCornersByCoordinateExtremes(contour.points);
+    }
   }
   
   // Ensure all corners were found
@@ -71,6 +75,65 @@ export function findCornerPoints(contour, options = {}) {
   }
 
   return corners;
+}
+
+/**
+ * Find corners using farthest-point-in-quadrant around contour centroid.
+ * This mirrors the behavior that worked well in legacy jscanify.
+ * @param {Array} points - Array of contour points
+ * @returns {Object|null} Object with topLeft, topRight, bottomRight, bottomLeft
+ */
+function findCornersByQuadrants(points) {
+  if (!points || points.length < 4) return null;
+
+  const center = findCenter(points);
+
+  let topLeft = null;
+  let topRight = null;
+  let bottomRight = null;
+  let bottomLeft = null;
+
+  let topLeftDist = 0;
+  let topRightDist = 0;
+  let bottomRightDist = 0;
+  let bottomLeftDist = 0;
+
+  for (const point of points) {
+    const dist = distance(point, center);
+
+    if (point.x < center.x && point.y < center.y) {
+      if (dist > topLeftDist) {
+        topLeft = point;
+        topLeftDist = dist;
+      }
+    } else if (point.x > center.x && point.y < center.y) {
+      if (dist > topRightDist) {
+        topRight = point;
+        topRightDist = dist;
+      }
+    } else if (point.x > center.x && point.y > center.y) {
+      if (dist > bottomRightDist) {
+        bottomRight = point;
+        bottomRightDist = dist;
+      }
+    } else if (point.x < center.x && point.y > center.y) {
+      if (dist > bottomLeftDist) {
+        bottomLeft = point;
+        bottomLeftDist = dist;
+      }
+    }
+  }
+
+  if (!topLeft || !topRight || !bottomRight || !bottomLeft) {
+    return null;
+  }
+
+  return {
+    topLeft,
+    topRight,
+    bottomRight,
+    bottomLeft
+  };
 }
 
 /**
