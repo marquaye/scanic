@@ -245,6 +245,11 @@
       <!-- Parameter Sliders -->
       <div class="sliders-section">
         <h4 style="margin: 15px 0 10px 0;">⚙️ Parameters</h4>
+
+        <label style="display:flex; align-items:center; gap:8px; margin-bottom:8px;">
+          <input type="checkbox" id="adaptiveThresholds" checked>
+          Use adaptive Canny thresholds (recommended)
+        </label>
         
         <label>Low Threshold: <span id="lowThresholdVal">75</span></label>
         <input type="range" id="lowThreshold" min="10" max="150" value="75">
@@ -348,6 +353,15 @@
       minArea: document.getElementById('minArea'),
       epsilon: document.getElementById('epsilon')
     };
+    const adaptiveThresholds = document.getElementById('adaptiveThresholds');
+
+    function updateThresholdSliderState() {
+      const useAdaptive = adaptiveThresholds.checked;
+      sliders.lowThreshold.disabled = useAdaptive;
+      sliders.highThreshold.disabled = useAdaptive;
+      sliders.lowThreshold.style.opacity = useAdaptive ? '0.5' : '1';
+      sliders.highThreshold.style.opacity = useAdaptive ? '0.5' : '1';
+    }
     
     // Update slider value displays and auto-process
     Object.keys(sliders).forEach(key => {
@@ -360,6 +374,11 @@
         if (currentImage && cvReady) processImage();
       };
     });
+    adaptiveThresholds.onchange = () => {
+      updateThresholdSliderState();
+      if (currentImage && cvReady) processImage();
+    };
+    updateThresholdSliderState();
     const stepsGridScanic = document.getElementById('stepsGridScanic');
     const stepsGridOpenCV = document.getElementById('stepsGridOpenCV');
 
@@ -449,8 +468,8 @@
           output: 'canvas',
           debug: true,
           // Pass slider values
-          lowThreshold: parseInt(sliders.lowThreshold.value),
-          highThreshold: parseInt(sliders.highThreshold.value),
+          lowThreshold: adaptiveThresholds.checked ? undefined : parseInt(sliders.lowThreshold.value),
+          highThreshold: adaptiveThresholds.checked ? undefined : parseInt(sliders.highThreshold.value),
           dilationKernelSize: parseInt(sliders.dilationSize.value),
           dilationIterations: parseInt(sliders.dilationIter.value),
           minArea: parseInt(sliders.minArea.value),
@@ -712,9 +731,9 @@
         '../testImages/test.png',
         '../testImages/test2.png', 
         '../testImages/test3.jpg',
-        '../testImages/test4.jpg',
-        '../testImages/test5.jpg',
-        '../testImages/test6.jpg'
+        '../testImages/test4.JPG',
+        '../testImages/test5.JPG',
+        '../testImages/test6.JPG'
       ];
       
       paths.forEach(path => {

@@ -16,6 +16,34 @@ import init, {
 
 // Initialize the wasm module
 let wasmReadyPromise = null;
+let hasLoggedFullCannyFallback = false;
+
+function isNodeRuntime() {
+  return typeof process !== 'undefined' && !!process.versions?.node;
+}
+
+async function initializeWasmInternal() {
+  // wasm-bindgen's default init path uses fetch(URL), which can fail on
+  // file:// URLs in Node. Load bytes directly when running in Node.
+  if (isNodeRuntime()) {
+    try {
+      const { readFile } = await import('node:fs/promises');
+      const { fileURLToPath } = await import('node:url');
+      const moduleUrl = new URL(import.meta.url);
+      moduleUrl.search = '';
+      moduleUrl.hash = '';
+
+      const wasmUrl = new URL('../wasm_blur/pkg/wasm_blur_bg.wasm', moduleUrl);
+      const wasmBytes = await readFile(fileURLToPath(wasmUrl));
+      return await init({ module_or_path: wasmBytes });
+    } catch {
+      // Fallback to default init for environments that cannot use node:fs.
+      return await init();
+    }
+  }
+
+  return await init();
+}
 
 /**
  * Initializes the WASM module if not already initialized
@@ -23,7 +51,10 @@ let wasmReadyPromise = null;
  */
 export function initializeWasm() {
   if (!wasmReadyPromise) {
-    wasmReadyPromise = init();
+    wasmReadyPromise = initializeWasmInternal().catch((error) => {
+      wasmReadyPromise = null;
+      throw error;
+    });
   }
   return wasmReadyPromise;
 }
@@ -504,7 +535,7 @@ export async function cannyEdgeDetector(input, options = {}) {
   const useWasmDilation = true;
   const useWasmNMS = true;
   const useWasmHysteresis = options.useWasmHysteresis !== undefined ? options.useWasmHysteresis : false;
-  const useWasmFullCanny = options.useWasmFullCanny !== undefined ? options.useWasmFullCanny : true;
+  const useWasmFullCanny = options.useWasmFullCanny !== undefined ? options.useWasmFullCanny : false;
 
   // Ensure high threshold is greater than low threshold
   if (lowThreshold >= highThreshold) {
@@ -545,8 +576,13 @@ export async function cannyEdgeDetector(input, options = {}) {
       const tEnd = performance.now();
       timings.unshift({ step: 'Edge Detection Total', ms: (tEnd - tStart).toFixed(2) });
       return finalEdges;
-    } catch (_) {
+    } catch (error) {
       // WASM full Canny unavailable — fall through to step-by-step path
+      if (!hasLoggedFullCannyFallback) {
+        hasLoggedFullCannyFallback = true;
+        const reason = error instanceof Error ? error.message : String(error);
+        console.warn(`Full WASM Canny unavailable, using step-by-step path: ${reason}`);
+      }
     }
   }
 
