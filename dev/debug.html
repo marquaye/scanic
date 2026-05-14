@@ -205,6 +205,26 @@
       font-weight: bold;
       color: #2196F3;
     }
+    .corner-compare-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-family: monospace;
+      font-size: 12px;
+      margin-top: 8px;
+    }
+    .corner-compare-table th, .corner-compare-table td {
+      padding: 6px 8px;
+      border-bottom: 1px solid #eee;
+      text-align: left;
+    }
+    .corner-compare-table th {
+      background: #f5f5f5;
+      font-weight: 600;
+    }
+    .corner-compare-note {
+      font-size: 12px;
+      color: #666;
+    }
   </style>
 </head>
 <body>
@@ -303,6 +323,22 @@
       </div>
     </div>
   </div>
+
+  <div id="cornerComparePanel" class="panel" style="display:none; margin-bottom: 20px;">
+    <h3 style="margin-top:0; margin-bottom:6px;">Corner Comparison</h3>
+    <div class="corner-compare-note">Scanic should work out of the box in adaptive mode; this table helps verify any visible mismatch.</div>
+    <table class="corner-compare-table">
+      <thead>
+        <tr>
+          <th>Corner</th>
+          <th>Scanic</th>
+          <th>jscanify</th>
+          <th>Delta (px)</th>
+        </tr>
+      </thead>
+      <tbody id="cornerCompareBody"></tbody>
+    </table>
+  </div>
   
   <!-- Debug Steps -->
   <div id="debugSectionScanic" class="panel debug-section" style="display:none">
@@ -316,10 +352,10 @@
   </div>
 
   <!-- Import original jscanify - add cache buster -->
-  <script src="../legacy/jscanify.js?v=3"></script>
+  <script src="../legacy/jscanify.js?v=4"></script>
   
   <script type="module">
-    import * as scanic from '../src/index.js?v=3';
+    import * as scanic from '../src/index.js?v=4';
     
     // State
     let cvReady = false;
@@ -343,6 +379,8 @@
     const timingTableOpenCV = document.getElementById('timingTableOpenCV');
     const debugSectionScanic = document.getElementById('debugSectionScanic');
     const debugSectionOpenCV = document.getElementById('debugSectionOpenCV');
+    const cornerComparePanel = document.getElementById('cornerComparePanel');
+    const cornerCompareBody = document.getElementById('cornerCompareBody');
     
     // Slider elements
     const sliders = {
@@ -353,7 +391,23 @@
       minArea: document.getElementById('minArea'),
       epsilon: document.getElementById('epsilon')
     };
+    const sliderValueSpans = {
+      lowThreshold: document.getElementById('lowThresholdVal'),
+      highThreshold: document.getElementById('highThresholdVal'),
+      dilationSize: document.getElementById('dilationSizeVal'),
+      dilationIter: document.getElementById('dilationIterVal'),
+      minArea: document.getElementById('minAreaVal'),
+      epsilon: document.getElementById('epsilonVal')
+    };
     const adaptiveThresholds = document.getElementById('adaptiveThresholds');
+    let latestScanicCorners = null;
+    let latestOpenCVCorners = null;
+
+    function refreshSliderLabels() {
+      Object.keys(sliders).forEach((key) => {
+        sliderValueSpans[key].textContent = sliders[key].value;
+      });
+    }
 
     function updateThresholdSliderState() {
       const useAdaptive = adaptiveThresholds.checked;
@@ -362,13 +416,79 @@
       sliders.lowThreshold.style.opacity = useAdaptive ? '0.5' : '1';
       sliders.highThreshold.style.opacity = useAdaptive ? '0.5' : '1';
     }
+
+    function normalizeOpenCVCorners(corners) {
+      if (!corners) return null;
+      if (corners.topLeft && corners.topRight && corners.bottomRight && corners.bottomLeft) {
+        return corners;
+      }
+      if (corners.topLeftCorner && corners.topRightCorner && corners.bottomRightCorner && corners.bottomLeftCorner) {
+        return {
+          topLeft: corners.topLeftCorner,
+          topRight: corners.topRightCorner,
+          bottomRight: corners.bottomRightCorner,
+          bottomLeft: corners.bottomLeftCorner
+        };
+      }
+      return null;
+    }
+
+    function formatPoint(point) {
+      if (!point || !Number.isFinite(point.x) || !Number.isFinite(point.y)) return '-';
+      return `${point.x.toFixed(1)}, ${point.y.toFixed(1)}`;
+    }
+
+    function pointDelta(a, b) {
+      if (!a || !b) return null;
+      return Math.hypot(a.x - b.x, a.y - b.y);
+    }
+
+    function renderCornerComparison() {
+      cornerComparePanel.style.display = 'block';
+      cornerCompareBody.innerHTML = '';
+
+      if (mode !== 'detect') {
+        const tr = document.createElement('tr');
+        tr.innerHTML = '<td colspan="4">Corner comparison is available in Detect mode.</td>';
+        cornerCompareBody.appendChild(tr);
+        return;
+      }
+
+      const cornerKeys = [
+        { key: 'topLeft', label: 'Top Left' },
+        { key: 'topRight', label: 'Top Right' },
+        { key: 'bottomRight', label: 'Bottom Right' },
+        { key: 'bottomLeft', label: 'Bottom Left' }
+      ];
+
+      if (!latestScanicCorners && !latestOpenCVCorners) {
+        const tr = document.createElement('tr');
+        tr.innerHTML = '<td colspan="4">Load an image to compare corners.</td>';
+        cornerCompareBody.appendChild(tr);
+        return;
+      }
+
+      for (const corner of cornerKeys) {
+        const s = latestScanicCorners ? latestScanicCorners[corner.key] : null;
+        const o = latestOpenCVCorners ? latestOpenCVCorners[corner.key] : null;
+        const delta = pointDelta(s, o);
+
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${corner.label}</td>
+          <td>${formatPoint(s)}</td>
+          <td>${formatPoint(o)}</td>
+          <td>${delta === null ? '-' : delta.toFixed(2)}</td>
+        `;
+        cornerCompareBody.appendChild(tr);
+      }
+    }
     
     // Update slider value displays and auto-process
     Object.keys(sliders).forEach(key => {
       const slider = sliders[key];
-      const valSpan = document.getElementById(key + 'Val');
       slider.oninput = () => {
-        valSpan.textContent = slider.value;
+        sliderValueSpans[key].textContent = slider.value;
       };
       slider.onchange = () => {
         if (currentImage && cvReady) processImage();
@@ -378,7 +498,9 @@
       updateThresholdSliderState();
       if (currentImage && cvReady) processImage();
     };
+    refreshSliderLabels();
     updateThresholdSliderState();
+    renderCornerComparison();
     const stepsGridScanic = document.getElementById('stepsGridScanic');
     const stepsGridOpenCV = document.getElementById('stepsGridOpenCV');
 
@@ -450,6 +572,9 @@
       timingTableOpenCV.style.display = 'none';
       stepsGridScanic.innerHTML = '';
       stepsGridOpenCV.innerHTML = '';
+      latestScanicCorners = null;
+      latestOpenCVCorners = null;
+      renderCornerComparison();
       
       // Small delay to let UI update
       await new Promise(r => setTimeout(r, 10));
@@ -479,6 +604,7 @@
         if (result.success) {
           statusScanic.textContent = 'Success!';
           statusScanic.className = 'status success';
+          latestScanicCorners = result.corners || null;
           
           canvasContainerScanic.innerHTML = '';
           if (mode === 'extract' && result.output) {
@@ -498,10 +624,14 @@
           if (result.debug) {
             displayScanicDebugSteps(result.debug, currentImage);
           }
+
+          renderCornerComparison();
         } else {
           statusScanic.textContent = result.message || 'No document found';
           statusScanic.className = 'status error';
           canvasContainerScanic.innerHTML = '<span style="color:#c62828">Detection failed</span>';
+          latestScanicCorners = null;
+          renderCornerComparison();
           
           // Still show timings if available
           if (result.timings) {
@@ -512,6 +642,8 @@
         console.error('Scanic error:', err);
         statusScanic.textContent = 'Error: ' + err.message;
         statusScanic.className = 'status error';
+        latestScanicCorners = null;
+        renderCornerComparison();
       }
     }
     
@@ -524,6 +656,7 @@
           // Use extractPaper for fair comparison
           const resultCanvas = originalScanner.extractPaper(currentImage, 800, 600);
           const endTime = performance.now();
+          latestOpenCVCorners = null;
           
           if (resultCanvas) {
             statusOpenCV.textContent = 'Success!';
@@ -542,6 +675,7 @@
           // Detection with overlay
           const resultCanvas = originalScanner.highlightPaper(currentImage, { debug: debugInfo });
           const endTime = performance.now();
+          latestOpenCVCorners = normalizeOpenCVCorners(debugInfo.corners);
           
           statusOpenCV.textContent = 'Success!';
           statusOpenCV.className = 'status success';
@@ -561,11 +695,19 @@
           if (resultCanvas.debugInfo) {
             displayOpenCVDebugSteps(resultCanvas.debugInfo);
           }
+
+          renderCornerComparison();
+        }
+
+        if (mode === 'extract') {
+          renderCornerComparison();
         }
       } catch (err) {
         console.error('OpenCV error:', err);
         statusOpenCV.textContent = 'Error: ' + err.message;
         statusOpenCV.className = 'status error';
+        latestOpenCVCorners = null;
+        renderCornerComparison();
       }
     }
     
@@ -727,18 +869,32 @@
     
     // Sample images
     function loadSampleImages() {
-      const paths = [
-        '../testImages/test.png',
-        '../testImages/test2.png', 
-        '../testImages/test3.jpg',
-        '../testImages/test4.JPG',
-        '../testImages/test5.JPG',
-        '../testImages/test6.JPG'
+      const fileNames = [
+        '0123.jpg',
+        '0149_p-50-.jpg',
+        '1023-receipt.jpg',
+        '25_2.jpg',
+        'IMG_0445 2.jpg',
+        'test-sized.png',
+        'test.png',
+        'test10.jpg',
+        'test2-sized.png',
+        'test2.png',
+        'test3.jpg',
+        'test4.JPG',
+        'test5.JPG',
+        'test6.JPG',
+        'test7.JPG',
+        'test8.JPG',
+        'test9.jpg'
       ];
       
-      paths.forEach(path => {
+      fileNames.forEach(fileName => {
+        const path = `../testImages/${encodeURIComponent(fileName)}`;
         const img = document.createElement('img');
         img.src = path;
+        img.alt = fileName;
+        img.title = fileName;
         img.className = 'sample-image';
         img.onclick = () => loadImage(path);
         img.onerror = () => img.remove();

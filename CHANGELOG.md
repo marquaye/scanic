@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.7] - 2026-05-14
+
+### Added
+- **Adaptive Multi-Pass Detection**: Added detection-pass cascade profiles (`default`, `connect-edges`, `no-dilation`, `fixed-mid-thresholds`) with pass-aware candidate selection.
+- **Richer Candidate Geometry Scoring**: Added right-angle, opposite-side consistency, and contour-fit metrics to improve document candidate ranking.
+- **Corner Approximation Stabilization**: Added multi-epsilon quadrilateral search and near-duplicate approximation-point cleanup for more stable corners on hard contours.
+- **Debug Comparison Enhancements**: Added full test image set in debug UI and corner-by-corner Scanic vs jscanify delta reporting.
+- **Live Demo Sample Expansion**: Expanded demo sample image gallery to cover more real test cases from `testImages/`.
+
+### Changed
+- Updated detection candidate sorting to prefer valid geometry and better near-tie tie-breaking.
+- Improved non-debug performance by storing timings without retaining heavy debug arrays.
+- Updated public detection options typings with cascade and geometry-threshold controls.
+
+### Fixed
+- Fixed corner regression caused by near-duplicate approximation vertices on `test.png`.
+- Restored stable hard-case behavior by limiting approximation reduction to duplicate cleanup instead of aggressive polygon collapse.
+
 ## [1.0.0] - 2026-01-08
 
 ### Added

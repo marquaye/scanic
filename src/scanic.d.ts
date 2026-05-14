@@ -17,6 +17,7 @@ export interface DetectionOptions {
   maxProcessingDimension?: number;
   lowThreshold?: number;
   highThreshold?: number;
+  applyDilation?: boolean;
   dilationKernelSize?: number;
   dilationIterations?: number;
   useWasmHysteresis?: boolean;
@@ -25,8 +26,15 @@ export interface DetectionOptions {
   epsilon?: number;
   minDetectionConfidence?: number;
   maxCandidateContours?: number;
+  enableDetectionCascade?: boolean;
+  minCascadeTriggerConfidence?: number;
   minDocumentCoverageRatio?: number;
   minDocumentSideRatio?: number;
+  minDocumentFillRatio?: number;
+  minContourFitRatio?: number;
+  maxContourFitRatio?: number;
+  minRightAngleScore?: number;
+  minOppositeSideConsistency?: number;
   maxDocumentAspectRatio?: number;
 }
 

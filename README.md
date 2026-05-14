@@ -43,6 +43,13 @@ Traditional web scanning solutions often force a trade-off:
 - 📦 **Featherweight**: Under **100KB** total size (gzipped).
 - 🧪 **Production Grade**: Built-in regression tests with physical image baselines.
 
+## 🆕 What's New (v1.0.7)
+
+- Improved default document quality with adaptive multi-pass candidate evaluation.
+- More stable corners on noisy contours through multi-epsilon approximation and duplicate-vertex cleanup.
+- Expanded debug tooling with full test image coverage and corner delta comparison against jscanify.
+- Expanded live demo sample set for broader real-world validation.
+
 ---
 
 ## 🛠️ Installation
@@ -163,9 +170,18 @@ The primary function for detecting and extracting documents.
 | `mode` | `'detect' \| 'extract'` | `'detect'` | `'detect'` returns coordinates; `'extract'` returns the warped image. |
 | `output` | `'canvas' \| 'imagedata' \| 'dataurl'` | `'canvas'` | The format of the returned processed image. |
 | `maxProcessingDimension` | `number` | `800` | Downscales image to this size for detection (faster). |
-| `lowThreshold` | `number` | `75` | Lower threshold for Canny edge detection. |
-| `highThreshold` | `number` | `200` | Upper threshold for Canny edge detection. |
+| `lowThreshold` | `number` | `adaptive` | Optional lower threshold for Canny edge detection. If omitted together with `highThreshold`, adaptive thresholds are used. |
+| `highThreshold` | `number` | `adaptive` | Optional upper threshold for Canny edge detection. |
+| `applyDilation` | `boolean` | `true` | Enables dilation in the primary pass. |
+| `dilationKernelSize` | `number` | `3` | Morphological dilation kernel size for edge connection. |
+| `dilationIterations` | `number` | `1` | Number of dilation passes. |
 | `minArea` | `number` | `1000` | Minimum pixel area to consider a contour a "document". |
+| `enableDetectionCascade` | `boolean` | `true` | Enables fallback pass profiles for hard images. |
+| `minCascadeTriggerConfidence` | `number` | `0.68` | Confidence threshold before trying additional pass profiles. |
+| `maxCandidateContours` | `number` | `12` | Number of largest contours to score per pass. |
+| `minDocumentCoverageRatio` | `number` | `0.04` | Minimum image coverage required for a valid candidate. |
+| `minDocumentFillRatio` | `number` | `0.07` | Minimum contour fill ratio within its bounding box. |
+| `maxDocumentAspectRatio` | `number` | `8` | Maximum accepted aspect ratio for candidates. |
 | `debug` | `boolean` | `false` | If true, returns intermediate processing steps. |
 
 #### Return Value

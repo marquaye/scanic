@@ -47,9 +47,10 @@ export function findCornerPoints(contour, options = {}) {
     return null;
   }
   
-  // Try to find a quadrilateral approximation of the contour
+  // Try to find a quadrilateral approximation of the contour.
+  // We sweep a few larger epsilons to stabilize hard/noisy contours.
   const epsilon = options.epsilon || 0.02;
-  const approximation = approximatePolygon(contour.points, epsilon);
+  const approximation = findBestQuadrilateralApproximation(contour.points, epsilon);
   
   let corners;
   
@@ -75,6 +76,83 @@ export function findCornerPoints(contour, options = {}) {
   }
 
   return corners;
+}
+
+/**
+ * Try multiple approximation tolerances and return the first quadrilateral.
+ * @param {Array} points - Array of contour points
+ * @param {number} baseEpsilon - Base relative epsilon value
+ * @returns {Array|null} Approximation points if quadrilateral found
+ */
+function findBestQuadrilateralApproximation(points, baseEpsilon) {
+  if (!points || points.length < 4) return null;
+
+  const epsilonCandidates = [
+    baseEpsilon,
+    baseEpsilon * 1.3,
+    baseEpsilon * 1.6,
+    baseEpsilon * 2.0
+  ];
+
+  const seen = new Set();
+  for (const candidate of epsilonCandidates) {
+    const epsilon = Math.min(0.12, candidate);
+    const key = epsilon.toFixed(4);
+    if (seen.has(key)) continue;
+    seen.add(key);
+
+    const approximation = approximatePolygon(points, epsilon);
+    const quad = reduceApproximationToQuadrilateral(approximation);
+    if (quad && quad.length === 4) {
+      return quad;
+    }
+  }
+
+  return null;
+}
+
+/**
+ * Reduce a polygon approximation to a quadrilateral when possible.
+ * Handles near-duplicate vertices and small collinear kinks.
+ * @param {Array} approximation - Approximation points
+ * @returns {Array|null} Four-point approximation when reduction succeeds
+ */
+function reduceApproximationToQuadrilateral(approximation) {
+  if (!approximation || approximation.length < 4) return null;
+  if (approximation.length === 4) return approximation;
+  if (approximation.length > 8) return null;
+
+  let points = removeNearDuplicateVertices(approximation, 6);
+  if (points.length === 4) return points;
+  if (points.length < 4) return null;
+
+  // Keep non-duplicate polygons as-is. The fallback corner heuristics are
+  // more stable than forcing arbitrary 5->4 simplification.
+  return null;
+}
+
+/**
+ * Remove consecutive/cyclic vertices that are effectively duplicates.
+ * @param {Array} points - Polygon points
+ * @param {number} tolerance - Distance threshold in pixels
+ * @returns {Array} Deduplicated points
+ */
+function removeNearDuplicateVertices(points, tolerance) {
+  if (!points || points.length === 0) return [];
+
+  const filtered = [];
+  for (const point of points) {
+    if (filtered.length === 0 || distance(point, filtered[filtered.length - 1]) > tolerance) {
+      filtered.push(point);
+    }
+  }
+
+  // Also collapse a closing duplicate between last and first vertices.
+  if (filtered.length > 2 && distance(filtered[0], filtered[filtered.length - 1]) <= tolerance) {
+    filtered.pop();
+  }
+
+  return filtered;
 }
 
 /**
