@@ -335,7 +335,7 @@ function findCornerPoints(contour, options = {}) {
     return null;
   }
   const epsilon = options.epsilon || 0.02;
-  const approximation = approximatePolygon(contour.points, epsilon);
+  const approximation = findBestQuadrilateralApproximation(contour.points, epsilon);
   let corners;
   if (approximation && approximation.length === 4) {
     corners = orderCornerPoints(approximation);
@@ -350,6 +350,50 @@ function findCornerPoints(contour, options = {}) {
     return null;
   }
   return corners;
+}
+function findBestQuadrilateralApproximation(points, baseEpsilon) {
+  if (!points || points.length < 4) return null;
+  const epsilonCandidates = [
+    baseEpsilon,
+    baseEpsilon * 1.3,
+    baseEpsilon * 1.6,
+    baseEpsilon * 2
+  ];
+  const seen = /* @__PURE__ */ new Set();
+  for (const candidate of epsilonCandidates) {
+    const epsilon = Math.min(0.12, candidate);
+    const key = epsilon.toFixed(4);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    const approximation = approximatePolygon(points, epsilon);
+    const quad = reduceApproximationToQuadrilateral(approximation);
+    if (quad && quad.length === 4) {
+      return quad;
+    }
+  }
+  return null;
+}
+function reduceApproximationToQuadrilateral(approximation) {
+  if (!approximation || approximation.length < 4) return null;
+  if (approximation.length === 4) return approximation;
+  if (approximation.length > 8) return null;
+  let points = removeNearDuplicateVertices(approximation, 6);
+  if (points.length === 4) return points;
+  if (points.length < 4) return null;
+  return null;
+}
+function removeNearDuplicateVertices(points, tolerance) {
+  if (!points || points.length === 0) return [];
+  const filtered = [];
+  for (const point of points) {
+    if (filtered.length === 0 || distance(point, filtered[filtered.length - 1]) > tolerance) {
+      filtered.push(point);
+    }
+  }
+  if (filtered.length > 2 && distance(filtered[0], filtered[filtered.length - 1]) <= tolerance) {
+    filtered.pop();
+  }
+  return filtered;
 }
 function findCornersByQuadrants(points) {
   if (!points || points.length < 4) return null;
@@ -870,6 +914,7 @@ function dilateEdges(edges, width, height, kernelSize = 5) {
   return dilated;
 }
 async function cannyEdgeDetector(input, options = {}) {
+  const storeFullDebug = !!(options.debug && !options.debug._timingsOnly);
   const timings = [];
   const tStart = performance.now();
   const skipGrayscale = options.skipGrayscale || false;
@@ -878,7 +923,7 @@ async function cannyEdgeDetector(input, options = {}) {
     width = options.width;
     height = options.height;
     grayscale = input;
-    if (options.debug) options.debug.grayscale = grayscale;
+    if (storeFullDebug) options.debug.grayscale = grayscale;
   } else {
     width = input.width;
     height = input.height;
@@ -886,7 +931,7 @@ async function cannyEdgeDetector(input, options = {}) {
     grayscale = convertToGrayscale(input);
     let t12 = performance.now();
     timings.push({ step: "Grayscale", ms: (t12 - t02).toFixed(2) });
-    if (options.debug) options.debug.grayscale = grayscale;
+    if (storeFullDebug) options.debug.grayscale = grayscale;
   }
   let lowThreshold = options.lowThreshold !== void 0 ? options.lowThreshold : null;
   let highThreshold = options.highThreshold !== void 0 ? options.highThreshold : null;
@@ -952,12 +997,11 @@ async function cannyEdgeDetector(input, options = {}) {
       const t1w = performance.now();
       const wasmMs = (t1w - t0w).toFixed(2);
       timings.push({ step: "Edge Processing (WASM)", ms: wasmMs });
-      if (options.debug) {
+      if (storeFullDebug) {
         options.debug.finalEdges = finalEdges2;
-        options.debug.timings = timings;
-      } else {
-        options.debug = { timings };
       }
+      if (options.debug) options.debug.timings = timings;
+      else options.debug = { timings };
       const tEnd2 = performance.now();
       timings.unshift({ step: "Edge Detection Total", ms: (tEnd2 - tStart).toFixed(2) });
       return finalEdges2;
@@ -982,7 +1026,7 @@ async function cannyEdgeDetector(input, options = {}) {
   }
   t1 = performance.now();
   timings.push({ step: "Gaussian Blur", ms: (t1 - t0).toFixed(2) });
-  if (options.debug) {
+  if (storeFullDebug) {
     options.debug.blurred = blurred;
   }
   t0 = performance.now();
@@ -1044,7 +1088,7 @@ async function cannyEdgeDetector(input, options = {}) {
   }
   t1 = performance.now();
   timings.push({ step: "Dilation", ms: (t1 - t0).toFixed(2) });
-  if (options.debug) {
+  if (storeFullDebug) {
     options.debug.dx = dx;
     options.debug.dy = dy;
     const magnitude = new Float32Array(width * height);
@@ -1192,6 +1236,67 @@ function polygonAreaFromCorners(corners) {
   }
   return Math.abs(area) / 2;
 }
+function sideLengthsFromCorners(corners) {
+  return [
+    pointDistance(corners.topLeft, corners.topRight),
+    pointDistance(corners.topRight, corners.bottomRight),
+    pointDistance(corners.bottomRight, corners.bottomLeft),
+    pointDistance(corners.bottomLeft, corners.topLeft)
+  ];
+}
+function cornerAnglesDegrees(corners) {
+  const points = [corners.topLeft, corners.topRight, corners.bottomRight, corners.bottomLeft];
+  const angles = [];
+  for (let i = 0; i < points.length; i++) {
+    const prev = points[(i + points.length - 1) % points.length];
+    const curr = points[i];
+    const next = points[(i + 1) % points.length];
+    const v1x = prev.x - curr.x;
+    const v1y = prev.y - curr.y;
+    const v2x = next.x - curr.x;
+    const v2y = next.y - curr.y;
+    const dot = v1x * v2x + v1y * v2y;
+    const mag1 = Math.hypot(v1x, v1y);
+    const mag2 = Math.hypot(v2x, v2y);
+    const denom = Math.max(1e-6, mag1 * mag2);
+    const cosTheta = Math.max(-1, Math.min(1, dot / denom));
+    angles.push(Math.acos(cosTheta) * 180 / Math.PI);
+  }
+  return angles;
+}
+function computeRightAngleScore(corners) {
+  const angles = cornerAnglesDegrees(corners);
+  let total = 0;
+  for (const angle of angles) {
+    const deviation = Math.abs(angle - 90);
+    total += clamp01(1 - deviation / 55);
+  }
+  return total / Math.max(1, angles.length);
+}
+function computeOppositeSideConsistency(corners) {
+  const sides = sideLengthsFromCorners(corners);
+  const widthConsistency = Math.min(sides[0], sides[2]) / Math.max(1e-6, Math.max(sides[0], sides[2]));
+  const heightConsistency = Math.min(sides[1], sides[3]) / Math.max(1e-6, Math.max(sides[1], sides[3]));
+  return (widthConsistency + heightConsistency) / 2;
+}
+function compareCandidates(a, b) {
+  const validDelta = Number(b.isValid) - Number(a.isValid);
+  if (validDelta !== 0) return validDelta;
+  const confidenceDelta = b.confidence - a.confidence;
+  const nearTie = Math.abs(confidenceDelta) < 0.015;
+  if (!nearTie && confidenceDelta !== 0) return confidenceDelta;
+  const complexityA = Math.abs((a.approxCount ?? 99) - 4);
+  const complexityB = Math.abs((b.approxCount ?? 99) - 4);
+  const complexityDelta = complexityA - complexityB;
+  if (complexityDelta !== 0) return complexityDelta;
+  const angleDelta = (b.rightAngleScore ?? 0) - (a.rightAngleScore ?? 0);
+  if (Math.abs(angleDelta) > 1e-6) return angleDelta;
+  const fitErrorA = Math.abs(1 - (a.contourFitRatio ?? 1));
+  const fitErrorB = Math.abs(1 - (b.contourFitRatio ?? 1));
+  const fitDelta = fitErrorA - fitErrorB;
+  if (Math.abs(fitDelta) > 1e-6) return fitDelta;
+  return confidenceDelta || b.score - a.score || b.coverageRatio - a.coverageRatio || b.area - a.area;
+}
 function cornersAreFiniteAndDistinct(corners, minDistance = 6) {
   const points = [corners == null ? void 0 : corners.topLeft, corners == null ? void 0 : corners.topRight, corners == null ? void 0 : corners.bottomRight, corners == null ? void 0 : corners.bottomLeft];
   if (points.some((p) => !p || !Number.isFinite(p.x) || !Number.isFinite(p.y))) {
@@ -1270,11 +1375,16 @@ function evaluateContourCandidate(contour, edges, width, height, options = {}) {
       area: contour.area || 0,
       fillRatio: 0,
       coverageRatio: 0,
+      cornersArea: 0,
       approxCount,
       convex: false,
       edgeSupport: 0,
       aspectRatio: Infinity,
-      minSide: 0
+      minSide: 0,
+      rightAngleScore: 0,
+      oppositeSideConsistency: 0,
+      contourFitRatio: 0,
+      contourFitScore: 0
     };
   }
   const imageArea = width * height;
@@ -1282,30 +1392,35 @@ function evaluateContourCandidate(contour, edges, width, height, options = {}) {
   const box = contour.boundingBox || { minX: 0, minY: 0, maxX: 0, maxY: 0 };
   const boxArea = Math.max(1, (box.maxX - box.minX + 1) * (box.maxY - box.minY + 1));
   const fillRatio = area / boxArea;
-  const coverageRatio = polygonAreaFromCorners(corners) / Math.max(1, imageArea);
-  const sides = [
-    pointDistance(corners.topLeft, corners.topRight),
-    pointDistance(corners.topRight, corners.bottomRight),
-    pointDistance(corners.bottomRight, corners.bottomLeft),
-    pointDistance(corners.bottomLeft, corners.topLeft)
-  ];
+  const cornersArea = polygonAreaFromCorners(corners);
+  const coverageRatio = cornersArea / Math.max(1, imageArea);
+  const sides = sideLengthsFromCorners(corners);
   const minSide = Math.min(...sides);
   const avgWidth = (sides[0] + sides[2]) / 2;
   const avgHeight = (sides[1] + sides[3]) / 2;
   const aspectRatio = avgWidth > avgHeight ? avgWidth / Math.max(1e-6, avgHeight) : avgHeight / Math.max(1e-6, avgWidth);
   const convex = isConvexQuadrilateral(corners);
   const edgeSupport = computeEdgeSupportScore(contour, edges, width, height);
-  const quadLikeness = approxCount === 4 ? 1 : approxCount === 5 ? 0.82 : approxCount === 6 ? 0.62 : approxCount <= 8 ? 0.42 : 0.2;
+  const rightAngleScore = computeRightAngleScore(corners);
+  const oppositeSideConsistency = computeOppositeSideConsistency(corners);
+  const contourFitRatio = area / Math.max(1, cornersArea);
+  const contourFitScore = clamp01(1 - Math.abs(contourFitRatio - 1) / 0.55);
+  const quadLikeness = approxCount === 4 ? 1 : approxCount === 5 ? 0.9 : approxCount === 6 ? 0.7 : approxCount <= 8 ? 0.5 : 0.28;
   const areaScore = clamp01(area / Math.max(1, imageArea * 0.4));
   const fillScore = clamp01((fillRatio - 0.08) / 0.72);
   const coverageScore = clamp01((coverageRatio - 0.03) / 0.82);
   const minSideRatio = options.minDocumentSideRatio !== void 0 ? options.minDocumentSideRatio : 0.06;
   const minCoverage = options.minDocumentCoverageRatio !== void 0 ? options.minDocumentCoverageRatio : 0.04;
   const maxAspect = options.maxDocumentAspectRatio !== void 0 ? options.maxDocumentAspectRatio : 8;
+  const minFillRatio = options.minDocumentFillRatio !== void 0 ? options.minDocumentFillRatio : 0.07;
+  const minContourFitRatio = options.minContourFitRatio !== void 0 ? options.minContourFitRatio : 0.11;
+  const maxContourFitRatio = options.maxContourFitRatio !== void 0 ? options.maxContourFitRatio : 1.2;
+  const minRightAngleScore = options.minRightAngleScore !== void 0 ? options.minRightAngleScore : 0.42;
+  const minOppositeSideConsistency = options.minOppositeSideConsistency !== void 0 ? options.minOppositeSideConsistency : 0.3;
   const minSidePx = Math.min(width, height) * minSideRatio;
-  const geometryValid = cornersAreFiniteAndDistinct(corners) && convex && minSide >= minSidePx && coverageRatio >= minCoverage && aspectRatio <= maxAspect;
-  const score = areaScore * 0.32 + fillScore * 0.2 + quadLikeness * 0.2 + (convex ? 1 : 0) * 0.12 + edgeSupport * 0.08 + coverageScore * 0.08;
-  const confidence = geometryValid ? score : score * 0.45;
+  const geometryValid = cornersAreFiniteAndDistinct(corners) && convex && minSide >= minSidePx && coverageRatio >= minCoverage && aspectRatio <= maxAspect && fillRatio >= minFillRatio && contourFitRatio >= minContourFitRatio && contourFitRatio <= maxContourFitRatio && rightAngleScore >= minRightAngleScore && oppositeSideConsistency >= minOppositeSideConsistency;
+  const score = areaScore * 0.22 + fillScore * 0.14 + quadLikeness * 0.15 + (convex ? 1 : 0) * 0.08 + edgeSupport * 0.08 + coverageScore * 0.13 + rightAngleScore * 0.1 + oppositeSideConsistency * 0.05 + contourFitScore * 0.05;
+  const confidence = geometryValid ? score : score * 0.33;
   return {
     contour,
     corners,
@@ -1315,11 +1430,16 @@ function evaluateContourCandidate(contour, edges, width, height, options = {}) {
     area,
     fillRatio,
     coverageRatio,
+    cornersArea,
     approxCount,
     convex,
     edgeSupport,
     aspectRatio,
-    minSide
+    minSide,
+    rightAngleScore,
+    oppositeSideConsistency,
+    contourFitRatio,
+    contourFitScore
   };
 }
 function selectBestContourCandidate(contours, edges, width, height, options = {}) {
@@ -1327,11 +1447,81 @@ function selectBestContourCandidate(contours, edges, width, height, options = {}
   const candidates = contours.slice(0, maxCandidateContours).map((contour, index) => ({
     rankByArea: index,
     ...evaluateContourCandidate(contour, edges, width, height, options)
-  })).sort((a, b) => b.confidence - a.confidence || b.score - a.score);
+  })).sort(compareCandidates);
   return {
     best: candidates[0] || null,
     candidates
   };
+}
+function shouldRunDetectionCascade(bestCandidate, options = {}) {
+  if (options.enableDetectionCascade === false) return false;
+  if (!bestCandidate || !bestCandidate.corners) return true;
+  const minConfidenceForSinglePass = options.minCascadeTriggerConfidence !== void 0 ? options.minCascadeTriggerConfidence : 0.68;
+  if (!bestCandidate.isValid) return true;
+  if (bestCandidate.confidence < minConfidenceForSinglePass) return true;
+  if (bestCandidate.approxCount > 5) return true;
+  if (bestCandidate.rightAngleScore < 0.55) return true;
+  if (bestCandidate.contourFitRatio < 0.14) return true;
+  return false;
+}
+function buildDetectionPassProfiles(options = {}) {
+  const baseKernel = options.dilationKernelSize || 3;
+  const baseIterations = options.dilationIterations || 1;
+  const baseApplyDilation = options.applyDilation !== void 0 ? options.applyDilation : true;
+  const profiles = [
+    {
+      name: "default",
+      lowThreshold: options.lowThreshold,
+      highThreshold: options.highThreshold,
+      dilationKernelSize: baseKernel,
+      dilationIterations: baseIterations,
+      applyDilation: baseApplyDilation
+    }
+  ];
+  if (options.enableDetectionCascade === false) {
+    return profiles;
+  }
+  profiles.push({
+    name: "connect-edges",
+    lowThreshold: options.lowThreshold,
+    highThreshold: options.highThreshold,
+    dilationKernelSize: Math.max(baseKernel, 5),
+    dilationIterations: Math.max(baseIterations, 2),
+    applyDilation: true
+  });
+  profiles.push({
+    name: "no-dilation",
+    lowThreshold: options.lowThreshold,
+    highThreshold: options.highThreshold,
+    dilationKernelSize: baseKernel,
+    dilationIterations: baseIterations,
+    applyDilation: false
+  });
+  if (options.lowThreshold === void 0 && options.highThreshold === void 0) {
+    profiles.push({
+      name: "fixed-mid-thresholds",
+      lowThreshold: 60,
+      highThreshold: 180,
+      dilationKernelSize: baseKernel,
+      dilationIterations: baseIterations,
+      applyDilation: baseApplyDilation
+    });
+  }
+  const deduped = [];
+  const seen = /* @__PURE__ */ new Set();
+  for (const profile of profiles) {
+    const key = [
+      profile.lowThreshold,
+      profile.highThreshold,
+      profile.dilationKernelSize,
+      profile.dilationIterations,
+      profile.applyDilation
+    ].join(":");
+    if (seen.has(key)) continue;
+    seen.add(key);
+    deduped.push(profile);
+  }
+  return deduped;
 }
 async function detectDocumentInternal(grayscaleData, width, height, scaleFactor, options = {}) {
   const debugInfo = options.debug ? {} : { _timingsOnly: true };
@@ -1343,38 +1533,77 @@ async function detectDocumentInternal(grayscaleData, width, height, scaleFactor,
       maxProcessingDimension: options.maxProcessingDimension || 800
     };
   }
-  const edges = await cannyEdgeDetector(grayscaleData, {
-    width,
-    height,
-    lowThreshold: options.lowThreshold,
-    // undefined → adaptive
-    highThreshold: options.highThreshold,
-    // undefined → adaptive
-    dilationKernelSize: options.dilationKernelSize || 3,
-    // Match OpenCV value 
-    dilationIterations: options.dilationIterations || 1,
-    debug: debugInfo,
-    skipGrayscale: true,
-    // Skip grayscale - already done in prep
-    useWasmBlur: true,
-    useWasmHysteresis: options.useWasmHysteresis,
-    useWasmFullCanny: options.useWasmFullCanny
-  });
-  if (debugInfo.timings) {
-    debugInfo.timings.forEach((t) => {
-      if (t.step !== "Edge Detection Total") timings.push(t);
+  const passProfiles = buildDetectionPassProfiles(options);
+  const passResults = [];
+  const runDetectionPass = async (profile, passIndex) => {
+    const passLabel = profile.name || `pass-${passIndex + 1}`;
+    const passSuffix = passIndex === 0 ? "" : ` (${passLabel})`;
+    const passDebug = options.debug ? {} : { _timingsOnly: true };
+    const edges = await cannyEdgeDetector(grayscaleData, {
+      width,
+      height,
+      lowThreshold: profile.lowThreshold,
+      highThreshold: profile.highThreshold,
+      dilationKernelSize: profile.dilationKernelSize,
+      dilationIterations: profile.dilationIterations,
+      applyDilation: profile.applyDilation,
+      debug: passDebug,
+      skipGrayscale: true,
+      useWasmBlur: true,
+      useWasmHysteresis: options.useWasmHysteresis,
+      useWasmFullCanny: options.useWasmFullCanny
     });
+    if (passDebug.timings) {
+      passDebug.timings.forEach((timing) => {
+        if (timing.step === "Edge Detection Total") return;
+        timings.push({ step: `${timing.step}${passSuffix}`, ms: timing.ms });
+      });
+    }
+    let t0 = performance.now();
+    const contours = detectDocumentContour(edges, {
+      minArea: (options.minArea || 1e3) / (scaleFactor * scaleFactor),
+      width,
+      height
+    });
+    timings.push({ step: `Find Contours${passSuffix}`, ms: (performance.now() - t0).toFixed(2) });
+    t0 = performance.now();
+    const { best: best2, candidates: candidates2 } = selectBestContourCandidate(contours, edges, width, height, options);
+    timings.push({ step: `Corner Detection${passSuffix}`, ms: (performance.now() - t0).toFixed(2) });
+    return {
+      name: passLabel,
+      params: {
+        lowThreshold: profile.lowThreshold,
+        highThreshold: profile.highThreshold,
+        dilationKernelSize: profile.dilationKernelSize,
+        dilationIterations: profile.dilationIterations,
+        applyDilation: profile.applyDilation
+      },
+      contours,
+      best: best2,
+      candidates: candidates2
+    };
+  };
+  const primaryPass = await runDetectionPass(passProfiles[0], 0);
+  passResults.push(primaryPass);
+  if (shouldRunDetectionCascade(primaryPass.best, options)) {
+    for (let i = 1; i < passProfiles.length; i++) {
+      passResults.push(await runDetectionPass(passProfiles[i], i));
+    }
   }
-  let t0 = performance.now();
-  const contours = detectDocumentContour(edges, {
-    minArea: (options.minArea || 1e3) / (scaleFactor * scaleFactor),
-    // Adjust minArea for scaled image
-    debug: debugInfo,
-    width,
-    height
-  });
-  timings.push({ step: "Find Contours", ms: (performance.now() - t0).toFixed(2) });
-  if (!contours || contours.length === 0) {
+  const allCandidates = [];
+  for (const pass of passResults) {
+    for (const candidate of pass.candidates) {
+      allCandidates.push({
+        ...candidate,
+        passName: pass.name,
+        passParams: pass.params
+      });
+    }
+  }
+  allCandidates.sort(compareCandidates);
+  const best = allCandidates[0] || null;
+  const candidates = allCandidates;
+  if (!best || !best.corners) {
     console.log("No document detected");
     return {
       success: false,
@@ -1383,34 +1612,59 @@ async function detectDocumentInternal(grayscaleData, width, height, scaleFactor,
       timings
     };
   }
-  t0 = performance.now();
-  const { best, candidates } = selectBestContourCandidate(contours, edges, width, height, options);
-  timings.push({ step: "Corner Detection", ms: (performance.now() - t0).toFixed(2) });
   if (debugInfo && !debugInfo._timingsOnly) {
+    debugInfo.passes = passResults.map((pass) => ({
+      name: pass.name,
+      params: pass.params,
+      contourCount: pass.contours.length,
+      bestCandidate: pass.best ? {
+        score: pass.best.score,
+        confidence: pass.best.confidence,
+        isValid: pass.best.isValid,
+        approxCount: pass.best.approxCount,
+        coverageRatio: pass.best.coverageRatio,
+        fillRatio: pass.best.fillRatio,
+        rightAngleScore: pass.best.rightAngleScore,
+        contourFitRatio: pass.best.contourFitRatio
+      } : null
+    }));
     debugInfo.candidates = candidates.map((candidate) => ({
+      passName: candidate.passName,
       rankByArea: candidate.rankByArea,
       area: candidate.area,
       fillRatio: candidate.fillRatio,
       coverageRatio: candidate.coverageRatio,
+      cornersArea: candidate.cornersArea,
       approxCount: candidate.approxCount,
       convex: candidate.convex,
       edgeSupport: candidate.edgeSupport,
       aspectRatio: candidate.aspectRatio,
       minSide: candidate.minSide,
+      rightAngleScore: candidate.rightAngleScore,
+      oppositeSideConsistency: candidate.oppositeSideConsistency,
+      contourFitRatio: candidate.contourFitRatio,
+      contourFitScore: candidate.contourFitScore,
       score: candidate.score,
       confidence: candidate.confidence,
       isValid: candidate.isValid
     }));
-    debugInfo.selectedCandidate = candidates[0] || null;
-  }
-  if (!best || !best.corners) {
-    return {
-      success: false,
-      message: "Document contour found but corner detection failed",
-      confidence: 0,
-      debug: debugInfo._timingsOnly ? null : debugInfo,
-      timings
-    };
+    debugInfo.selectedCandidate = candidates[0] ? {
+      passName: candidates[0].passName,
+      rankByArea: candidates[0].rankByArea,
+      area: candidates[0].area,
+      fillRatio: candidates[0].fillRatio,
+      coverageRatio: candidates[0].coverageRatio,
+      approxCount: candidates[0].approxCount,
+      edgeSupport: candidates[0].edgeSupport,
+      aspectRatio: candidates[0].aspectRatio,
+      minSide: candidates[0].minSide,
+      rightAngleScore: candidates[0].rightAngleScore,
+      oppositeSideConsistency: candidates[0].oppositeSideConsistency,
+      contourFitRatio: candidates[0].contourFitRatio,
+      score: candidates[0].score,
+      confidence: candidates[0].confidence,
+      isValid: candidates[0].isValid
+    } : null;
   }
   const cornerPoints = best.corners;
   const documentContour = best.contour;
