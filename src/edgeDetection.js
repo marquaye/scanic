@@ -457,6 +457,8 @@ export function dilateEdges(edges, width, height, kernelSize = 5) {
  * @returns {Promise<Uint8ClampedArray>} Binary edge image (0 or 255)
  */
 export async function cannyEdgeDetector(input, options = {}) {
+    const storeFullDebug = !!(options.debug && !options.debug._timingsOnly);
+
   // Timing table setup
   const timings = [];
   const tStart = performance.now();
@@ -470,7 +472,7 @@ export async function cannyEdgeDetector(input, options = {}) {
     width = options.width;
     height = options.height;
     grayscale = input;
-    if (options.debug) options.debug.grayscale = grayscale;
+    if (storeFullDebug) options.debug.grayscale = grayscale;
   } else {
     // Input is ImageData - extract dimensions and convert to grayscale
     width = input.width;
@@ -480,7 +482,7 @@ export async function cannyEdgeDetector(input, options = {}) {
     grayscale = convertToGrayscale(input);
     let t1 = performance.now();
     timings.push({ step: 'Grayscale', ms: (t1 - t0).toFixed(2) });
-    if (options.debug) options.debug.grayscale = grayscale;
+    if (storeFullDebug) options.debug.grayscale = grayscale;
   }
 
   let lowThreshold = options.lowThreshold !== undefined ? options.lowThreshold : null;
@@ -566,12 +568,11 @@ export async function cannyEdgeDetector(input, options = {}) {
       const wasmMs = (t1w - t0w).toFixed(2);
       timings.push({ step: 'Edge Processing (WASM)', ms: wasmMs });
 
-      if (options.debug) {
+      if (storeFullDebug) {
         options.debug.finalEdges = finalEdges;
-        options.debug.timings = timings;
-      } else {
-        options.debug = { timings };
       }
+      if (options.debug) options.debug.timings = timings;
+      else options.debug = { timings };
 
       const tEnd = performance.now();
       timings.unshift({ step: 'Edge Detection Total', ms: (tEnd - tStart).toFixed(2) });
@@ -605,7 +606,7 @@ export async function cannyEdgeDetector(input, options = {}) {
   }
   t1 = performance.now();
   timings.push({ step: 'Gaussian Blur', ms: (t1 - t0).toFixed(2) });
-  if (options.debug) {
+  if (storeFullDebug) {
     options.debug.blurred = blurred;
   }
 
@@ -696,7 +697,7 @@ export async function cannyEdgeDetector(input, options = {}) {
   timings.push({ step: 'Dilation', ms: (t1 - t0).toFixed(2) });
 
   // Store debug info if requested
-  if (options.debug) {
+  if (storeFullDebug) {
     options.debug.dx = dx; // Int16Array
     options.debug.dy = dy; // Int16Array
     // Calculate magnitude separately for debugging if needed
