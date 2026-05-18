@@ -141,6 +141,22 @@ beforeAll(async () => {
     );
   }
   baselineData = JSON.parse(fs.readFileSync(baselineFile, 'utf8'));
+
+  // Warm up scanner pipeline (WASM + prep + detect/extract paths) before
+  // timed assertions begin so first-case cold start doesn't skew budgets.
+  const maxProcessingDimension = baselineData.scannerOptions?.maxProcessingDimension ?? 800;
+  const warmupImagePath = path.join(rootDir, 'testImages', 'test.png');
+  if (fs.existsSync(warmupImagePath)) {
+    const warmupImage = await loadImage(warmupImagePath);
+    const originalTable = console.table;
+    console.table = () => {};
+    try {
+      await scanDocument(warmupImage, { mode: 'detect', maxProcessingDimension });
+      await scanDocument(warmupImage, { mode: 'extract', output: 'canvas', maxProcessingDimension });
+    } finally {
+      console.table = originalTable;
+    }
+  }
 }, 30_000);
 
 // ──────────────────────────────────────────────────────────────
