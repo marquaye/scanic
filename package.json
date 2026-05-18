@@ -39,7 +39,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/marquaye/scanic.git"
+    "url": "git+https://github.com/marquaye/scanic.git"
   },
   "homepage": "https://github.com/marquaye/scanic",
   "bugs": {

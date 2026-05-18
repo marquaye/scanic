@@ -33,6 +33,35 @@ jobs:
         
     - name: Build project
       run: npm run build
+
+    - name: Validate NPM publish access
+      env:
+        NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+      run: |
+        if [ -z "$NODE_AUTH_TOKEN" ]; then
+          echo "::error::Missing NPM_TOKEN secret. Add an npm automation token with publish access."
+          exit 1
+        fi
+
+        NPM_USER="$(npm whoami 2>/dev/null || true)"
+        if [ -z "$NPM_USER" ]; then
+          echo "::error::NPM_TOKEN is invalid, expired, or lacks publish permissions."
+          exit 1
+        fi
+
+        echo "Using npm account: $NPM_USER"
+        if npm view scanic version >/dev/null 2>&1; then
+          if ! npm owner ls scanic | awk '{print $1}' | grep -qx "$NPM_USER"; then
+            echo "::error::npm account '$NPM_USER' is not an owner of package 'scanic'."
+            echo "::error::Run: npm owner add $NPM_USER scanic"
+            exit 1
+          fi
+        fi
+
+    - name: Publish to NPM
+      run: npm publish --access public
+      env:
+        NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
       
     - name: Create Release
       uses: softprops/action-gh-release@v1
@@ -52,11 +81,6 @@ jobs:
           ```
         draft: false
         prerelease: false
-        
-    - name: Publish to NPM
-      run: npm publish --access public
-      env:
-        NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         
     - name: Update demo site
       run: |
