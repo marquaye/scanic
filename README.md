@@ -95,6 +95,34 @@ if (extracted.success) {
 }
 ```
 
+### Manual Corner Adjustment UI (New)
+
+Use the built-in corner editor to let users drag corners on mobile and desktop,
+then pass the confirmed corners into extraction.
+
+```js
+import { createCornerEditor, extractDocument } from 'scanic';
+
+const editor = createCornerEditor({
+  container: document.getElementById('editorHost'),
+  image: imageElement,
+  corners: detectedCorners, // optional: defaults to an inset quad
+  magnifier: {
+    zoom: 2,
+    size: 110
+  },
+  nudges: {
+    enabled: true,
+    steps: [1, 5]
+  },
+  onConfirm: async (corners) => {
+    const extracted = await extractDocument(imageElement, corners, { output: 'canvas' });
+    document.getElementById('output').appendChild(extracted.output);
+    editor.destroy();
+  }
+});
+```
+
 ### Optimized Usage (Recommended for Batch/Real-time)
 The `Scanner` class maintains a persistent WebAssembly instance, avoiding the overhead of re-initializing WASM for every scan.
 

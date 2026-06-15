@@ -8,6 +8,7 @@
 import { detectDocumentContour, approximatePolygon } from './contourDetection.js';
 import { findCornerPoints } from './cornerDetection.js';
 import { cannyEdgeDetector, initializeWasm } from './edgeDetection.js';
+export { createCornerEditor } from './cornerEditor.js';
 
 /**
  * Global initialization helper for convenience.
