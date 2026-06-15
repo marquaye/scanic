@@ -3,6 +3,10 @@
   "version": "1.0.8",
   "description": "Modern document scanner in pure JavaScript and Wasm",
   "type": "module",
+  "sideEffects": false,
+  "engines": {
+    "node": ">=20"
+  },
   "main": "dist/scanic.umd.cjs",
   "module": "dist/scanic.js",
   "types": "src/scanic.d.ts",

@@ -262,6 +262,16 @@
       height: auto;
       background: #eee;
     }
+
+    #cornerEditorHost {
+      width: 100%;
+      min-height: 320px;
+      background: #0b1220;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      overflow: hidden;
+      margin-top: 1rem;
+    }
   </style>
 </head>
 <body>
@@ -327,7 +337,11 @@
       <h2 id="resultTitle">✨ Result Preview</h2>
       <p id="resultSubtitle" class="result-subtitle">Select detect for corner preview, or extract for perspective crop.</p>
       <canvas id="staticCanvas"></canvas>
+      <div id="cornerEditorHost" class="hidden"></div>
       <div style="margin-top: 1rem;">
+        <button class="btn btn-secondary hidden" id="btnAdjustCorners">Adjust Corners</button>
+        <button class="btn btn-primary hidden" id="btnApplyCorners">Apply</button>
+        <button class="btn btn-secondary hidden" id="btnCancelCorners">Cancel</button>
         <button class="btn btn-secondary" id="btnDownload">Download PNG</button>
         <button class="btn btn-secondary" onclick="document.getElementById('extracted-container').classList.add('hidden')">Close</button>
       </div>
@@ -335,7 +349,7 @@
   </div>
 
   <script type="module">
-    import { Scanner, scanDocument } from './scanic.js';
+    import { Scanner, scanDocument, extractDocument, createCornerEditor } from './scanic.js';
 
     const scanner = new Scanner();
     let isLive = false;
@@ -360,8 +374,16 @@
     const staticModeHelp = document.getElementById('staticModeHelp');
     const resultTitle = document.getElementById('resultTitle');
     const resultSubtitle = document.getElementById('resultSubtitle');
+    const cornerEditorHost = document.getElementById('cornerEditorHost');
+    const btnAdjustCorners = document.getElementById('btnAdjustCorners');
+    const btnApplyCorners = document.getElementById('btnApplyCorners');
+    const btnCancelCorners = document.getElementById('btnCancelCorners');
 
     let staticMode = 'detect';
+    let activeCornerEditor = null;
+    let currentStaticImage = null;
+    let currentDetectedCorners = null;
+    const AUTO_EDITOR_CONFIDENCE_THRESHOLD = 0.6;
 
     const sampleImageFiles = [
       '25_2.jpg',
@@ -471,6 +493,82 @@
       targetCtx.restore();
     }
 
+    function closeCornerEditor() {
+      if (activeCornerEditor) {
+        activeCornerEditor.destroy();
+        activeCornerEditor = null;
+      }
+      cornerEditorHost.innerHTML = '';
+      cornerEditorHost.classList.add('hidden');
+      btnApplyCorners.classList.add('hidden');
+      btnCancelCorners.classList.add('hidden');
+    }
+
+    function showCanvasView() {
+      closeCornerEditor();
+      staticCanvas.classList.remove('hidden');
+      btnDownload.classList.remove('hidden');
+    }
+
+    async function applyManualCorners(image, corners) {
+      const extracted = await extractDocument(image, corners, { output: 'canvas' });
+      if (!extracted.success || !extracted.output) {
+        throw new Error(extracted.message || 'Manual extraction failed');
+      }
+
+      const staticCtx = staticCanvas.getContext('2d');
+      staticCanvas.width = extracted.output.width;
+      staticCanvas.height = extracted.output.height;
+      staticCtx.drawImage(extracted.output, 0, 0);
+
+      resultTitle.textContent = '✨ Manually Adjusted Extraction';
+      resultSubtitle.textContent = 'Corners were adjusted and applied successfully.';
+      statStatus.textContent = 'Manual correction applied';
+      showCanvasView();
+      extractedContainer.scrollIntoView({ behavior: 'smooth' });
+    }
+
+    function openCornerEditorForImage(image, corners, reasonLabel = 'Adjust corners') {
+      closeCornerEditor();
+
+      staticCanvas.classList.add('hidden');
+      btnDownload.classList.add('hidden');
+      cornerEditorHost.classList.remove('hidden');
+      btnApplyCorners.classList.remove('hidden');
+      btnCancelCorners.classList.remove('hidden');
+
+      resultTitle.textContent = '🎯 Manual Corner Adjustment';
+      resultSubtitle.textContent = `${reasonLabel}. Drag corner handles, then tap Apply.`;
+
+      activeCornerEditor = createCornerEditor({
+        container: cornerEditorHost,
+        image,
+        corners,
+        nudges: {
+          enabled: true,
+          steps: [1, 5]
+        },
+        magnifier: {
+          enabled: true,
+          zoom: 2,
+          size: 110
+        },
+        onConfirm: async (nextCorners) => {
+          try {
+            currentDetectedCorners = nextCorners;
+            await applyManualCorners(image, nextCorners);
+          } catch (err) {
+            console.error(err);
+            statStatus.textContent = 'Manual extraction failed';
+          }
+        },
+        onCancel: () => {
+          resultSubtitle.textContent = 'Manual adjustment canceled.';
+          showCanvasView();
+        }
+      });
+    }
+
     // --- Static Scanner Logic ---
     dropZone.onclick = () => fileInput.click();
     fileInput.onchange = (e) => processFile(e.target.files[0]);
@@ -512,12 +610,18 @@
     }
 
     async function processImage(img) {
+      closeCornerEditor();
       extractedContainer.classList.remove('hidden');
       statStatus.textContent = 'Processing static image...';
+      currentStaticImage = img;
+      currentDetectedCorners = null;
+      btnAdjustCorners.classList.add('hidden');
 
       const result = await scanDocument(img, { mode: staticMode });
       if (result.success) {
         const staticCtx = staticCanvas.getContext('2d');
+        currentDetectedCorners = result.corners || null;
+        btnAdjustCorners.classList.toggle('hidden', !currentDetectedCorners);
 
         if (staticMode === 'detect') {
           staticCanvas.width = img.width;
@@ -529,12 +633,25 @@
           resultTitle.textContent = '📐 Detection Preview';
           const confidenceText = result.confidence != null ? `Confidence ${(result.confidence * 100).toFixed(1)}%` : 'Corners detected';
           resultSubtitle.textContent = `${confidenceText}. Switch to Extract mode to crop the document.`;
+
+          if (result.corners && result.confidence != null && result.confidence < AUTO_EDITOR_CONFIDENCE_THRESHOLD) {
+            openCornerEditorForImage(img, result.corners, `Low confidence (${(result.confidence * 100).toFixed(1)}%)`);
+          } else {
+            showCanvasView();
+          }
         } else {
           staticCanvas.width = result.output.width;
           staticCanvas.height = result.output.height;
           staticCtx.drawImage(result.output, 0, 0);
           resultTitle.textContent = '✨ Extracted Document';
-          resultSubtitle.textContent = 'Perspective-corrected output ready to download.';
+          const confidenceText = result.confidence != null ? `Confidence ${(result.confidence * 100).toFixed(1)}%. ` : '';
+          resultSubtitle.textContent = `${confidenceText}Perspective-corrected output ready to download.`;
+
+          if (result.corners && result.confidence != null && result.confidence < AUTO_EDITOR_CONFIDENCE_THRESHOLD) {
+            openCornerEditorForImage(img, result.corners, `Low confidence (${(result.confidence * 100).toFixed(1)}%)`);
+          } else {
+            showCanvasView();
+          }
         }
 
         extractedContainer.scrollIntoView({ behavior: 'smooth' });
@@ -543,8 +660,24 @@
         resultTitle.textContent = '⚠️ No Document Detected';
         resultSubtitle.textContent = 'Try a clearer image or switch mode.';
         statStatus.textContent = 'No document detected';
+        showCanvasView();
       }
     }
+
+    btnAdjustCorners.onclick = () => {
+      if (!currentStaticImage || !currentDetectedCorners) return;
+      openCornerEditorForImage(currentStaticImage, currentDetectedCorners, 'Manual adjustment requested');
+    };
+
+    btnApplyCorners.onclick = () => {
+      if (!activeCornerEditor) return;
+      activeCornerEditor.confirm();
+    };
+
+    btnCancelCorners.onclick = () => {
+      if (!activeCornerEditor) return;
+      activeCornerEditor.cancel();
+    };
 
     // --- Live Scanner Logic ---
     btnStart.onclick = async () => {
