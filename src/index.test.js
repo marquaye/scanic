@@ -2,9 +2,13 @@
  * @vitest-environment jsdom
  */
 import { describe, it, expect } from 'vitest';
-import { scanDocument, Scanner } from './index.js';
+import { scanDocument, Scanner, createCornerEditor } from './index.js';
 import { createCanvas, loadImage } from 'canvas';
 import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // Shim ImageData if it's not defined (JSDOM doesn't have it by default)
 if (typeof ImageData === 'undefined') {
@@ -19,12 +23,44 @@ if (typeof ImageData === 'undefined') {
 
 if (typeof globalThis.document === 'undefined') {
   globalThis.document = {
+    body: {
+      appendChild() {},
+      removeChild() {}
+    },
     createElement(tagName) {
-      if (tagName !== 'canvas') {
-        throw new Error(`Unsupported element requested in tests: ${tagName}`);
+      if (tagName === 'canvas') {
+        const c = createCanvas(1, 1);
+        c.style = {};
+        c.addEventListener = () => {};
+        c.removeEventListener = () => {};
+        c.setPointerCapture = () => {};
+        c.getBoundingClientRect = () => ({ width: 640, height: 480, left: 0, top: 0 });
+        return c;
       }
-      return createCanvas(1, 1);
+
+      return {
+        style: {},
+        appendChild() {},
+        removeChild() {},
+        remove() {},
+        addEventListener() {},
+        removeEventListener() {},
+        getBoundingClientRect() {
+          return { width: 640, height: 480, left: 0, top: 0 };
+        }
+      };
     }
+  };
+}
+
+if (typeof globalThis.getComputedStyle === 'undefined') {
+  globalThis.getComputedStyle = () => ({ position: 'static' });
+}
+
+if (typeof globalThis.ResizeObserver === 'undefined') {
+  globalThis.ResizeObserver = class {
+    observe() {}
+    disconnect() {}
   };
 }
 
@@ -39,12 +75,71 @@ describe('Scanner API', () => {
     expect(scanner.initialize).toBeDefined();
   });
 
+  it('should expose createCornerEditor function', () => {
+    expect(createCornerEditor).toBeDefined();
+  });
+
   it('should handle missing image gracefully', async () => {
     try {
       await scanDocument(null);
     } catch (e) {
       expect(e.message).toBe('No image provided');
     }
+  });
+});
+
+describe('Corner Editor API', () => {
+  it('should create and confirm manual corner updates', async () => {
+    const host = document.createElement('div');
+    host.style.width = '640px';
+    host.style.height = '480px';
+    document.body.appendChild(host);
+
+    const imgPath = path.join(__dirname, '..', 'testImages', 'test-sized.png');
+    const img = await loadImage(imgPath);
+
+    let confirmed = null;
+    const editor = createCornerEditor({
+      container: host,
+      image: img,
+      nudges: { enabled: true, steps: [1] },
+      onConfirm(corners) {
+        confirmed = corners;
+      }
+    });
+
+    const before = editor.getCorners();
+    const nudged = editor.nudge('topLeft', 1, 0, 1);
+    expect(nudged).toBe(true);
+
+    const after = editor.confirm();
+    expect(after.topLeft.x).toBeGreaterThan(before.topLeft.x);
+    expect(confirmed).toBeTruthy();
+
+    editor.destroy();
+    host.remove();
+  });
+
+  it('should reject invalid corner sets', async () => {
+    const host = document.createElement('div');
+    host.style.width = '640px';
+    host.style.height = '480px';
+    document.body.appendChild(host);
+
+    const imgPath = path.join(__dirname, '..', 'testImages', 'test-sized.png');
+    const img = await loadImage(imgPath);
+    const editor = createCornerEditor({ container: host, image: img });
+
+    const invalid = {
+      topLeft: { x: 100, y: 100 },
+      topRight: { x: 100, y: 100 },
+      bottomRight: { x: 110, y: 110 },
+      bottomLeft: { x: 120, y: 120 }
+    };
+
+    expect(editor.setCorners(invalid)).toBe(false);
+    editor.destroy();
+    host.remove();
   });
 });
 
