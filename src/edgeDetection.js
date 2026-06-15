@@ -27,8 +27,14 @@ async function initializeWasmInternal() {
   // file:// URLs in Node. Load bytes directly when running in Node.
   if (isNodeRuntime()) {
     try {
-      const { readFile } = await import('node:fs/promises');
-      const { fileURLToPath } = await import('node:url');
+      // Specifiers are built at runtime + flagged @vite-ignore so neither our
+      // bundler nor a downstream browser bundler tries to statically resolve
+      // (or warn about) these Node-only builtins. This branch never runs in a
+      // browser because isNodeRuntime() is false there.
+      const fsModule = 'node:fs/promises';
+      const urlModule = 'node:url';
+      const { readFile } = await import(/* @vite-ignore */ fsModule);
+      const { fileURLToPath } = await import(/* @vite-ignore */ urlModule);
       const moduleUrl = new URL(import.meta.url);
       moduleUrl.search = '';
       moduleUrl.hash = '';
