@@ -51,7 +51,7 @@ async function main() {
     
     // 4. Build WASM module (optional if already built)
     console.log('\n🦀 Building WASM module...');
-    const wasmResult = run('docker-compose -f dev/docker-compose.yml up --build', { optional: true });
+    const wasmResult = run('npm run build:wasm', { optional: true });
     
     // ... (rest of logic) ...
     
