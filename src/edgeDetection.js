@@ -17,12 +17,60 @@ import init, {
 // Initialize the wasm module
 let wasmReadyPromise = null;
 let hasLoggedFullCannyFallback = false;
+let wasmSupportCache = null;
 
 function isNodeRuntime() {
   return typeof process !== 'undefined' && !!process.versions?.node;
 }
 
+/**
+ * Statically checks whether the current engine is new enough to run scanic's
+ * compiled WASM without crashing.
+ *
+ * Older engines (notably Electron 13 / Chromium 91 — V8 9.1) *hard-crash the
+ * process* while compiling this wasm-bindgen + SIMD128 module, instead of
+ * throwing a catchable error. The abort happens during instantiation, so a
+ * surrounding try/catch cannot recover from it; the only safe option is to never
+ * start it on such engines and use the pure-JS path instead.
+ *
+ * We use `WebAssembly.validate()` — a static check that never instantiates and
+ * never crashes — to probe two proposals:
+ *   - SIMD128: the module genuinely requires it.
+ *   - reference-types: the module does not strictly need this, but support for
+ *     it is a reliable proxy for "Chromium >= 96 / a modern V8". Every engine
+ *     old enough to crash on this module also lacks reference-types, so gating
+ *     on it cleanly excludes the crash-prone runtimes while keeping WASM enabled
+ *     everywhere it is safe.
+ * @returns {boolean}
+ */
+function wasmModuleSupported() {
+  if (wasmSupportCache !== null) return wasmSupportCache;
+
+  let supported = false;
+  if (typeof WebAssembly === 'object' && typeof WebAssembly.validate === 'function') {
+    // Canonical wasm-feature-detect probe modules.
+    const simd = new Uint8Array([0, 97, 115, 109, 1, 0, 0, 0, 1, 5, 1, 96, 0, 1, 123, 3, 2, 1, 0, 10, 10, 1, 8, 0, 65, 0, 253, 15, 253, 98, 11]);
+    const referenceTypes = new Uint8Array([0, 97, 115, 109, 1, 0, 0, 0, 1, 5, 1, 96, 0, 1, 111, 3, 2, 1, 0, 10, 6, 1, 4, 0, 208, 111, 11]);
+    try {
+      supported = WebAssembly.validate(simd) && WebAssembly.validate(referenceTypes);
+    } catch {
+      supported = false;
+    }
+  }
+
+  wasmSupportCache = supported;
+  return supported;
+}
+
 async function initializeWasmInternal() {
+  // Bail out before instantiation on engines that can't run this module. On
+  // some of them (e.g. Electron 13 / Chromium 91) a failed instantiation is a
+  // native renderer crash rather than a catchable exception, so the only safe
+  // option is to never start it — callers then use the pure-JS path.
+  if (!wasmModuleSupported()) {
+    throw new Error('scanic: WebAssembly features required by the WASM module (reference-types, SIMD) are unavailable in this engine; using the JavaScript fallback.');
+  }
+
   // wasm-bindgen's default init path uses fetch(URL), which can fail on
   // file:// URLs in Node. Load bytes directly when running in Node.
   if (isNodeRuntime()) {
