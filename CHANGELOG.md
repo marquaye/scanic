@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **Electron 13 / old-Chromium renderer crash** ([#8](https://github.com/marquaye/scanic/issues/8)): instantiating the SIMD WebAssembly module hard-crashed the renderer on engines based on Chromium < 96 (e.g. Electron 13 / V8 9.1) — a native abort that a surrounding `try/catch` could not recover from. The WASM module is now feature-gated behind a non-crashing `WebAssembly.validate()` probe, and incompatible engines transparently use the existing pure-JS implementation instead. `initialize()` and `Scanner.initialize()` no longer reject when WASM is unavailable, since it is an optional accelerator.
+
 ## [1.0.7] - 2026-05-14
 
 ### Added
