@@ -14,7 +14,15 @@ export { createCornerEditor } from './cornerEditor.js';
  * Global initialization helper for convenience.
  */
 export async function initialize() {
-  return await initializeWasm();
+  // WASM is an optional accelerator: warming it up is best-effort. On engines
+  // that can't run the module (e.g. Electron 13 / Chromium 91) initialization
+  // rejects, but the scanner still works via its pure-JS fallbacks, so we
+  // resolve instead of surfacing a fatal error to the caller.
+  try {
+    return await initializeWasm();
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -36,7 +44,12 @@ export class Scanner {
    */
   async initialize() {
     if (this.initialized) return;
-    await initializeWasm();
+    // Best-effort WASM warm-up; pure-JS fallbacks cover engines without it.
+    try {
+      await initializeWasm();
+    } catch {
+      // WASM unavailable — continue with the JavaScript implementation.
+    }
     this.initialized = true;
   }
 
