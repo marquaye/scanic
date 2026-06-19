@@ -32,7 +32,9 @@ jobs:
     - name: Build WASM module
       run: |
         docker compose -f dev/docker-compose.yml up --build
-        
+        sudo chown -R "$(id -u):$(id -g)" wasm_blur/pkg
+        node scripts/postprocess-wasm.mjs
+
     - name: Build project
       run: npm run build
       

@@ -4,23 +4,36 @@
  */
 
 import { DEFAULTS } from './constants.js';
-import init, { 
-  blur as wasmBlur, 
-  calculate_gradients as wasmGradients, 
-  dilate as wasmDilate, 
-  non_maximum_suppression as wasmMaximumSuppression, 
+import init, {
+  blur as wasmBlur,
+  calculate_gradients as wasmGradients,
+  dilate as wasmDilate,
+  non_maximum_suppression as wasmMaximumSuppression,
   canny_edge_detector_full as wasmFullCanny,
   hysteresis_thresholding as wasmHysteresis,
   hysteresis_thresholding_binary as wasmHysteresisBinary
 } from '../wasm_blur/pkg/wasm_blur.js';
+import wasmBase64 from '../wasm_blur/pkg/wasm_blur_bg_base64.js';
 
 // Initialize the wasm module
 let wasmReadyPromise = null;
 let hasLoggedFullCannyFallback = false;
 let wasmSupportCache = null;
 
-function isNodeRuntime() {
-  return typeof process !== 'undefined' && !!process.versions?.node;
+/**
+ * Decodes the inlined base64 WASM into bytes, in both browser and Node runtimes.
+ * @param {string} base64
+ * @returns {Uint8Array}
+ */
+function wasmBytesFromBase64(base64) {
+  if (typeof atob === 'function') {
+    const binary = atob(base64);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+    return bytes;
+  }
+  // Node runtimes without a global atob.
+  return Uint8Array.from(Buffer.from(base64, 'base64'));
 }
 
 /**
@@ -71,32 +84,12 @@ async function initializeWasmInternal() {
     throw new Error('scanic: WebAssembly features required by the WASM module (reference-types, SIMD) are unavailable in this engine; using the JavaScript fallback.');
   }
 
-  // wasm-bindgen's default init path uses fetch(URL), which can fail on
-  // file:// URLs in Node. Load bytes directly when running in Node.
-  if (isNodeRuntime()) {
-    try {
-      // Specifiers are built at runtime + flagged @vite-ignore so neither our
-      // bundler nor a downstream browser bundler tries to statically resolve
-      // (or warn about) these Node-only builtins. This branch never runs in a
-      // browser because isNodeRuntime() is false there.
-      const fsModule = 'node:fs/promises';
-      const urlModule = 'node:url';
-      const { readFile } = await import(/* @vite-ignore */ fsModule);
-      const { fileURLToPath } = await import(/* @vite-ignore */ urlModule);
-      const moduleUrl = new URL(import.meta.url);
-      moduleUrl.search = '';
-      moduleUrl.hash = '';
-
-      const wasmUrl = new URL('../wasm_blur/pkg/wasm_blur_bg.wasm', moduleUrl);
-      const wasmBytes = await readFile(fileURLToPath(wasmUrl));
-      return await init({ module_or_path: wasmBytes });
-    } catch {
-      // Fallback to default init for environments that cannot use node:fs.
-      return await init();
-    }
-  }
-
-  return await init();
+  // Instantiate from the inlined bytes rather than wasm-bindgen's default
+  // fetch(new URL('…wasm', import.meta.url)) path. That default breaks under
+  // downstream bundlers (e.g. Vite rewrites the inlined data: URL into a bad
+  // relative request, so the fetch fails) and also works seamlessly in Node.
+  // See https://github.com/marquaye/scanic/issues/7.
+  return await init({ module_or_path: wasmBytesFromBase64(wasmBase64) });
 }
 
 /**
