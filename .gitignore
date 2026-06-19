@@ -8,3 +8,9 @@ wasm_blur/target/
 dist/
 .DS_Store
 *.log
+
+# VitePress
+docs/.vitepress/dist/
+docs/.vitepress/cache/
+# Generated demo bundle staged for the docs site (source: demo.html)
+docs/public/demo/
