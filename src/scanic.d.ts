@@ -22,12 +22,64 @@ export interface CornerEditorMagnifierOptions {
 }
 
 export interface CornerEditorNudgesOptions {
+  /** Show the on-screen nudge pad. Default false. */
   enabled?: boolean;
+  /** Step sizes (px) to render as nudge buttons. Default [1, 10]. */
   steps?: number[];
 }
 
+export interface CornerEditorToolbarOptions {
+  /** Show the floating toolbar. Default true. */
+  enabled?: boolean;
+  /** Include the Reset button. Default true. */
+  reset?: boolean;
+  /** Include the Cancel button. Default true. */
+  cancel?: boolean;
+  /** Include the Apply button. Default true. */
+  apply?: boolean;
+  /** Override the button labels. */
+  labels?: { reset?: string; cancel?: string; apply?: string };
+}
+
+/**
+ * Programmatic theme overrides. Each maps to a CSS custom property on the host
+ * (e.g. `accent` → `--scanic-accent`). You can also set these variables directly
+ * in your own CSS, or override the `.scanic-*` classes entirely.
+ */
+export interface CornerEditorTheme {
+  /** Primary colour for edges, rings and active handles. */
+  accent?: string;
+  /** Fill colour outside the document quad. */
+  mask?: string;
+  /** Quad outline colour. Defaults to `accent`. */
+  edgeColor?: string;
+  /** Quad outline width (unitless number). */
+  edgeWidth?: number | string;
+  /** Handle diameter. Number is treated as px. */
+  handleSize?: number | string;
+  /** Pointer/touch hit-target size. Number is treated as px. */
+  handleHit?: number | string;
+  /** Handle fill colour (idle). */
+  handleColor?: string;
+  /** Handle ring colour (idle). */
+  handleRingColor?: string;
+  /** Background of the toolbar / nudge pad. */
+  surface?: string;
+  /** Foreground (text) colour of the toolbar / nudge pad. */
+  surfaceColor?: string;
+  /** Corner radius of the toolbar / nudge pad. */
+  radius?: string;
+}
+
+export interface CornerEditorClassNames {
+  root?: string;
+  handle?: string;
+  toolbar?: string;
+  nudges?: string;
+}
+
 export interface CornerEditorOptions {
-  /** Host element the editor canvas is mounted into. */
+  /** Host element the editor is mounted into. */
   container: HTMLElement;
   /** Source image to adjust corners against. */
   image: HTMLImageElement | HTMLCanvasElement | ImageData;
@@ -35,19 +87,26 @@ export interface CornerEditorOptions {
   corners?: CornerPoints;
   magnifier?: CornerEditorMagnifierOptions;
   nudges?: CornerEditorNudgesOptions;
-  /** Touch/click target radius (px) around each handle. Default 48. */
+  /** Floating Reset/Cancel/Apply toolbar. Shown by default. */
+  toolbar?: CornerEditorToolbarOptions;
+  /** Programmatic theme overrides (CSS variables). */
+  theme?: CornerEditorTheme;
+  /** Extra class names applied to editor parts. */
+  classNames?: CornerEditorClassNames;
+  /** Inject the default stylesheet once per document. Default true. */
+  injectStyles?: boolean;
+  /** Pointer/touch target size (px) around each handle. Default 44. */
   handleHitArea?: number;
   /**
-   * Enable keyboard control of the focused canvas (default true):
-   * arrow keys nudge the active corner (Shift = coarse step),
-   * Enter confirms, Escape cancels.
+   * Enable keyboard control (default true): focus a handle, then arrow keys
+   * nudge it (Shift = coarse step), Enter confirms, Escape cancels.
    */
   keyboard?: boolean;
   /** Fired on every corner change (drag, nudge, keyboard). */
   onChange?: (corners: CornerPoints) => void;
-  /** Fired by confirm()/Enter with the final corners. */
+  /** Fired by confirm()/Enter/Apply with the final corners. */
   onConfirm?: (corners: CornerPoints) => void;
-  /** Fired by cancel()/Escape. */
+  /** Fired by cancel()/Escape/Cancel. */
   onCancel?: () => void;
 }
 
@@ -56,6 +115,8 @@ export interface CornerEditor {
   setCorners(corners: CornerPoints): boolean;
   reset(): void;
   nudge(cornerKey: keyof CornerPoints, dx: number, dy: number, step?: number): boolean;
+  /** Re-read CSS variables into the canvas layer after a runtime theme change. */
+  refreshTheme(theme?: CornerEditorTheme): void;
   confirm(): CornerPoints;
   cancel(): void;
   destroy(): void;
