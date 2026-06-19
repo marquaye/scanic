@@ -84,12 +84,7 @@ jobs:
           ```
         draft: false
         prerelease: false
-        
-    - name: Build docs site (library + demo + VitePress)
-      run: npm run docs:build
 
-    - name: Deploy to GitHub Pages
-      uses: peaceiris/actions-gh-pages@v3
-      with:
-        github_token: ${{ secrets.GITHUB_TOKEN }}
-        publish_dir: ./docs/.vitepress/dist
+    # GitHub Pages is deployed by the "Deploy Docs" workflow, which runs on the
+    # accompanying push to main. Deploying here too would race it on the gh-pages
+    # branch, so this workflow only handles npm publish + the GitHub release.
