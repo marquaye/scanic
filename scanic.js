@@ -670,11 +670,30 @@ async function __wbg_init(module_or_path) {
 }
 let wasmReadyPromise = null;
 let hasLoggedFullCannyFallback = false;
+let wasmSupportCache = null;
 function isNodeRuntime() {
   var _a;
   return typeof process !== "undefined" && !!((_a = process.versions) == null ? void 0 : _a.node);
 }
+function wasmModuleSupported() {
+  if (wasmSupportCache !== null) return wasmSupportCache;
+  let supported = false;
+  if (typeof WebAssembly === "object" && typeof WebAssembly.validate === "function") {
+    const simd = new Uint8Array([0, 97, 115, 109, 1, 0, 0, 0, 1, 5, 1, 96, 0, 1, 123, 3, 2, 1, 0, 10, 10, 1, 8, 0, 65, 0, 253, 15, 253, 98, 11]);
+    const referenceTypes = new Uint8Array([0, 97, 115, 109, 1, 0, 0, 0, 1, 5, 1, 96, 0, 1, 111, 3, 2, 1, 0, 10, 6, 1, 4, 0, 208, 111, 11]);
+    try {
+      supported = WebAssembly.validate(simd) && WebAssembly.validate(referenceTypes);
+    } catch {
+      supported = false;
+    }
+  }
+  wasmSupportCache = supported;
+  return supported;
+}
 async function initializeWasmInternal() {
+  if (!wasmModuleSupported()) {
+    throw new Error("scanic: WebAssembly features required by the WASM module (reference-types, SIMD) are unavailable in this engine; using the JavaScript fallback.");
+  }
   if (isNodeRuntime()) {
     try {
       const fsModule = "node:fs/promises";
@@ -1803,7 +1822,11 @@ function createCornerEditor(options = {}) {
   };
 }
 async function initialize() {
-  return await initializeWasm();
+  try {
+    return await initializeWasm();
+  } catch {
+    return null;
+  }
 }
 class Scanner {
   constructor(options = {}) {
@@ -1820,7 +1843,10 @@ class Scanner {
    */
   async initialize() {
     if (this.initialized) return;
-    await initializeWasm();
+    try {
+      await initializeWasm();
+    } catch {
+    }
     this.initialized = true;
   }
   /**
