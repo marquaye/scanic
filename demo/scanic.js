@@ -1174,15 +1174,6 @@ function createDefaultCorners(imageWidth, imageHeight, insetRatio = 0.08) {
     bottomLeft: { x: inset, y: imageHeight - inset }
   };
 }
-function drawHandle(ctx, point, radius, color, stroke, lineWidth) {
-  ctx.beginPath();
-  ctx.arc(point.x, point.y, radius, 0, Math.PI * 2);
-  ctx.fillStyle = color;
-  ctx.fill();
-  ctx.lineWidth = lineWidth;
-  ctx.strokeStyle = stroke;
-  ctx.stroke();
-}
 function normalizeImageToCanvas(image) {
   if (!image) {
     throw new Error("No image provided");
@@ -1214,30 +1205,205 @@ function normalizeImageToCanvas(image) {
   }
   return { canvas, width, height };
 }
+const STYLE_ID = "scanic-corner-editor-styles";
+const EDITOR_CSS = `
+.scanic-corner-editor {
+  --scanic-accent: #6366f1;
+  --scanic-mask: rgba(15, 23, 42, 0.45);
+  --scanic-edge-color: var(--scanic-accent);
+  --scanic-edge-width: 2.5;
+  --scanic-handle-size: 20px;
+  --scanic-handle-hit: 44px;
+  --scanic-handle-color: #ffffff;
+  --scanic-handle-ring: 2px;
+  --scanic-handle-ring-color: var(--scanic-accent);
+  --scanic-handle-shadow: 0 1px 4px rgba(15, 23, 42, 0.45);
+  --scanic-handle-active-shadow: 0 8px 22px rgba(15, 23, 42, 0.5);
+  --scanic-handle-active-scale: 1.28;
+  --scanic-surface: rgba(15, 23, 42, 0.92);
+  --scanic-surface-fg: #e2e8f0;
+  --scanic-surface-radius: 12px;
+}
+.scanic-handle {
+  position: absolute;
+  box-sizing: border-box;
+  width: var(--scanic-handle-size);
+  height: var(--scanic-handle-size);
+  margin: 0;
+  padding: 0;
+  border: var(--scanic-handle-ring) solid var(--scanic-handle-ring-color);
+  border-radius: 50%;
+  background: var(--scanic-handle-color);
+  box-shadow: var(--scanic-handle-shadow);
+  transform: translate(-50%, -50%);
+  cursor: grab;
+  touch-action: none;
+  z-index: 2;
+  transition: transform 0.12s ease, box-shadow 0.12s ease,
+              background 0.12s ease, border-color 0.12s ease;
+}
+/* Enlarges the pointer/touch target without changing the visual size. */
+.scanic-handle::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: var(--scanic-handle-hit);
+  height: var(--scanic-handle-hit);
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+}
+/* Soft accent halo that blooms when a handle is grabbed — the "depth" layer. */
+.scanic-handle::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 0;
+  height: 0;
+  border-radius: 50%;
+  background: var(--scanic-accent);
+  opacity: 0;
+  transform: translate(-50%, -50%);
+  transition: opacity 0.15s ease, width 0.15s ease, height 0.15s ease;
+  pointer-events: none;
+}
+.scanic-handle:hover {
+  transform: translate(-50%, -50%) scale(1.12);
+}
+.scanic-handle:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--scanic-accent) 45%, transparent),
+              var(--scanic-handle-shadow);
+}
+/* The currently selected corner — the target of nudges / keyboard. */
+.scanic-handle.is-selected {
+  border-color: var(--scanic-accent);
+  transform: translate(-50%, -50%) scale(1.12);
+}
+.scanic-handle.is-selected::before {
+  opacity: 0.16;
+  width: calc(var(--scanic-handle-size) * 2);
+  height: calc(var(--scanic-handle-size) * 2);
+}
+.scanic-handle.is-active {
+  cursor: grabbing;
+  background: var(--scanic-accent);
+  border-color: #ffffff;
+  transform: translate(-50%, -50%) scale(var(--scanic-handle-active-scale));
+  box-shadow: var(--scanic-handle-active-shadow);
+}
+.scanic-handle.is-active::before {
+  opacity: 0.22;
+  width: calc(var(--scanic-handle-size) * 2.8);
+  height: calc(var(--scanic-handle-size) * 2.8);
+}
+.scanic-toolbar,
+.scanic-nudges {
+  position: absolute;
+  z-index: 3;
+  display: flex;
+  gap: 4px;
+  padding: 5px;
+  background: var(--scanic-surface);
+  border-radius: var(--scanic-surface-radius);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  box-shadow: 0 6px 20px rgba(15, 23, 42, 0.35);
+}
+.scanic-toolbar {
+  left: 50%;
+  bottom: 12px;
+  transform: translateX(-50%);
+}
+.scanic-nudges {
+  top: 10px;
+  right: 10px;
+  display: grid;
+  grid-template-columns: repeat(4, auto);
+  gap: 3px;
+}
+.scanic-toolbar button,
+.scanic-nudges button {
+  display: grid;
+  place-items: center;
+  margin: 0;
+  padding: 0;
+  font-family: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1;
+  color: var(--scanic-surface-fg);
+  background: transparent;
+  border: 0;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.12s ease, color 0.12s ease, filter 0.12s ease;
+}
+.scanic-toolbar button {
+  width: 34px;
+  height: 34px;
+}
+.scanic-nudges button {
+  width: 30px;
+  height: 30px;
+}
+.scanic-toolbar button svg {
+  width: 18px;
+  height: 18px;
+  display: block;
+}
+.scanic-toolbar button:hover,
+.scanic-nudges button:hover {
+  background: rgba(255, 255, 255, 0.14);
+}
+.scanic-toolbar button:focus-visible,
+.scanic-nudges button:focus-visible {
+  outline: 2px solid var(--scanic-accent);
+  outline-offset: 1px;
+}
+.scanic-toolbar .scanic-btn-apply {
+  background: var(--scanic-accent);
+  color: #ffffff;
+}
+.scanic-toolbar .scanic-btn-apply:hover {
+  background: var(--scanic-accent);
+  filter: brightness(1.1);
+}
+.scanic-toolbar .scanic-btn-expert.is-on {
+  background: color-mix(in srgb, var(--scanic-accent) 32%, transparent);
+  color: #ffffff;
+}
+`;
+const ICONS = {
+  reset: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 4 3 10 9 10"/><path d="M3.5 14a8.5 8.5 0 1 0 2-7.4L3 10"/></svg>',
+  cancel: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>',
+  apply: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>',
+  expert: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>'
+};
+function injectStyles(doc) {
+  if (!doc || typeof doc.getElementById !== "function") return;
+  if (doc.getElementById(STYLE_ID)) return;
+  const style = doc.createElement("style");
+  style.id = STYLE_ID;
+  style.textContent = EDITOR_CSS;
+  (doc.head || doc.documentElement).appendChild(style);
+}
 function createCornerEditor(options = {}) {
-  var _a, _b, _c, _d, _e, _f, _g, _h, _i, _j;
+  var _a, _b, _c, _d, _e, _f, _g, _h, _i, _j, _k, _l, _m, _n, _o, _p, _q, _r, _s, _t, _u, _v;
   const container = options.container;
   if (!container || typeof container.appendChild !== "function") {
     throw new Error("createCornerEditor requires a valid container element");
   }
-  const { canvas: sourceCanvas, width: imageWidth, height: imageHeight } = normalizeImageToCanvas(options.image);
-  const editorCanvas = document.createElement("canvas");
-  editorCanvas.style.position = "absolute";
-  editorCanvas.style.top = "0";
-  editorCanvas.style.left = "0";
-  editorCanvas.style.display = "block";
-  editorCanvas.style.boxSizing = "border-box";
-  editorCanvas.style.touchAction = "none";
-  editorCanvas.style.userSelect = "none";
-  editorCanvas.style.webkitUserSelect = "none";
-  editorCanvas.style.cursor = "crosshair";
-  editorCanvas.style.outline = "none";
-  const keyboardEnabled = options.keyboard !== false;
-  if (keyboardEnabled) {
-    editorCanvas.tabIndex = 0;
-    editorCanvas.setAttribute("role", "application");
-    editorCanvas.setAttribute("aria-label", "Document corner editor. Use arrow keys to adjust the selected corner.");
+  const doc = container.ownerDocument || (typeof document !== "undefined" ? document : null);
+  const runtimeGlobal = typeof window !== "undefined" ? window : globalThis;
+  if (options.injectStyles !== false) {
+    injectStyles(doc);
   }
+  const { canvas: sourceCanvas, width: imageWidth, height: imageHeight } = normalizeImageToCanvas(options.image);
+  const addedRootClass = !container.classList.contains("scanic-corner-editor");
+  container.classList.add("scanic-corner-editor");
+  if ((_a = options.classNames) == null ? void 0 : _a.root) container.classList.add(options.classNames.root);
   const restoreContainerStyle = {
     position: container.style.position,
     minHeight: container.style.minHeight
@@ -1248,40 +1414,123 @@ function createCornerEditor(options = {}) {
     container.style.position = "relative";
     changedContainerPosition = true;
   }
+  applyThemeOption(options.theme);
+  const editorCanvas = doc.createElement("canvas");
+  editorCanvas.style.position = "absolute";
+  editorCanvas.style.top = "0";
+  editorCanvas.style.left = "0";
+  editorCanvas.style.display = "block";
+  editorCanvas.style.touchAction = "none";
+  editorCanvas.style.userSelect = "none";
+  editorCanvas.style.webkitUserSelect = "none";
+  editorCanvas.style.cursor = "default";
   container.appendChild(editorCanvas);
   const ctx = editorCanvas.getContext("2d");
   if (!ctx) {
     throw new Error("Failed to create 2D canvas context for corner editor");
   }
   const magnifier = {
-    enabled: ((_a = options.magnifier) == null ? void 0 : _a.enabled) !== false,
-    size: ((_b = options.magnifier) == null ? void 0 : _b.size) || 110,
-    zoom: ((_c = options.magnifier) == null ? void 0 : _c.zoom) || 2,
-    margin: ((_d = options.magnifier) == null ? void 0 : _d.margin) || 16,
-    borderColor: ((_e = options.magnifier) == null ? void 0 : _e.borderColor) || "#ffffff",
-    borderWidth: ((_f = options.magnifier) == null ? void 0 : _f.borderWidth) || 2,
-    crosshairColor: ((_g = options.magnifier) == null ? void 0 : _g.crosshairColor) || "#ffffff",
-    crosshairSize: ((_h = options.magnifier) == null ? void 0 : _h.crosshairSize) || 18
+    enabled: ((_b = options.magnifier) == null ? void 0 : _b.enabled) !== false,
+    size: ((_c = options.magnifier) == null ? void 0 : _c.size) || 120,
+    zoom: ((_d = options.magnifier) == null ? void 0 : _d.zoom) || 2,
+    margin: ((_e = options.magnifier) == null ? void 0 : _e.margin) || 8,
+    borderColor: ((_f = options.magnifier) == null ? void 0 : _f.borderColor) || "#ffffff",
+    borderWidth: ((_g = options.magnifier) == null ? void 0 : _g.borderWidth) || 2,
+    crosshairColor: ((_h = options.magnifier) == null ? void 0 : _h.crosshairColor) || "#ffffff",
+    crosshairSize: ((_i = options.magnifier) == null ? void 0 : _i.crosshairSize) || 18
   };
   const nudges = {
-    enabled: !!((_i = options.nudges) == null ? void 0 : _i.enabled),
-    steps: (((_j = options.nudges) == null ? void 0 : _j.steps) && options.nudges.steps.length ? options.nudges.steps : [1, 5]).map((v) => Math.max(1, Math.round(v)))
+    enabled: !!((_j = options.nudges) == null ? void 0 : _j.enabled),
+    steps: (((_k = options.nudges) == null ? void 0 : _k.steps) && options.nudges.steps.length ? options.nudges.steps : [1, 10]).map((v) => Math.max(1, Math.round(v)))
   };
+  const toolbar = {
+    enabled: ((_l = options.toolbar) == null ? void 0 : _l.enabled) !== false,
+    reset: ((_m = options.toolbar) == null ? void 0 : _m.reset) !== false,
+    cancel: ((_n = options.toolbar) == null ? void 0 : _n.cancel) !== false,
+    apply: ((_o = options.toolbar) == null ? void 0 : _o.apply) !== false,
+    labels: {
+      reset: ((_q = (_p = options.toolbar) == null ? void 0 : _p.labels) == null ? void 0 : _q.reset) || "Reset",
+      cancel: ((_s = (_r = options.toolbar) == null ? void 0 : _r.labels) == null ? void 0 : _s.cancel) || "Cancel",
+      apply: ((_u = (_t = options.toolbar) == null ? void 0 : _t.labels) == null ? void 0 : _u.apply) || "Apply"
+    }
+  };
+  const keyboardEnabled = options.keyboard !== false;
   const defaultCorners = createDefaultCorners(imageWidth, imageHeight);
   const requestedCorners = options.corners ? cloneCorners(options.corners) : defaultCorners;
   let corners = cornersAreFiniteAndDistinct$1(requestedCorners) && isConvexQuadrilateral$1(requestedCorners) ? requestedCorners : defaultCorners;
   const initialCorners = cloneCorners(corners);
   let isDestroyed = false;
   let activeCornerKey = null;
+  let focusedCornerKey = "topLeft";
   let dragPointerId = null;
   let lastPointerPosition = null;
-  const handleHitArea = Math.max(24, options.handleHitArea || 48);
-  const handleRadius = Math.max(8, Math.min(16, handleHitArea * 0.3));
+  Math.max(24, options.handleHitArea || 44);
   const cornerOrder = ["topLeft", "topRight", "bottomRight", "bottomLeft"];
+  const cornerLabels = {
+    topLeft: "Top-left corner",
+    topRight: "Top-right corner",
+    bottomRight: "Bottom-right corner",
+    bottomLeft: "Bottom-left corner"
+  };
   let view = { scale: 1, offsetX: 0, offsetY: 0, width: 1, height: 1 };
-  let nudgeControls = null;
-  let activeNudgeCorner = "topLeft";
-  const runtimeGlobal = typeof window !== "undefined" ? window : globalThis;
+  const resolved = { mask: "rgba(15,23,42,0.45)", edgeColor: "#6366f1", edgeWidth: 2.5 };
+  const handleEls = {};
+  for (const key of cornerOrder) {
+    const el = doc.createElement("button");
+    el.type = "button";
+    el.className = "scanic-handle" + (((_v = options.classNames) == null ? void 0 : _v.handle) ? " " + options.classNames.handle : "");
+    el.dataset.corner = key;
+    el.setAttribute("aria-label", cornerLabels[key]);
+    if (!keyboardEnabled) el.tabIndex = -1;
+    el.addEventListener("pointerdown", (e) => onHandlePointerDown(key, e));
+    el.addEventListener("pointermove", (e) => onHandlePointerMove(key, e));
+    el.addEventListener("pointerup", (e) => onHandlePointerUp(key, e));
+    el.addEventListener("pointercancel", (e) => onHandlePointerUp(key, e));
+    el.addEventListener("focus", () => {
+      focusedCornerKey = key;
+      updateSelected();
+    });
+    if (keyboardEnabled) el.addEventListener("keydown", (e) => onHandleKeyDown(key, e));
+    container.appendChild(el);
+    handleEls[key] = el;
+  }
+  function resolveColor(expr, fallback) {
+    const prev = editorCanvas.style.color;
+    editorCanvas.style.color = `var(${expr}, ${fallback})`;
+    const value = getComputedStyle(editorCanvas).color || fallback;
+    editorCanvas.style.color = prev;
+    return value;
+  }
+  function resolveTheme() {
+    resolved.mask = resolveColor("--scanic-mask", "rgba(15, 23, 42, 0.45)");
+    resolved.edgeColor = resolveColor("--scanic-edge-color", "#6366f1");
+    const widthRaw = getComputedStyle(container).getPropertyValue("--scanic-edge-width");
+    const parsed = parseFloat(widthRaw);
+    resolved.edgeWidth = Number.isFinite(parsed) && parsed > 0 ? parsed : 2.5;
+  }
+  function applyThemeOption(theme) {
+    if (!theme || typeof theme !== "object") return;
+    const pxKeys = /* @__PURE__ */ new Set(["handleSize", "handleHit"]);
+    const map = {
+      accent: "--scanic-accent",
+      mask: "--scanic-mask",
+      edgeColor: "--scanic-edge-color",
+      edgeWidth: "--scanic-edge-width",
+      handleSize: "--scanic-handle-size",
+      handleHit: "--scanic-handle-hit",
+      handleColor: "--scanic-handle-color",
+      handleRingColor: "--scanic-handle-ring-color",
+      surface: "--scanic-surface",
+      surfaceColor: "--scanic-surface-fg",
+      radius: "--scanic-surface-radius"
+    };
+    for (const [key, cssVar] of Object.entries(map)) {
+      const value = theme[key];
+      if (value == null) continue;
+      const cssValue = typeof value === "number" && pxKeys.has(key) ? `${value}px` : String(value);
+      container.style.setProperty(cssVar, cssValue);
+    }
+  }
   function emitChange() {
     if (typeof options.onChange === "function") {
       options.onChange(cloneCorners(corners));
@@ -1326,6 +1575,7 @@ function createCornerEditor(options = {}) {
       width,
       height
     };
+    resolveTheme();
   }
   function imageToView(point) {
     return {
@@ -1351,55 +1601,27 @@ function createCornerEditor(options = {}) {
       y: event.clientY - rect.top
     };
   }
-  function hitTestCorner(canvasX, canvasY) {
-    let hit = null;
-    let bestDistance = Infinity;
-    for (const key of cornerOrder) {
-      const p = imageToView(corners[key]);
-      const d = Math.hypot(canvasX - p.x, canvasY - p.y);
-      if (d <= handleHitArea && d < bestDistance) {
-        bestDistance = d;
-        hit = key;
-      }
-    }
-    return hit;
-  }
-  function drawPolygonOverlay() {
+  function drawOverlay() {
     const points = cornerOrder.map((key) => imageToView(corners[key]));
     ctx.save();
-    ctx.fillStyle = "rgba(15, 23, 42, 0.40)";
+    ctx.fillStyle = resolved.mask;
     ctx.beginPath();
     ctx.rect(0, 0, view.width, view.height);
     ctx.moveTo(points[0].x, points[0].y);
-    for (let i = 1; i < points.length; i++) {
-      ctx.lineTo(points[i].x, points[i].y);
-    }
+    for (let i = 1; i < points.length; i++) ctx.lineTo(points[i].x, points[i].y);
     ctx.closePath();
     ctx.fill("evenodd");
     ctx.restore();
     ctx.save();
-    ctx.strokeStyle = "#22c55e";
-    ctx.lineWidth = 3;
+    ctx.strokeStyle = resolved.edgeColor;
+    ctx.lineWidth = resolved.edgeWidth;
+    ctx.lineJoin = "round";
     ctx.beginPath();
     ctx.moveTo(points[0].x, points[0].y);
-    for (let i = 1; i < points.length; i++) {
-      ctx.lineTo(points[i].x, points[i].y);
-    }
+    for (let i = 1; i < points.length; i++) ctx.lineTo(points[i].x, points[i].y);
     ctx.closePath();
     ctx.stroke();
     ctx.restore();
-    for (const key of cornerOrder) {
-      const p = imageToView(corners[key]);
-      const isActive = key === activeCornerKey;
-      drawHandle(
-        ctx,
-        p,
-        isActive ? handleRadius + 1 : handleRadius,
-        isActive ? "#f59e0b" : "#ffffff",
-        isActive ? "#7c2d12" : "#0f172a",
-        2
-      );
-    }
   }
   function drawMagnifier() {
     if (!magnifier.enabled || !activeCornerKey || !lastPointerPosition) {
@@ -1445,6 +1667,19 @@ function createCornerEditor(options = {}) {
     ctx.stroke();
     ctx.restore();
   }
+  function positionHandles() {
+    for (const key of cornerOrder) {
+      const p = imageToView(corners[key]);
+      const el = handleEls[key];
+      el.style.left = p.x + "px";
+      el.style.top = p.y + "px";
+    }
+  }
+  function updateSelected() {
+    for (const key of cornerOrder) {
+      handleEls[key].classList.toggle("is-selected", key === focusedCornerKey);
+    }
+  }
   function render() {
     if (isDestroyed) return;
     ctx.clearRect(0, 0, view.width, view.height);
@@ -1459,8 +1694,9 @@ function createCornerEditor(options = {}) {
       imageWidth * view.scale,
       imageHeight * view.scale
     );
-    drawPolygonOverlay();
+    drawOverlay();
     drawMagnifier();
+    positionHandles();
   }
   const raf = typeof runtimeGlobal.requestAnimationFrame === "function" ? runtimeGlobal.requestAnimationFrame.bind(runtimeGlobal) : null;
   const caf = typeof runtimeGlobal.cancelAnimationFrame === "function" ? runtimeGlobal.cancelAnimationFrame.bind(runtimeGlobal) : null;
@@ -1487,110 +1723,58 @@ function createCornerEditor(options = {}) {
       return false;
     }
     corners = candidate;
-    activeNudgeCorner = nextCornerKey;
+    focusedCornerKey = nextCornerKey;
+    updateSelected();
     emitChange();
     scheduleRender();
     return true;
   }
-  function buildNudgeControls() {
-    if (!nudges.enabled) {
-      return;
-    }
-    nudgeControls = document.createElement("div");
-    nudgeControls.style.position = "absolute";
-    nudgeControls.style.right = "8px";
-    nudgeControls.style.bottom = "8px";
-    nudgeControls.style.background = "rgba(15, 23, 42, 0.9)";
-    nudgeControls.style.border = "1px solid rgba(148, 163, 184, 0.5)";
-    nudgeControls.style.borderRadius = "10px";
-    nudgeControls.style.padding = "8px";
-    nudgeControls.style.display = "grid";
-    nudgeControls.style.gridTemplateColumns = "repeat(4, auto)";
-    nudgeControls.style.gap = "6px";
-    nudgeControls.style.zIndex = "2";
-    const makeButton = (glyph, ariaLabel, dx, dy, step) => {
-      const btn = document.createElement("button");
-      btn.type = "button";
-      btn.textContent = glyph + (step > 1 ? " " + step : "");
-      btn.setAttribute("aria-label", ariaLabel);
-      btn.style.border = "1px solid #475569";
-      btn.style.background = "#0f172a";
-      btn.style.color = "#e2e8f0";
-      btn.style.borderRadius = "6px";
-      btn.style.padding = "4px 8px";
-      btn.style.fontSize = "13px";
-      btn.style.lineHeight = "1";
-      btn.style.cursor = "pointer";
-      btn.addEventListener("click", () => {
-        const current = corners[activeNudgeCorner];
-        setCorner(activeNudgeCorner, {
-          x: current.x + dx * step,
-          y: current.y + dy * step
-        });
-      });
-      return btn;
-    };
-    for (const step of nudges.steps) {
-      nudgeControls.appendChild(makeButton("←", `Move left ${step}px`, -1, 0, step));
-      nudgeControls.appendChild(makeButton("→", `Move right ${step}px`, 1, 0, step));
-      nudgeControls.appendChild(makeButton("↑", `Move up ${step}px`, 0, -1, step));
-      nudgeControls.appendChild(makeButton("↓", `Move down ${step}px`, 0, 1, step));
-    }
-    container.appendChild(nudgeControls);
-  }
-  function handlePointerDown(event) {
+  function onHandlePointerDown(key, event) {
     if (isDestroyed) return;
-    const point = getEventCanvasPoint(event);
-    const hitCorner = hitTestCorner(point.x, point.y);
-    if (!hitCorner) return;
-    if (typeof event.preventDefault === "function") {
-      event.preventDefault();
-    }
-    activeCornerKey = hitCorner;
-    activeNudgeCorner = hitCorner;
+    if (typeof event.preventDefault === "function") event.preventDefault();
+    activeCornerKey = key;
+    focusedCornerKey = key;
+    updateSelected();
     dragPointerId = event.pointerId;
-    lastPointerPosition = point;
-    editorCanvas.style.cursor = "grabbing";
-    if (keyboardEnabled && typeof editorCanvas.focus === "function") {
+    lastPointerPosition = getEventCanvasPoint(event);
+    handleEls[key].classList.add("is-active");
+    if (keyboardEnabled && typeof handleEls[key].focus === "function") {
       try {
-        editorCanvas.focus({ preventScroll: true });
+        handleEls[key].focus({ preventScroll: true });
       } catch (_) {
-        editorCanvas.focus();
+        handleEls[key].focus();
       }
     }
-    if (editorCanvas.setPointerCapture && dragPointerId !== void 0) {
-      editorCanvas.setPointerCapture(dragPointerId);
+    if (handleEls[key].setPointerCapture && event.pointerId != null) {
+      try {
+        handleEls[key].setPointerCapture(event.pointerId);
+      } catch (_) {
+      }
     }
     scheduleRender();
   }
-  function handlePointerMove(event) {
-    if (isDestroyed) return;
-    const point = getEventCanvasPoint(event);
-    if (!activeCornerKey) {
-      editorCanvas.style.cursor = hitTestCorner(point.x, point.y) ? "grab" : "crosshair";
-      return;
-    }
+  function onHandlePointerMove(key, event) {
+    if (isDestroyed || activeCornerKey !== key) return;
     if (dragPointerId !== null && event.pointerId !== dragPointerId) return;
-    lastPointerPosition = point;
-    const imagePoint = viewToImage(point.x, point.y);
-    setCorner(activeCornerKey, imagePoint);
+    lastPointerPosition = getEventCanvasPoint(event);
+    setCorner(key, viewToImage(lastPointerPosition.x, lastPointerPosition.y));
   }
-  function handlePointerUp(event) {
-    if (!activeCornerKey) return;
+  function onHandlePointerUp(key, event) {
+    if (activeCornerKey !== key) return;
     if (dragPointerId !== null && event.pointerId !== dragPointerId) return;
-    if (editorCanvas.releasePointerCapture && dragPointerId !== null && dragPointerId !== void 0) {
+    if (handleEls[key].releasePointerCapture && dragPointerId != null) {
       try {
-        editorCanvas.releasePointerCapture(dragPointerId);
+        handleEls[key].releasePointerCapture(dragPointerId);
       } catch (_) {
       }
     }
+    handleEls[key].classList.remove("is-active");
     activeCornerKey = null;
     dragPointerId = null;
     lastPointerPosition = null;
-    editorCanvas.style.cursor = "crosshair";
     scheduleRender();
   }
-  function handleKeyDown(event) {
+  function onHandleKeyDown(key, event) {
     if (isDestroyed || !keyboardEnabled) return;
     if (event.key === "Enter") {
       event.preventDefault();
@@ -1611,85 +1795,78 @@ function createCornerEditor(options = {}) {
     else return;
     event.preventDefault();
     const step = event.shiftKey ? nudges.steps[nudges.steps.length - 1] || 10 : 1;
-    const current = corners[activeNudgeCorner];
-    setCorner(activeNudgeCorner, {
-      x: current.x + dx * step,
-      y: current.y + dy * step
-    });
+    setCorner(key, { x: corners[key].x + dx * step, y: corners[key].y + dy * step });
   }
-  function handleMouseDown(event) {
-    handlePointerDown({
-      clientX: event.clientX,
-      clientY: event.clientY,
-      pointerId: 1
-    });
-  }
-  function handleMouseMove(event) {
-    handlePointerMove({
-      clientX: event.clientX,
-      clientY: event.clientY,
-      pointerId: 1
-    });
-  }
-  function handleTouchStart(event) {
-    const touch = event.touches[0];
-    if (!touch) return;
-    const point = getEventCanvasPoint(touch);
-    if (hitTestCorner(point.x, point.y)) {
-      event.preventDefault();
+  let toolbarEl = null;
+  let nudgeControls = null;
+  let expertBtn = null;
+  let expertVisible = false;
+  const hasExpertToggle = toolbar.enabled && nudges.enabled;
+  function makeButton({ html, text, title, className, onClick }) {
+    const btn = doc.createElement("button");
+    btn.type = "button";
+    if (html != null) btn.innerHTML = html;
+    else btn.textContent = text;
+    if (title) {
+      btn.title = title;
+      btn.setAttribute("aria-label", title);
     }
-    handlePointerDown({
-      clientX: touch.clientX,
-      clientY: touch.clientY,
-      pointerId: 2
-    });
+    if (className) btn.className = className;
+    btn.addEventListener("click", onClick);
+    return btn;
   }
-  function handleTouchMove(event) {
-    const touch = event.touches[0];
-    if (!touch) return;
-    event.preventDefault();
-    handlePointerMove({
-      clientX: touch.clientX,
-      clientY: touch.clientY,
-      pointerId: 2
-    });
+  function setExpert(on) {
+    expertVisible = on;
+    if (nudgeControls) nudgeControls.style.display = on ? "" : "none";
+    if (expertBtn) {
+      expertBtn.classList.toggle("is-on", on);
+      expertBtn.setAttribute("aria-pressed", String(on));
+    }
   }
-  function attachEvents() {
-    if (typeof runtimeGlobal.PointerEvent !== "undefined") {
-      editorCanvas.addEventListener("pointerdown", handlePointerDown);
-      editorCanvas.addEventListener("pointermove", handlePointerMove);
-      editorCanvas.addEventListener("pointerup", handlePointerUp);
-      editorCanvas.addEventListener("pointercancel", handlePointerUp);
-    } else {
-      editorCanvas.addEventListener("mousedown", handleMouseDown);
-      if (typeof runtimeGlobal.addEventListener === "function") {
-        runtimeGlobal.addEventListener("mousemove", handleMouseMove);
-        runtimeGlobal.addEventListener("mouseup", handlePointerUp);
+  function buildToolbar() {
+    var _a2;
+    if (!toolbar.enabled) return;
+    if (!toolbar.reset && !toolbar.cancel && !toolbar.apply && !hasExpertToggle) return;
+    toolbarEl = doc.createElement("div");
+    toolbarEl.className = "scanic-toolbar" + (((_a2 = options.classNames) == null ? void 0 : _a2.toolbar) ? " " + options.classNames.toolbar : "");
+    if (toolbar.reset) {
+      toolbarEl.appendChild(makeButton({ html: ICONS.reset, title: toolbar.labels.reset, className: "scanic-btn-reset", onClick: () => publicReset() }));
+    }
+    if (hasExpertToggle) {
+      expertBtn = makeButton({ html: ICONS.expert, title: "Precision nudge (expert)", className: "scanic-btn-expert", onClick: () => setExpert(!expertVisible) });
+      expertBtn.setAttribute("aria-pressed", "false");
+      toolbarEl.appendChild(expertBtn);
+    }
+    if (toolbar.cancel) {
+      toolbarEl.appendChild(makeButton({ html: ICONS.cancel, title: toolbar.labels.cancel, className: "scanic-btn-cancel", onClick: () => cancelEditor() }));
+    }
+    if (toolbar.apply) {
+      toolbarEl.appendChild(makeButton({ html: ICONS.apply, title: toolbar.labels.apply, className: "scanic-btn-apply", onClick: () => confirmEditor() }));
+    }
+    container.appendChild(toolbarEl);
+  }
+  function buildNudgeControls() {
+    var _a2;
+    if (!nudges.enabled) return;
+    nudgeControls = doc.createElement("div");
+    nudgeControls.className = "scanic-nudges" + (((_a2 = options.classNames) == null ? void 0 : _a2.nudges) ? " " + options.classNames.nudges : "");
+    const makeNudge = (glyph, label, dx, dy, step) => makeButton({
+      text: glyph,
+      title: label,
+      className: "scanic-btn-nudge",
+      onClick: () => {
+        const current = corners[focusedCornerKey];
+        setCorner(focusedCornerKey, { x: current.x + dx * step, y: current.y + dy * step });
       }
-      editorCanvas.addEventListener("touchstart", handleTouchStart, { passive: false });
-      editorCanvas.addEventListener("touchmove", handleTouchMove, { passive: false });
-      editorCanvas.addEventListener("touchend", handlePointerUp);
-      editorCanvas.addEventListener("touchcancel", handlePointerUp);
+    });
+    for (const step of nudges.steps) {
+      nudgeControls.appendChild(makeNudge("←", `Move left ${step}px`, -1, 0, step));
+      nudgeControls.appendChild(makeNudge("↑", `Move up ${step}px`, 0, -1, step));
+      nudgeControls.appendChild(makeNudge("↓", `Move down ${step}px`, 0, 1, step));
+      nudgeControls.appendChild(makeNudge("→", `Move right ${step}px`, 1, 0, step));
     }
-    if (keyboardEnabled) {
-      editorCanvas.addEventListener("keydown", handleKeyDown);
-    }
-  }
-  function detachEvents() {
-    editorCanvas.removeEventListener("pointerdown", handlePointerDown);
-    editorCanvas.removeEventListener("pointermove", handlePointerMove);
-    editorCanvas.removeEventListener("pointerup", handlePointerUp);
-    editorCanvas.removeEventListener("pointercancel", handlePointerUp);
-    editorCanvas.removeEventListener("mousedown", handleMouseDown);
-    if (typeof runtimeGlobal.removeEventListener === "function") {
-      runtimeGlobal.removeEventListener("mousemove", handleMouseMove);
-      runtimeGlobal.removeEventListener("mouseup", handlePointerUp);
-    }
-    editorCanvas.removeEventListener("touchstart", handleTouchStart);
-    editorCanvas.removeEventListener("touchmove", handleTouchMove);
-    editorCanvas.removeEventListener("touchend", handlePointerUp);
-    editorCanvas.removeEventListener("touchcancel", handlePointerUp);
-    editorCanvas.removeEventListener("keydown", handleKeyDown);
+    container.appendChild(nudgeControls);
+    if (hasExpertToggle) nudgeControls.style.display = "none";
   }
   let dprCleanup = null;
   function watchDevicePixelRatio() {
@@ -1725,6 +1902,11 @@ function createCornerEditor(options = {}) {
       options.onCancel();
     }
   }
+  function publicReset() {
+    corners = cloneCorners(initialCorners);
+    emitChange();
+    scheduleRender();
+  }
   const resizeObserver = typeof ResizeObserver !== "undefined" ? new ResizeObserver(() => {
     if (isDestroyed) return;
     const next = computeDisplaySize();
@@ -1735,12 +1917,13 @@ function createCornerEditor(options = {}) {
     scheduleRender();
   }) : null;
   updateCanvasSize();
+  buildToolbar();
   buildNudgeControls();
-  attachEvents();
   watchDevicePixelRatio();
   if (resizeObserver) {
     resizeObserver.observe(container);
   }
+  updateSelected();
   render();
   return {
     getCorners() {
@@ -1756,9 +1939,7 @@ function createCornerEditor(options = {}) {
       return true;
     },
     reset() {
-      corners = cloneCorners(initialCorners);
-      emitChange();
-      scheduleRender();
+      publicReset();
     },
     nudge(cornerKey, dx, dy, step = 1) {
       if (!cornerOrder.includes(cornerKey)) {
@@ -1769,6 +1950,12 @@ function createCornerEditor(options = {}) {
         y: corners[cornerKey].y + dy * step
       });
     },
+    /** Re-read CSS variables into the canvas layer after a runtime theme change. */
+    refreshTheme(theme) {
+      applyThemeOption(theme);
+      resolveTheme();
+      scheduleRender();
+    },
     confirm() {
       return confirmEditor();
     },
@@ -1776,6 +1963,7 @@ function createCornerEditor(options = {}) {
       cancelEditor();
     },
     destroy() {
+      var _a2;
       if (isDestroyed) return;
       isDestroyed = true;
       if (rafId !== null && caf) {
@@ -1789,13 +1977,15 @@ function createCornerEditor(options = {}) {
       if (resizeObserver) {
         resizeObserver.disconnect();
       }
-      detachEvents();
-      if (nudgeControls && nudgeControls.parentNode) {
-        nudgeControls.parentNode.removeChild(nudgeControls);
+      for (const key of cornerOrder) {
+        const el = handleEls[key];
+        if (el && el.parentNode) el.parentNode.removeChild(el);
       }
-      if (editorCanvas.parentNode) {
-        editorCanvas.parentNode.removeChild(editorCanvas);
-      }
+      if (toolbarEl && toolbarEl.parentNode) toolbarEl.parentNode.removeChild(toolbarEl);
+      if (nudgeControls && nudgeControls.parentNode) nudgeControls.parentNode.removeChild(nudgeControls);
+      if (editorCanvas.parentNode) editorCanvas.parentNode.removeChild(editorCanvas);
+      if (addedRootClass) container.classList.remove("scanic-corner-editor");
+      if ((_a2 = options.classNames) == null ? void 0 : _a2.root) container.classList.remove(options.classNames.root);
       if (changedContainerPosition) {
         container.style.position = restoreContainerStyle.position;
       }
