@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-06-19
+
+### Added
+- **Corner editor theming & API**: `createCornerEditor` is now fully styleable. Everything visual is driven by CSS custom properties (`--scanic-*`) with a shipped default stylesheet you can override or opt out of. New options: `theme`, `classNames`, `toolbar`, and `injectStyles`, plus a `refreshTheme()` method on the editor instance.
+- **Corner editor toolbar**: A compact floating Reset · Cancel · Apply toolbar (icon buttons with hover tooltips), shown by default, plus an optional "expert" precision nudge-pad toggle for moving the selected corner pixel by pixel.
+- **Documentation site**: A new VitePress docs site published at the GitHub Pages root — getting started, a "How it works" explainer, guides (Web, Node.js, Electron, React/Vue), corner-editor, performance, and a full API reference, with an interactive in-browser playground. The standalone interactive demo now lives at `/demo`.
+
+### Changed
+- **Corner editor rendering**: Reworked into a hybrid renderer — the image, mask, and outline draw on canvas while the corner handles are now DOM elements. Handles have CSS hover/focus/grabbed states (the active handle lifts with an accent ring, halo, and elevated shadow), and the currently selected corner is highlighted so it is clear which one the nudges and keyboard affect.
+- Corner editor defaults: nudge steps are now `[1, 10]`, the handle hit target is `44px`, and the magnifier sits closer to the active corner.
+
 ## [1.1.1] - 2026-06-19
 
 ### Fixed
