@@ -21,6 +21,9 @@
     "dev": "vite",
     "build": "vite build",
     "build:gh-pages": "vite build && node scripts/post-build.js",
+    "docs:dev": "vitepress dev docs",
+    "docs:build": "vite build && node scripts/stage-docs-demo.mjs && vitepress build docs",
+    "docs:preview": "vitepress preview docs",
     "build:wasm": "docker compose -f dev/docker-compose.yml up --build && node scripts/postprocess-wasm.mjs",
     "test": "vitest run",
     "diagnose:quality": "node scripts/diagnose-quality.js",
@@ -62,6 +65,8 @@
     "jsdom": "^27.4.0",
     "terser": "^5.44.1",
     "vite": "^6.3.4",
-    "vitest": "^4.0.16"
+    "vitepress": "^1.6.4",
+    "vitest": "^4.0.16",
+    "vue": "^3.5.38"
   }
 }
