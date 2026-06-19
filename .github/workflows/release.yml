@@ -85,12 +85,11 @@ jobs:
         draft: false
         prerelease: false
         
-    - name: Update demo site
-      run: |
-        npm run build:gh-pages
-        
+    - name: Build docs site (library + demo + VitePress)
+      run: npm run docs:build
+
     - name: Deploy to GitHub Pages
       uses: peaceiris/actions-gh-pages@v3
       with:
         github_token: ${{ secrets.GITHUB_TOKEN }}
-        publish_dir: ./dist
+        publish_dir: ./docs/.vitepress/dist
