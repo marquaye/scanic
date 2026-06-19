@@ -1,0 +1,778 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Scanic Live Demo - Modern Document Scanner</title>
+  <link rel="icon" type="image/x-icon" href="favicon.ico">
+  <style>
+    :root {
+      --primary: #6366f1;
+      --primary-hover: #4f46e5;
+      --bg: #f8fafc;
+      --card-bg: #ffffff;
+      --text: #1e293b;
+      --text-muted: #64748b;
+      --border: #e2e8f0;
+      --success: #22c55e;
+      --danger: #ef4444;
+      --radius: 12px;
+      --shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+    }
+
+    body {
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      background-color: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+      margin: 0;
+      padding: 0;
+    }
+
+    .app-container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 2rem;
+    }
+
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 2rem;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .brand img {
+      height: 48px;
+    }
+
+    .brand h1 {
+      font-size: 1.5rem;
+      font-weight: 800;
+      margin: 0;
+      letter-spacing: -0.025em;
+    }
+
+    .nav-links {
+      display: flex;
+      gap: 16px;
+    }
+
+    .btn-github {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 16px;
+      background: #000;
+      color: white;
+      text-decoration: none;
+      border-radius: var(--radius);
+      font-weight: 500;
+      font-size: 14px;
+      transition: opacity 0.2s;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+    }
+
+    @media (max-width: 900px) {
+      .grid { grid-template-columns: 1fr; }
+    }
+
+    .card {
+      background: var(--card-bg);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 1.5rem;
+      border: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+    }
+
+    .card h2 {
+      margin-top: 0;
+      font-size: 1.1rem;
+      margin-bottom: 1.5rem;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .drop-zone {
+      border: 2px dashed var(--border);
+      border-radius: var(--radius);
+      padding: 3rem 1rem;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.2s;
+      background: #fafafa;
+    }
+
+    .drop-zone:hover {
+      border-color: var(--primary);
+      background: #f5f3ff;
+    }
+
+    .drop-zone p {
+      margin: 0;
+      color: var(--text-muted);
+    }
+
+    .mode-switch {
+      margin-top: 12px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      background: #eef2ff;
+      padding: 6px;
+      border-radius: 999px;
+      border: 1px solid #e0e7ff;
+    }
+
+    .mode-chip {
+      border: none;
+      border-radius: 999px;
+      background: transparent;
+      color: var(--text-muted);
+      font-weight: 700;
+      font-size: 12px;
+      padding: 8px 10px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .mode-chip.active {
+      background: #ffffff;
+      color: var(--primary);
+      box-shadow: 0 1px 2px rgb(15 23 42 / 0.18);
+    }
+
+    .mode-help {
+      margin: 10px 0 0;
+      color: var(--text-muted);
+      font-size: 12px;
+    }
+
+    .samples {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+      gap: 12px;
+      margin-top: 20px;
+    }
+
+    .sample-img {
+      width: 100%;
+      aspect-ratio: 1;
+      object-fit: cover;
+      border-radius: 8px;
+      cursor: pointer;
+      border: 2px solid transparent;
+      transition: all 0.2s;
+    }
+
+    .sample-img:hover {
+      transform: translateY(-2px);
+      border-color: var(--primary);
+    }
+
+    .btn {
+      padding: 10px 20px;
+      border-radius: 8px;
+      border: none;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .btn-primary { background: var(--primary); color: white; }
+    .btn-primary:hover { background: var(--primary-hover); }
+    .btn-secondary { background: var(--bg); color: var(--text); border: 1px solid var(--border); }
+    .btn-danger { background: var(--danger); color: white; }
+
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    canvas {
+      width: 100%;
+      height: auto;
+      border-radius: 8px;
+      background: #000;
+      margin-top: 1rem;
+    }
+
+    .stats {
+      margin-top: 1rem;
+      padding: 12px;
+      background: #f1f5f9;
+      border-radius: 8px;
+      font-family: ui-monospace, monospace;
+      font-size: 0.75rem;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--text-muted);
+      display: inline-block;
+    }
+
+    .status-active { background: var(--success); box-shadow: 0 0 10px var(--success); }
+
+    .controls {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 1rem;
+    }
+
+    .hidden { display: none; }
+
+    #extracted-container {
+      margin-top: 2rem;
+      border-top: 2px solid var(--border);
+      padding-top: 2rem;
+    }
+
+    #extracted-container h2 {
+      margin-bottom: 0.25rem;
+    }
+
+    .result-subtitle {
+      margin: 0 0 1rem;
+      color: var(--text-muted);
+      font-size: 0.9rem;
+    }
+
+    #staticCanvas {
+      max-width: 100%;
+      height: auto;
+      background: #eee;
+    }
+
+    #cornerEditorHost {
+      width: 100%;
+      min-height: 320px;
+      background: #0b1220;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      overflow: hidden;
+      margin-top: 1rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="app-container">
+    <header>
+      <div class="brand">
+        <img src="scanic-logo-bg.png" alt="Scanic">
+        <h1>Scanic Live</h1>
+      </div>
+      <div class="nav-links">
+        <a href="https://github.com/marquaye/scanic" class="btn-github">
+          <svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/></svg>
+          GitHub
+        </a>
+      </div>
+    </header>
+
+    <div class="grid">
+      <!-- Upload Section -->
+      <div class="card">
+        <h2>📷 Static Image</h2>
+        <div class="drop-zone" id="dropZone">
+          <p>Drop document image here or click to upload</p>
+          <input type="file" id="fileInput" class="hidden" accept="image/*">
+        </div>
+
+        <div class="mode-switch" id="staticModeSwitch" role="tablist" aria-label="Static processing mode">
+          <button class="mode-chip active" type="button" data-mode="detect">Detect Only</button>
+          <button class="mode-chip" type="button" data-mode="extract">Extract</button>
+        </div>
+        <p class="mode-help" id="staticModeHelp">Detect mode shows a styled corner outline without cropping.</p>
+        
+        <div class="samples" id="samples">
+        </div>
+      </div>
+
+      <!-- Live Section -->
+      <div class="card">
+        <h2>
+          <span class="status-dot" id="streamDot"></span>
+          🎥 Live Scanner
+        </h2>
+        
+        <div class="controls">
+          <button class="btn btn-primary" id="btnStart">Start Camera</button>
+          <button class="btn btn-secondary hidden" id="btnStop">Stop</button>
+          <button class="btn btn-danger hidden" id="btnCapture">Capture</button>
+        </div>
+
+        <canvas id="liveCanvas"></canvas>
+
+        <div class="stats">
+          <span>Resolution: <strong id="statRes">-</strong></span>
+          <span>Detection: <strong id="statDetect">-</strong></span>
+          <span>Processing: <strong id="statTime">0ms</strong></span>
+          <span>Status: <strong id="statStatus">Idle</strong></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Results Section -->
+    <div id="extracted-container" class="hidden">
+      <h2 id="resultTitle">✨ Result Preview</h2>
+      <p id="resultSubtitle" class="result-subtitle">Select detect for corner preview, or extract for perspective crop.</p>
+      <canvas id="staticCanvas"></canvas>
+      <div id="cornerEditorHost" class="hidden"></div>
+      <div style="margin-top: 1rem;">
+        <button class="btn btn-secondary hidden" id="btnAdjustCorners">Adjust Corners</button>
+        <button class="btn btn-primary hidden" id="btnApplyCorners">Apply</button>
+        <button class="btn btn-secondary hidden" id="btnCancelCorners">Cancel</button>
+        <button class="btn btn-secondary" id="btnDownload">Download PNG</button>
+        <button class="btn btn-secondary" onclick="document.getElementById('extracted-container').classList.add('hidden')">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { Scanner, scanDocument, extractDocument, createCornerEditor } from './scanic.js';
+
+    const scanner = new Scanner();
+    let isLive = false;
+    let stream = null;
+    let video = null;
+    let animationId = null;
+
+    // DOM Elements
+    const liveCanvas = document.getElementById('liveCanvas');
+    const staticCanvas = document.getElementById('staticCanvas');
+    const extractedContainer = document.getElementById('extracted-container');
+    const ctx = liveCanvas.getContext('2d');
+    const btnStart = document.getElementById('btnStart');
+    const btnStop = document.getElementById('btnStop');
+    const btnCapture = document.getElementById('btnCapture');
+    const btnDownload = document.getElementById('btnDownload');
+    const streamDot = document.getElementById('streamDot');
+    const fileInput = document.getElementById('fileInput');
+    const dropZone = document.getElementById('dropZone');
+    const samplesContainer = document.getElementById('samples');
+    const staticModeSwitch = document.getElementById('staticModeSwitch');
+    const staticModeHelp = document.getElementById('staticModeHelp');
+    const resultTitle = document.getElementById('resultTitle');
+    const resultSubtitle = document.getElementById('resultSubtitle');
+    const cornerEditorHost = document.getElementById('cornerEditorHost');
+    const btnAdjustCorners = document.getElementById('btnAdjustCorners');
+    const btnApplyCorners = document.getElementById('btnApplyCorners');
+    const btnCancelCorners = document.getElementById('btnCancelCorners');
+
+    let staticMode = 'detect';
+    let activeCornerEditor = null;
+    let currentStaticImage = null;
+    let currentDetectedCorners = null;
+    const AUTO_EDITOR_CONFIDENCE_THRESHOLD = 0.6;
+
+    const sampleImageFiles = [
+      '25_2.jpg',
+      'test.png',
+      'test10.jpg',
+      'test2.png',
+      'test3.jpg',
+      'test4.JPG',
+      'test5.JPG',
+      'test6.JPG',
+      'test7.JPG',
+      'test8.JPG',
+      'test9.jpg'
+    ];
+
+    // Stats
+    const statRes = document.getElementById('statRes');
+    const statDetect = document.getElementById('statDetect');
+    const statTime = document.getElementById('statTime');
+    const statStatus = document.getElementById('statStatus');
+
+    function setStaticMode(mode) {
+      staticMode = mode;
+      staticModeSwitch.querySelectorAll('[data-mode]').forEach((button) => {
+        button.classList.toggle('active', button.dataset.mode === mode);
+      });
+
+      if (mode === 'detect') {
+        staticModeHelp.textContent = 'Detect mode shows a styled corner outline without cropping.';
+      } else {
+        staticModeHelp.textContent = 'Extract mode returns the perspective-corrected document crop.';
+      }
+    }
+
+    function drawModernDetectionOverlay(targetCtx, corners, options = {}) {
+      if (!corners) return;
+
+      // topLeft → topRight → bottomRight → bottomLeft
+      const pts = [corners.topLeft, corners.topRight, corners.bottomRight, corners.bottomLeft];
+
+      // Corner bracket arm length: 18 % of the shorter document side, clamped
+      const minSide = Math.min(
+        Math.hypot(pts[1].x - pts[0].x, pts[1].y - pts[0].y),
+        Math.hypot(pts[3].x - pts[0].x, pts[3].y - pts[0].y)
+      );
+      const arm = Math.max(16, Math.min(minSide * 0.18, 56));
+
+      targetCtx.save();
+
+      // ── 1. Near-invisible interior fill ───────────────────────────────────
+      targetCtx.beginPath();
+      targetCtx.moveTo(pts[0].x, pts[0].y);
+      pts.slice(1).forEach(p => targetCtx.lineTo(p.x, p.y));
+      targetCtx.closePath();
+      targetCtx.fillStyle = 'rgba(255, 255, 255, 0.06)';
+      targetCtx.fill();
+
+      // ── 2. Hairline full border ────────────────────────────────────────────
+      targetCtx.lineWidth = 1.25;
+      targetCtx.strokeStyle = 'rgba(255, 255, 255, 0.45)';
+      targetCtx.shadowBlur = 0;
+      targetCtx.stroke();
+
+      // ── 3. Corner bracket L-marks ─────────────────────────────────────────
+      // For each corner: draw two arms pointing along the two adjacent edges
+      const cornerDefs = [
+        [pts[0], pts[1], pts[3]],   // TL → along top, along left
+        [pts[1], pts[0], pts[2]],   // TR → along top, along right
+        [pts[2], pts[1], pts[3]],   // BR → along right, along bottom
+        [pts[3], pts[0], pts[2]],   // BL → along left, along bottom
+      ];
+
+      targetCtx.lineCap = 'round';
+      targetCtx.lineJoin = 'round';
+
+      cornerDefs.forEach(([pt, n1, n2]) => {
+        // Unit vectors along each arm direction
+        const u1x = n1.x - pt.x, u1y = n1.y - pt.y, m1 = Math.hypot(u1x, u1y) || 1;
+        const u2x = n2.x - pt.x, u2y = n2.y - pt.y, m2 = Math.hypot(u2x, u2y) || 1;
+
+        const ax = pt.x + (u1x / m1) * arm, ay = pt.y + (u1y / m1) * arm;
+        const bx = pt.x + (u2x / m2) * arm, by = pt.y + (u2y / m2) * arm;
+
+        // Soft glow pass
+        targetCtx.beginPath();
+        targetCtx.moveTo(ax, ay);
+        targetCtx.lineTo(pt.x, pt.y);
+        targetCtx.lineTo(bx, by);
+        targetCtx.lineWidth = 8;
+        targetCtx.strokeStyle = 'rgba(250, 250, 250, 0.14)';
+        targetCtx.shadowColor = 'transparent';
+        targetCtx.stroke();
+
+        // Crisp white bracket
+        targetCtx.beginPath();
+        targetCtx.moveTo(ax, ay);
+        targetCtx.lineTo(pt.x, pt.y);
+        targetCtx.lineTo(bx, by);
+        targetCtx.lineWidth = 3;
+        targetCtx.strokeStyle = '#ffffff';
+        targetCtx.shadowColor = 'rgba(200, 230, 255, 0.55)';
+        targetCtx.shadowBlur = 8;
+        targetCtx.stroke();
+        targetCtx.shadowBlur = 0;
+      });
+
+      targetCtx.restore();
+    }
+
+    function closeCornerEditor() {
+      if (activeCornerEditor) {
+        activeCornerEditor.destroy();
+        activeCornerEditor = null;
+      }
+      cornerEditorHost.innerHTML = '';
+      cornerEditorHost.classList.add('hidden');
+      btnApplyCorners.classList.add('hidden');
+      btnCancelCorners.classList.add('hidden');
+    }
+
+    function showCanvasView() {
+      closeCornerEditor();
+      staticCanvas.classList.remove('hidden');
+      btnDownload.classList.remove('hidden');
+    }
+
+    async function applyManualCorners(image, corners) {
+      const extracted = await extractDocument(image, corners, { output: 'canvas' });
+      if (!extracted.success || !extracted.output) {
+        throw new Error(extracted.message || 'Manual extraction failed');
+      }
+
+      const staticCtx = staticCanvas.getContext('2d');
+      staticCanvas.width = extracted.output.width;
+      staticCanvas.height = extracted.output.height;
+      staticCtx.drawImage(extracted.output, 0, 0);
+
+      resultTitle.textContent = '✨ Manually Adjusted Extraction';
+      resultSubtitle.textContent = 'Corners were adjusted and applied successfully.';
+      statStatus.textContent = 'Manual correction applied';
+      showCanvasView();
+      extractedContainer.scrollIntoView({ behavior: 'smooth' });
+    }
+
+    function openCornerEditorForImage(image, corners, reasonLabel = 'Adjust corners') {
+      closeCornerEditor();
+
+      staticCanvas.classList.add('hidden');
+      btnDownload.classList.add('hidden');
+      cornerEditorHost.classList.remove('hidden');
+      btnApplyCorners.classList.remove('hidden');
+      btnCancelCorners.classList.remove('hidden');
+
+      resultTitle.textContent = '🎯 Manual Corner Adjustment';
+      resultSubtitle.textContent = `${reasonLabel}. Drag corner handles, then tap Apply.`;
+
+      activeCornerEditor = createCornerEditor({
+        container: cornerEditorHost,
+        image,
+        corners,
+        nudges: {
+          enabled: true,
+          steps: [1, 5]
+        },
+        magnifier: {
+          enabled: true,
+          zoom: 2,
+          size: 110
+        },
+        onConfirm: async (nextCorners) => {
+          try {
+            currentDetectedCorners = nextCorners;
+            await applyManualCorners(image, nextCorners);
+          } catch (err) {
+            console.error(err);
+            statStatus.textContent = 'Manual extraction failed';
+          }
+        },
+        onCancel: () => {
+          resultSubtitle.textContent = 'Manual adjustment canceled.';
+          showCanvasView();
+        }
+      });
+    }
+
+    // --- Static Scanner Logic ---
+    dropZone.onclick = () => fileInput.click();
+    fileInput.onchange = (e) => processFile(e.target.files[0]);
+    staticModeSwitch.querySelectorAll('[data-mode]').forEach((button) => {
+      button.onclick = () => setStaticMode(button.dataset.mode);
+    });
+
+    function loadSampleImages() {
+      samplesContainer.innerHTML = '';
+
+      sampleImageFiles.forEach((fileName, index) => {
+        const img = document.createElement('img');
+        img.src = `testImages/${encodeURIComponent(fileName)}`;
+        img.className = 'sample-img';
+        img.title = fileName;
+        img.alt = `Sample ${index + 1}`;
+        img.onclick = () => processUrl(img.src);
+        img.onerror = () => img.remove();
+        samplesContainer.appendChild(img);
+      });
+    }
+
+    async function processUrl(url) {
+      const img = new Image();
+      img.crossOrigin = "anonymous";
+      img.onload = () => processImage(img);
+      img.src = url;
+    }
+
+    async function processFile(file) {
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => processImage(img);
+        img.src = e.target.result;
+      };
+      reader.readAsDataURL(file);
+    }
+
+    async function processImage(img) {
+      closeCornerEditor();
+      extractedContainer.classList.remove('hidden');
+      statStatus.textContent = 'Processing static image...';
+      currentStaticImage = img;
+      currentDetectedCorners = null;
+      btnAdjustCorners.classList.add('hidden');
+
+      const result = await scanDocument(img, { mode: staticMode });
+      if (result.success) {
+        const staticCtx = staticCanvas.getContext('2d');
+        currentDetectedCorners = result.corners || null;
+        btnAdjustCorners.classList.toggle('hidden', !currentDetectedCorners);
+
+        if (staticMode === 'detect') {
+          staticCanvas.width = img.width;
+          staticCanvas.height = img.height;
+          staticCtx.drawImage(img, 0, 0);
+          if (result.corners) {
+            drawModernDetectionOverlay(staticCtx, result.corners);
+          }
+          resultTitle.textContent = '📐 Detection Preview';
+          const confidenceText = result.confidence != null ? `Confidence ${(result.confidence * 100).toFixed(1)}%` : 'Corners detected';
+          resultSubtitle.textContent = `${confidenceText}. Switch to Extract mode to crop the document.`;
+
+          if (result.corners && result.confidence != null && result.confidence < AUTO_EDITOR_CONFIDENCE_THRESHOLD) {
+            openCornerEditorForImage(img, result.corners, `Low confidence (${(result.confidence * 100).toFixed(1)}%)`);
+          } else {
+            showCanvasView();
+          }
+        } else {
+          staticCanvas.width = result.output.width;
+          staticCanvas.height = result.output.height;
+          staticCtx.drawImage(result.output, 0, 0);
+          resultTitle.textContent = '✨ Extracted Document';
+          const confidenceText = result.confidence != null ? `Confidence ${(result.confidence * 100).toFixed(1)}%. ` : '';
+          resultSubtitle.textContent = `${confidenceText}Perspective-corrected output ready to download.`;
+
+          if (result.corners && result.confidence != null && result.confidence < AUTO_EDITOR_CONFIDENCE_THRESHOLD) {
+            openCornerEditorForImage(img, result.corners, `Low confidence (${(result.confidence * 100).toFixed(1)}%)`);
+          } else {
+            showCanvasView();
+          }
+        }
+
+        extractedContainer.scrollIntoView({ behavior: 'smooth' });
+        statStatus.textContent = 'Processed static image';
+      } else {
+        resultTitle.textContent = '⚠️ No Document Detected';
+        resultSubtitle.textContent = 'Try a clearer image or switch mode.';
+        statStatus.textContent = 'No document detected';
+        showCanvasView();
+      }
+    }
+
+    btnAdjustCorners.onclick = () => {
+      if (!currentStaticImage || !currentDetectedCorners) return;
+      openCornerEditorForImage(currentStaticImage, currentDetectedCorners, 'Manual adjustment requested');
+    };
+
+    btnApplyCorners.onclick = () => {
+      if (!activeCornerEditor) return;
+      activeCornerEditor.confirm();
+    };
+
+    btnCancelCorners.onclick = () => {
+      if (!activeCornerEditor) return;
+      activeCornerEditor.cancel();
+    };
+
+    // --- Live Scanner Logic ---
+    btnStart.onclick = async () => {
+      try {
+        statStatus.textContent = 'Initializing WASM...';
+        await scanner.initialize();
+        
+        stream = await navigator.mediaDevices.getUserMedia({ 
+          video: { facingMode: 'environment', width: { ideal: 1280 } } 
+        });
+        
+        video = document.createElement('video');
+        video.srcObject = stream;
+        video.autoplay = true;
+        
+        await video.play();
+        
+        liveCanvas.width = video.videoWidth;
+        liveCanvas.height = video.videoHeight;
+        statRes.textContent = `${video.videoWidth}x${video.videoHeight}`;
+        
+        isLive = true;
+        btnStart.classList.add('hidden');
+        btnStop.classList.remove('hidden');
+        btnCapture.classList.remove('hidden');
+        streamDot.classList.add('status-active');
+        statStatus.textContent = 'Scanning...';
+        
+        requestAnimationFrame(loop);
+      } catch (err) {
+        console.error(err);
+        alert('Camera access denied or unavailable');
+        statStatus.textContent = 'Camera Error';
+      }
+    };
+
+    btnStop.onclick = () => {
+      isLive = false;
+      if (stream) stream.getTracks().forEach(t => t.stop());
+      cancelAnimationFrame(animationId);
+      btnStart.classList.remove('hidden');
+      btnStop.classList.add('hidden');
+      btnCapture.classList.add('hidden');
+      streamDot.classList.remove('status-active');
+      statStatus.textContent = 'Idle';
+    };
+
+    async function loop() {
+      if (!isLive) return;
+
+      const t0 = performance.now();
+      ctx.drawImage(video, 0, 0);
+
+      // Process every other frame for performance
+      if (true) {
+        const result = await scanner.scan(liveCanvas, { mode: 'detect' });
+        statTime.textContent = `${Math.round(performance.now() - t0)}ms`;
+        
+        if (result.success && result.corners) {
+          const confidencePercent = result.confidence != null ? `${Math.round(result.confidence * 100)}%` : '';
+          statDetect.textContent = confidencePercent ? `YES ${confidencePercent}` : 'YES';
+          drawModernDetectionOverlay(ctx, result.corners, { pulseSeed: performance.now() });
+        } else {
+          statDetect.textContent = 'NO';
+        }
+      }
+
+      animationId = requestAnimationFrame(loop);
+    }
+
+    btnCapture.onclick = async () => {
+      statStatus.textContent = 'Extracting...';
+      const result = await scanner.scan(liveCanvas, { mode: 'extract' });
+      if (result.success) {
+        extractedContainer.classList.remove('hidden');
+        staticCanvas.width = result.output.width;
+        staticCanvas.height = result.output.height;
+        staticCanvas.getContext('2d').drawImage(result.output, 0, 0);
+        extractedContainer.scrollIntoView({ behavior: 'smooth' });
+        statStatus.textContent = 'Captured!';
+        setTimeout(() => statStatus.textContent = 'Scanning...', 2000);
+      }
+    };
+
+    btnDownload.onclick = () => {
+      const link = document.createElement('a');
+      link.download = 'scanic-document.png';
+      link.href = staticCanvas.toDataURL();
+      link.click();
+    };
+
+    setStaticMode('detect');
+
+    // Init sample gallery
+    loadSampleImages();
+  </script>
+</body>
+</html>
