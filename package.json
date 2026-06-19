@@ -21,7 +21,7 @@
     "dev": "vite",
     "build": "vite build",
     "build:gh-pages": "vite build && node scripts/post-build.js",
-    "build:wasm": "docker compose -f dev/docker-compose.yml up --build",
+    "build:wasm": "docker compose -f dev/docker-compose.yml up --build && node scripts/postprocess-wasm.mjs",
     "test": "vitest run",
     "diagnose:quality": "node scripts/diagnose-quality.js",
     "baseline:update": "node scripts/baseline.js --update",
