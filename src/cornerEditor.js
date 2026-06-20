@@ -385,6 +385,10 @@ export function createCornerEditor(options = {}) {
   let lastPointerPosition = null;
 
   const handleHit = Math.max(24, options.handleHitArea || 44);
+  // Only override the stylesheet/theme default when an explicit size was passed.
+  if (options.handleHitArea) {
+    container.style.setProperty('--scanic-handle-hit', handleHit + 'px');
+  }
   const cornerOrder = ['topLeft', 'topRight', 'bottomRight', 'bottomLeft'];
   const cornerLabels = {
     topLeft: 'Top-left corner',
