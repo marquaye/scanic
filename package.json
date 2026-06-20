@@ -27,6 +27,7 @@
     "lint": "eslint src scripts",
     "build:wasm": "docker compose -f dev/docker-compose.yml up --build && node scripts/postprocess-wasm.mjs",
     "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
     "diagnose:quality": "node scripts/diagnose-quality.js",
     "baseline:update": "node scripts/baseline.js --update",
     "baseline:check": "node scripts/baseline.js",
@@ -49,7 +50,7 @@
     "type": "git",
     "url": "git+https://github.com/marquaye/scanic.git"
   },
-  "homepage": "https://github.com/marquaye/scanic",
+  "homepage": "https://marquaye.github.io/scanic",
   "bugs": {
     "url": "https://github.com/marquaye/scanic/issues"
   },
@@ -57,12 +58,12 @@
     "dist/scanic.js",
     "dist/scanic.umd.cjs",
     "src/scanic.d.ts",
-    "wasm_blur/pkg/wasm_blur_bg.wasm",
     "README.md",
     "LICENSE"
   ],
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@vitest/coverage-v8": "^4.1.9",
     "canvas": "^3.2.0",
     "eslint": "^10.5.0",
     "globals": "^17.6.0",

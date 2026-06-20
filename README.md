@@ -7,8 +7,10 @@
 <p align="center">
     <a href="https://npmjs.com/package/scanic"><img src="https://badgen.net/npm/dw/scanic"></a>
     <br />
-    <a href="https://github.com/marquaye/scanic/blob/master/LICENSE"><img src="https://img.shields.io/github/license/marquaye/scanic.svg"></a>
+    <a href="https://github.com/marquaye/scanic/blob/main/LICENSE"><img src="https://img.shields.io/github/license/marquaye/scanic.svg"></a>
     <a href="https://npmjs.com/package/scanic"><img src="https://badgen.net/npm/v/scanic"></a>
+    <a href="https://bundlephobia.com/package/scanic"><img src="https://img.shields.io/bundlephobia/minzip/scanic"></a>
+    <a href="https://marquaye.github.io/scanic"><img src="https://img.shields.io/badge/docs-online-6366f1"></a>
 </p>
 
 # Scanic 📄⚡
@@ -43,12 +45,14 @@ Traditional web scanning solutions often force a trade-off:
 - 📦 **Featherweight**: Under **100KB** total size (gzipped).
 - 🧪 **Production Grade**: Built-in regression tests with physical image baselines.
 
-## 🆕 What's New (v1.0.7)
+## 🆕 What's New
 
-- Improved default document quality with adaptive multi-pass candidate evaluation.
-- More stable corners on noisy contours through multi-epsilon approximation and duplicate-vertex cleanup.
-- Expanded debug tooling with full test image coverage and corner delta comparison against jscanify.
-- Expanded live demo sample set for broader real-world validation.
+See the [**full documentation**](https://marquaye.github.io/scanic), the
+[**changelog**](CHANGELOG.md), and the [**releases**](https://github.com/marquaye/scanic/releases)
+for the latest. Recent highlights:
+
+- **Styleable corner editor** — a built-in, touch-friendly UI to fine-tune detected corners, now fully themeable via CSS variables with a polished default toolbar. See the [corner editor guide](https://marquaye.github.io/scanic/guide/corner-editor).
+- **New docs site** with guides for Web/Node.js/Electron/React/Vue and an interactive in-browser playground.
 
 ---
 

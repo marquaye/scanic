@@ -21,7 +21,13 @@ export default defineConfig({
   },
   test: {
     environment: 'jsdom',
-    globals: true
+    globals: true,
+    coverage: {
+      provider: 'v8',
+      include: ['src/**'],
+      exclude: ['src/**/*.test.js', 'src/scanic.d.ts'],
+      reporter: ['text', 'html']
+    }
   },
   server: {
     open: './dev/debug.html'

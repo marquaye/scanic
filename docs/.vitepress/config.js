@@ -18,8 +18,15 @@ export default defineConfig({
   head: [
     ['link', { rel: 'icon', href: '/scanic/favicon.ico' }],
     ['meta', { name: 'theme-color', content: '#6366f1' }],
+    ['meta', { property: 'og:type', content: 'website' }],
+    ['meta', { property: 'og:url', content: 'https://marquaye.github.io/scanic/' }],
     ['meta', { property: 'og:title', content: 'Scanic — Modern document scanner' }],
-    ['meta', { property: 'og:description', content: 'Document edge detection and perspective correction in the browser and Node.js. ~100KB, WASM-accelerated.' }]
+    ['meta', { property: 'og:description', content: 'Document edge detection and perspective correction in the browser and Node.js. ~100KB, WASM-accelerated.' }],
+    ['meta', { property: 'og:image', content: 'https://marquaye.github.io/scanic/scanic-logo-bg.png' }],
+    ['meta', { name: 'twitter:card', content: 'summary_large_image' }],
+    ['meta', { name: 'twitter:title', content: 'Scanic — Modern document scanner' }],
+    ['meta', { name: 'twitter:description', content: 'Document edge detection and perspective correction in the browser and Node.js. ~100KB, WASM-accelerated.' }],
+    ['meta', { name: 'twitter:image', content: 'https://marquaye.github.io/scanic/scanic-logo-bg.png' }]
   ],
 
   // Internal/dev docs that should not be published.
