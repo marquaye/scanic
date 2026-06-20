@@ -1,4 +1,8 @@
+import { readFileSync } from 'node:fs'
 import { defineConfig } from 'vitepress'
+
+// Read the version from package.json so the nav never goes stale.
+const { version } = JSON.parse(readFileSync(new URL('../../package.json', import.meta.url)))
 
 // https://vitepress.dev/reference/site-config
 export default defineConfig({
@@ -40,7 +44,7 @@ export default defineConfig({
       { text: 'Playground', link: '/guide/getting-started#playground' },
       { text: 'Live Demo', link: '/scanic/demo/', target: '_blank', rel: 'noopener' },
       {
-        text: 'v1.1.0',
+        text: `v${version}`,
         items: [
           { text: 'Changelog', link: 'https://github.com/marquaye/scanic/releases' },
           { text: 'npm', link: 'https://npmjs.com/package/scanic' }
