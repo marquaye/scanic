@@ -14,3 +14,6 @@ docs/.vitepress/dist/
 docs/.vitepress/cache/
 # Generated demo bundle staged for the docs site (source: demo.html)
 docs/public/demo/
+
+# Coverage
+coverage/

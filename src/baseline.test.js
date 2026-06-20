@@ -45,6 +45,9 @@ const MIN_COVERAGE_RATIO_FOR_SUCCESS = 0.01;
  * regressions like an accidental O(n²) loop.
  */
 const TIMING_BUDGET_MULTIPLIER  = 5;
+// Coverage instrumentation adds large, uneven overhead that makes per-phase
+// timing budgets meaningless, so skip those assertions under `npm run test:coverage`.
+const SKIP_TIMING_BUDGETS = process.env.npm_lifecycle_event === 'test:coverage';
 
 // ──────────────────────────────────────────────────────────────
 // Helpers
@@ -244,26 +247,28 @@ describe('Baseline regression (all test images)', () => {
       // near-instant operations where jitter dominates.
       const MIN_ASSERTABLE_MS = 2;
 
-      for (const [step, baselineMs] of Object.entries(baselineDetectTimings)) {
-        if (baselineMs < MIN_ASSERTABLE_MS) continue;
-        const actualMs = actualDetectTimings[step];
-        if (actualMs == null) continue;
-        expect(
-          actualMs,
-          `detect "${step}" exceeded ${TIMING_BUDGET_MULTIPLIER}× budget ` +
-          `(${actualMs}ms vs baseline ${baselineMs}ms)`
-        ).toBeLessThanOrEqual(baselineMs * TIMING_BUDGET_MULTIPLIER);
-      }
+      if (!SKIP_TIMING_BUDGETS) {
+        for (const [step, baselineMs] of Object.entries(baselineDetectTimings)) {
+          if (baselineMs < MIN_ASSERTABLE_MS) continue;
+          const actualMs = actualDetectTimings[step];
+          if (actualMs == null) continue;
+          expect(
+            actualMs,
+            `detect "${step}" exceeded ${TIMING_BUDGET_MULTIPLIER}× budget ` +
+            `(${actualMs}ms vs baseline ${baselineMs}ms)`
+          ).toBeLessThanOrEqual(baselineMs * TIMING_BUDGET_MULTIPLIER);
+        }
 
-      for (const [step, baselineMs] of Object.entries(baselineExtractTimings)) {
-        if (baselineMs < MIN_ASSERTABLE_MS) continue;
-        const actualMs = actualExtractTimings[step];
-        if (actualMs == null) continue;
-        expect(
-          actualMs,
-          `extract "${step}" exceeded ${TIMING_BUDGET_MULTIPLIER}× budget ` +
-          `(${actualMs}ms vs baseline ${baselineMs}ms)`
-        ).toBeLessThanOrEqual(baselineMs * TIMING_BUDGET_MULTIPLIER);
+        for (const [step, baselineMs] of Object.entries(baselineExtractTimings)) {
+          if (baselineMs < MIN_ASSERTABLE_MS) continue;
+          const actualMs = actualExtractTimings[step];
+          if (actualMs == null) continue;
+          expect(
+            actualMs,
+            `extract "${step}" exceeded ${TIMING_BUDGET_MULTIPLIER}× budget ` +
+            `(${actualMs}ms vs baseline ${baselineMs}ms)`
+          ).toBeLessThanOrEqual(baselineMs * TIMING_BUDGET_MULTIPLIER);
+        }
       }
     });
   }
