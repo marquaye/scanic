@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: 📖 Documentation
+    url: https://marquaye.github.io/scanic
+    about: Guides, API reference, and an interactive playground.
+  - name: 💬 Questions & ideas
+    url: https://github.com/marquaye/scanic/discussions
+    about: For usage questions and open-ended discussion, please use Discussions.
