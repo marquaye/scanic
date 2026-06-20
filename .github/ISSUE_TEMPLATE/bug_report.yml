@@ -1,0 +1,63 @@
+name: 🐛 Bug report
+description: Something isn't working as expected
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to file a bug! Please fill in as much as you can —
+        for detection issues, a **sample image** is by far the most useful thing.
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: A clear description of the bug and what you expected to happen instead.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to reproduce
+      description: Minimal steps or a code snippet that reproduces the issue.
+      placeholder: |
+        ```js
+        import { scanDocument } from 'scanic'
+        const result = await scanDocument(img, { mode: 'extract' })
+        // ...
+        ```
+    validations:
+      required: true
+  - type: input
+    id: sample
+    attributes:
+      label: Sample image
+      description: For detection/extraction issues, link or attach the image you tested with (drag it into the box below the form).
+  - type: input
+    id: version
+    attributes:
+      label: Scanic version
+      placeholder: "1.2.0"
+    validations:
+      required: true
+  - type: dropdown
+    id: environment
+    attributes:
+      label: Environment
+      options:
+        - Browser
+        - Node.js
+        - Electron
+        - Other (describe below)
+    validations:
+      required: true
+  - type: input
+    id: env-details
+    attributes:
+      label: Runtime details
+      description: Browser + version, or Node/Electron version, and OS.
+      placeholder: "Chrome 124 on macOS 14 / Node 20.11"
+  - type: textarea
+    id: logs
+    attributes:
+      label: Console output / errors
+      render: shell
