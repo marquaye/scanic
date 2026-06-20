@@ -1464,7 +1464,10 @@ function createCornerEditor(options = {}) {
   let focusedCornerKey = "topLeft";
   let dragPointerId = null;
   let lastPointerPosition = null;
-  Math.max(24, options.handleHitArea || 44);
+  const handleHit = Math.max(24, options.handleHitArea || 44);
+  if (options.handleHitArea) {
+    container.style.setProperty("--scanic-handle-hit", handleHit + "px");
+  }
   const cornerOrder = ["topLeft", "topRight", "bottomRight", "bottomLeft"];
   const cornerLabels = {
     topLeft: "Top-left corner",
