@@ -16,6 +16,8 @@ const outputRoot = path.join(rootDir, 'test', 'output', 'baseline');
 
 const isUpdateMode = process.argv.includes('--update');
 const maxProcessingDimension = 800;
+const cornerTolerancePx = 3;
+const outputSizeTolerancePx = 4;
 const minConfidenceForSuccess = 0.1;
 const minCoverageRatioForSuccess = 0.01;
 // A phase may be at most this many times slower than the stored baseline before

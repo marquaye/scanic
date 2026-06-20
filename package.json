@@ -24,6 +24,7 @@
     "docs:dev": "vitepress dev docs",
     "docs:build": "vite build && node scripts/stage-docs-demo.mjs && vitepress build docs",
     "docs:preview": "vitepress preview docs",
+    "lint": "eslint src scripts",
     "build:wasm": "docker compose -f dev/docker-compose.yml up --build && node scripts/postprocess-wasm.mjs",
     "test": "vitest run",
     "diagnose:quality": "node scripts/diagnose-quality.js",
@@ -61,7 +62,10 @@
     "LICENSE"
   ],
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "canvas": "^3.2.0",
+    "eslint": "^10.5.0",
+    "globals": "^17.6.0",
     "jsdom": "^27.4.0",
     "terser": "^5.44.1",
     "vite": "^6.3.4",
