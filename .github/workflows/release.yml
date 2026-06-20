@@ -66,22 +66,41 @@ jobs:
       env:
         NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
       
+    - name: Build release notes from CHANGELOG
+      run: |
+        VERSION="${GITHUB_REF_NAME#v}"
+        {
+          # Extract this version's section from CHANGELOG.md (between its heading
+          # and the next "## [" heading). Literal match avoids regex bracket issues.
+          awk -v hdr="## [$VERSION]" '
+            index($0, hdr)==1 { flag=1; next }
+            flag && index($0, "## [")==1 { exit }
+            flag { print }
+          ' CHANGELOG.md | sed '/./,$!d'
+
+          echo ""
+          echo "## Installation"
+          echo ""
+          echo '```bash'
+          echo "npm install scanic@$VERSION"
+          echo '```'
+          echo ""
+          echo "Or via CDN:"
+          echo ""
+          echo '```html'
+          echo "<script src=\"https://unpkg.com/scanic@$VERSION/dist/scanic.js\"></script>"
+          echo '```'
+        } > RELEASE_NOTES.md
+        echo "----- release notes -----"
+        cat RELEASE_NOTES.md
+
     - name: Create Release
       uses: softprops/action-gh-release@v2
       with:
         tag_name: ${{ github.ref_name }}
         name: Release ${{ github.ref_name }}
-        body: |
-          ## Installation
-          
-          ```bash
-          npm install scanic@${{ github.ref_name }}
-          ```
-          
-          Or use via CDN:
-          ```html
-          <script src="https://unpkg.com/scanic@${{ github.ref_name }}/dist/scanic.js"></script>
-          ```
+        body_path: RELEASE_NOTES.md
+        generate_release_notes: true
         draft: false
         prerelease: false
 
