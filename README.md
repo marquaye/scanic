@@ -13,7 +13,7 @@
     <a href="https://marquaye.github.io/scanic"><img src="https://img.shields.io/badge/docs-online-6366f1"></a>
 </p>
 
-# Scanic 📄⚡
+# Scanic
 
 **Ultra-fast, production-ready document scanning for the modern Web.**
 
@@ -451,12 +451,7 @@ Contributions are welcome! Whether it's reporting a bug, suggesting a feature, o
 
 ## 🗺️ Roadmap
 
-- [x] TypeScript definitions
-- [x] High-performance perspective transformation (Triangle Subdivision)
-- [ ] Enhanced WASM module with additional Rust-optimized algorithms
-- [ ] WebGPU acceleration for supported browsers
-- [ ] Mobile-optimized real-time video processing frames
-- [ ] Additional image enhancement filters (Adaptive Thresholding, B&W)
+See [**ROADMAP.md**](ROADMAP.md) for what's shipped and what's planned.
 
 ## License
 
