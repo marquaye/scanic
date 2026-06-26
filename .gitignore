@@ -17,3 +17,8 @@ docs/public/demo/
 
 # Coverage
 coverage/
+
+# ML training workspace (datasets, checkpoints, exported models)
+training/data/
+training/models/
+training/.venv/

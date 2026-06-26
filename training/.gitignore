@@ -1,0 +1,18 @@
+# Downloaded datasets (can be gigabytes)
+data/
+
+# Model checkpoints, exported models
+models/
+
+# Python virtualenv
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Generated annotation cache
+*.cache.json
