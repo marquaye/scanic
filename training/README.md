@@ -97,6 +97,12 @@ python 03_benchmark.py --n 0               # benchmark all val images
 python 03_benchmark.py --onnx path/to/model.onnx
 ```
 
+> **Classical vs ML (no-finetune) baseline** — for the full methodology,
+> reproduction commands, and findings comparing Scanic's classical detector
+> against the off-the-shelf model, see
+> [`../scripts/ml-spike/EVALUATION.md`](../scripts/ml-spike/EVALUATION.md).
+> That is the yardstick the fine-tuned/INT8 model must beat.
+
 ### Step 4 — Two-stage fine-tuning
 
 ```bash
