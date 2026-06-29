@@ -44,11 +44,21 @@ export class Scanner {
    */
   async initialize() {
     if (this.initialized) return;
-    // Best-effort WASM warm-up; pure-JS fallbacks cover engines without it.
-    try {
-      await initializeWasm();
-    } catch {
-      // WASM unavailable — continue with the JavaScript implementation.
+    if (this.defaultOptions.detector === 'ml') {
+      // Best-effort ML warm-up (lazy-loaded; never bundled into the classical path).
+      try {
+        const { initializeMl } = await import('./mlDetector.js');
+        await initializeMl(this.defaultOptions.ml || {});
+      } catch {
+        // ORT / assets unavailable — scan() will surface the error per-call.
+      }
+    } else {
+      // Best-effort WASM warm-up; pure-JS fallbacks cover engines without it.
+      try {
+        await initializeWasm();
+      } catch {
+        // WASM unavailable — continue with the JavaScript implementation.
+      }
     }
     this.initialized = true;
   }
@@ -1049,25 +1059,37 @@ export async function scanDocument(image, options = {}) {
   const outputType = options.output || 'canvas';
   const debug = !!options.debug;
   const maxProcessingDimension = options.maxProcessingDimension || 800;
+  const detector = options.detector || 'classical';
 
-  // Combined image preparation + downscaling + grayscale (OffscreenCanvas + CSS filter)
-  let t0 = performance.now();
-  const { grayscaleData, imageData, scaleFactor, originalDimensions, scaledDimensions } = 
-    await prepareScaleAndGrayscale(image, maxProcessingDimension);
-  timings.push({ step: 'Image Prep + Scale + Gray', ms: (performance.now() - t0).toFixed(2) });
+  let detection;
+  let t0;
 
-  // Detect document (pass pre-computed grayscale data)
-  const detection = await detectDocumentInternal(
-    grayscaleData, 
-    scaledDimensions.width, 
-    scaledDimensions.height, 
-    scaleFactor, 
-    options
-  );
-  
-  // Merge detailed detection timings
-  if (detection.timings) {
-    detection.timings.forEach(t => timings.push(t));
+  if (detector === 'ml') {
+    // Optional ML detector. Lazily imported so the classical build never bundles
+    // onnxruntime-web or the model loader — classical-only users pay zero bytes.
+    t0 = performance.now();
+    const { detectDocumentMl } = await import('./mlDetector.js');
+    detection = await detectDocumentMl(image, options.ml || {});
+    timings.push({ step: 'ML Detection Total', ms: (performance.now() - t0).toFixed(2) });
+    if (detection.timings) detection.timings.forEach(t => timings.push(t));
+  } else {
+    // Classical pipeline: image preparation + downscaling + grayscale, then Canny.
+    t0 = performance.now();
+    const { grayscaleData, scaleFactor, scaledDimensions } =
+      await prepareScaleAndGrayscale(image, maxProcessingDimension);
+    timings.push({ step: 'Image Prep + Scale + Gray', ms: (performance.now() - t0).toFixed(2) });
+
+    detection = await detectDocumentInternal(
+      grayscaleData,
+      scaledDimensions.width,
+      scaledDimensions.height,
+      scaleFactor,
+      options
+    );
+
+    if (detection.timings) {
+      detection.timings.forEach(t => timings.push(t));
+    }
   }
   
   if (!detection.success) {
@@ -1079,6 +1101,7 @@ export async function scanDocument(image, options = {}) {
       corners: null,
       contour: null,
       confidence: detection.confidence || null,
+      score: detection.score ?? null,
       debug: detection.debug,
       success: false,
       message: detection.message || 'No document detected',
@@ -1123,8 +1146,9 @@ export async function scanDocument(image, options = {}) {
   return {
     output,
     corners: detection.corners,
-    contour: detection.contour,
+    contour: detection.contour ?? null,
     confidence: detection.confidence || null,
+    score: detection.score ?? null,
     debug: detection.debug,
     success: true,
     message: 'Document detected',
