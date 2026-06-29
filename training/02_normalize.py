@@ -648,6 +648,44 @@ def _parse_roboflow() -> list[dict]:
     return records
 
 
+# ── DocCornerDataset ───────────────────────────────────────────────────────────
+
+def _parse_doccornerdataset() -> list[dict]:
+    """mapo80/DocCornerDataset: normalized corners from annotations.json.
+
+    All images are 640×640. Preserves the pre-defined train/val/test splits via
+    the `dcd_split` field so main() can hold out the test set separately.
+    """
+    root = RAW_DIR / "doccornerdataset"
+    ann_path = root / "annotations.json"
+    if not ann_path.exists():
+        print("[skip] DocCornerDataset not found -- run 01_download.py first")
+        return []
+
+    W = H = 640  # all images are 640×640 (verified)
+    data = json.loads(ann_path.read_text())
+    records = []
+    for split, entries in data.items():
+        for e in entries:
+            c = e["corners_norm"]
+            corners = {
+                "topLeft":     {"x": c["tl_x"] * W, "y": c["tl_y"] * H},
+                "topRight":    {"x": c["tr_x"] * W, "y": c["tr_y"] * H},
+                "bottomRight": {"x": c["br_x"] * W, "y": c["br_y"] * H},
+                "bottomLeft":  {"x": c["bl_x"] * W, "y": c["bl_y"] * H},
+            }
+            records.append({
+                "file":      e["file"],
+                "width":     W,
+                "height":    H,
+                "source":    "doccornerdataset",
+                "group":     e["file"],  # each image is independent
+                "dcd_split": split,
+                "corners":   _clamp_corners(corners, W, H),
+            })
+    return records
+
+
 # ── split + write ──────────────────────────────────────────────────────────────
 
 def _filter_degenerate(records: list[dict], min_area_ratio: float) -> list[dict]:
@@ -708,12 +746,13 @@ def main():
     all_records: list[dict] = []
 
     parsers = [
-        ("MIDV-500",     _parse_midv500),
-        ("SmartDoc",     _parse_smartdoc),
-        ("FairScan",     _parse_fairscan),
-        ("UVDoc",        _parse_uvdoc),
-        ("WarpDoc",      _parse_warpdoc),
-        ("Roboflow",     _parse_roboflow),
+        ("MIDV-500",          _parse_midv500),
+        ("SmartDoc",          _parse_smartdoc),
+        ("FairScan",          _parse_fairscan),
+        ("UVDoc",             _parse_uvdoc),
+        ("WarpDoc",           _parse_warpdoc),
+        ("Roboflow",          _parse_roboflow),
+        ("DocCornerDataset",  _parse_doccornerdataset),
     ]
 
     for name, fn in parsers:
@@ -728,19 +767,20 @@ def main():
     all_records = _filter_degenerate(all_records, args.min_area)
     print(f"After area filter ({args.min_area:.0%}): {len(all_records)}")
 
-    # Hold out the Roboflow `test/` split entirely. These are real-world phone
-    # photos and serve as a deployment-representative metric, logged separately
-    # during training (never used for checkpointing the group-aware val).
-    rf_test = [r for r in all_records if r.get("rf_split") == "test"]
-    pool    = [r for r in all_records if r.get("rf_split") != "test"]
+    # Hold out Roboflow test + DocCornerDataset test as real-world metrics.
+    rf_test  = [r for r in all_records if r.get("rf_split")  == "test"]
+    dcd_test = [r for r in all_records if r.get("dcd_split") == "test"]
+    pool     = [r for r in all_records
+                if r.get("rf_split") != "test" and r.get("dcd_split") != "test"]
 
     train, val = _grouped_split(pool, args.val_split)
     print(f"Split -> train: {len(train)}  val: {len(val)}  "
-          f"roboflow_test: {len(rf_test)}")
+          f"roboflow_test: {len(rf_test)}  dcd_test: {len(dcd_test)}")
 
-    (NORM_DIR / "train.json"        ).write_text(json.dumps({"images": train  }, indent=2))
-    (NORM_DIR / "val.json"          ).write_text(json.dumps({"images": val    }, indent=2))
-    (NORM_DIR / "roboflow_test.json").write_text(json.dumps({"images": rf_test }, indent=2))
+    (NORM_DIR / "train.json"        ).write_text(json.dumps({"images": train   }, indent=2))
+    (NORM_DIR / "val.json"          ).write_text(json.dumps({"images": val     }, indent=2))
+    (NORM_DIR / "roboflow_test.json").write_text(json.dumps({"images": rf_test  }, indent=2))
+    (NORM_DIR / "dcd_test.json"     ).write_text(json.dumps({"images": dcd_test }, indent=2))
 
     # Leakage check: no group may appear on both sides of the split.
     train_groups = {r.get("group", r["file"]) for r in train}

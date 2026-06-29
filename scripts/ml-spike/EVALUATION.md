@@ -1,4 +1,59 @@
-# Classical vs ML (no-finetune) — evaluation & reproduction
+# Three-way comparison — classical vs ML(no-finetune) vs ML(finetune)
+
+> **Update (finetune added).** The original baseline below compared classical vs
+> the off-the-shelf DocCornerNet V2. We've now added our **fine-tuned** model and
+> scored all approaches on the **same GT set** (`dcd_test`, 200 images) for
+> quality + latency + size. Reproduce with:
+> ```bash
+> export PATH="$HOME/.local/node/bin:$PATH"
+> node scripts/eval_classical.js          # classical preds + latency -> /tmp/classical_pred.json
+> python training/06_compare_three.py     # scores all three, writes /tmp/three_way_results.json
+> ```
+>
+> | approach | err_median (px@224) | err_mean | IoU vs GT | <10px | detect | latency | size |
+> |---|---|---|---|---|---|---|---|
+> | Classical (scanic) | 78.7 | 113.3 | 0.393 | 20% | 100% | 135 ms¹ | — |
+> | **ML no-finetune (DocCornerNet V2, SimCC)** | **2.9** | **9.0** | **0.854** | **72%** | 100% | 8.4 ms² | 2.46 MB |
+> | ML finetune fp32 (a050, regression) | 25.0 | 37.5 | 0.536 | 23% | 100% | 1.9 ms² | 4.08 MB |
+> | ML finetune INT8 (a050, regression) | 25.4 | 37.4 | 0.535 | 26% | 100% | 1.9 ms² | 1.30 MB |
+>
+> ¹ node JS-fallback (no Rust/WASM build here); production WASM+SIMD ≈ 3–4× faster.
+> ² ORT CPU **single-thread**.
+>
+> ## WINNER: lean SimCC retrain (smaller + faster + more accurate)
+>
+> Retraining a **channel-slimmed SimCC** (MobileNetV2 α=0.35, `fpn_ch` 24,
+> `simcc_ch` 64, 224px, 80 epochs on DocCornerDataset via `training/simcc_train/`)
+> beats the baseline on **every axis** — and without any quantization:
+>
+> | model | dcd_test median err | IoU vs GT | WASM 1-thr | WASM 4-thr | size | params |
+> |---|---|---|---|---|---|---|
+> | SimCC baseline fp32 (V2) | 2.9 px | 0.854 | 32.4 ms | 10.7 ms | 2.46 MB | 600K |
+> | SimCC baseline INT8 | 3.3 px | 0.831 | 49.2 ms | 22.2 ms | 1.30 MB | 600K |
+> | **SimCC LEAN fp32 (ours)** | **2.3 px** | **0.892** | **10.6 ms** | **3.8 ms** | **1.82 MB** | **456K** |
+>
+> ~3× faster in WASM, 26% smaller, and *more* accurate. This is the key lesson:
+> **architecture slimming (a lighter SimCC head) is the lever — not post-training
+> quantization**, which only added size at the cost of latency. Export with
+> `training/simcc_train/export_onnx.py`; model at
+> `scripts/ml-spike/model/doccornernet_lean.onnx`. (Accuracy gain partly reflects
+> training on the full current DocCornerDataset; latency/size gains are the slim
+> architecture.)
+>
+> ---
+>
+> **Verdict (earlier baseline).** The **no-finetune SimCC model is the clear quality winner** (2.9 px
+> median, IoU 0.85). Our fine-tuned **regression** model is ~8× worse on median
+> error despite being smaller/faster — size & speed don't matter when accuracy
+> regresses this hard. Classical collapses to the image frame on ~half of these
+> cluttered phone photos (IoU 0.39). INT8 quantisation of the finetune is
+> **lossless** (25.0 → 25.4 px). **Conclusion: the architecture, not the training,
+> is the lever — adopt SimCC and compress *that*, rather than regressing 8 coords.**
+> See `training/04_train_pytorch.py` (regression A/B) and `06_compare_three.py`.
+
+---
+
+# Classical vs ML (no-finetune) — original baseline
 
 This note documents the **baseline comparison** we ran *before* any QAT
 fine-tuning: Scanic's **classical** corner detector vs the **off-the-shelf**

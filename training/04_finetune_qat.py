@@ -259,6 +259,28 @@ def load_keras_model(model_dir: Path) -> tf.keras.Model:
     )
 
 
+def build_fresh_model(input_size: int = 224) -> tf.keras.Model:
+    """MobileNetV2 backbone (ImageNet weights) + 8-D corner regression head.
+
+    Produces a single output tensor of shape (batch, 8) matching the corner
+    order expected by CornerTrainer: [tl_x, tl_y, tr_x, tr_y, br_x, br_y, bl_x, bl_y]
+    in normalised [0, 1] coordinates.
+    """
+    backbone = tf.keras.applications.MobileNetV2(
+        input_shape=(input_size, input_size, 3),
+        include_top=False,
+        weights="imagenet",
+    )
+    x = backbone.output
+    x = tf.keras.layers.GlobalAveragePooling2D()(x)
+    x = tf.keras.layers.Dense(256, activation="relu")(x)
+    x = tf.keras.layers.Dropout(0.2)(x)
+    coords = tf.keras.layers.Dense(8, activation="sigmoid", name="corners")(x)
+    model = tf.keras.Model(inputs=backbone.input, outputs=coords, name="DocCornerNet_fresh")
+    print(f"  Built fresh MobileNetV2 model ({model.count_params():,} params)")
+    return model
+
+
 # ── custom trainer ──────────────────────────────────────────────────────────────
 
 class CornerTrainer(tf.keras.Model):
@@ -433,6 +455,8 @@ def main():
     parser.add_argument("--batch",        type=int,   default=16)
     parser.add_argument("--model",        type=Path,  default=BASE_MODEL,
                         help="Base model for Stage A (HF SavedModel dir)")
+    parser.add_argument("--from-scratch", action="store_true",
+                        help="Build fresh MobileNetV2+head instead of loading base model")
     parser.add_argument("--no-geom-aug",  action="store_true",
                         help="Disable geometric augmentation (photometric only)")
     parser.add_argument("--merge-val",    action="store_true",
@@ -471,8 +495,12 @@ def main():
 
     # ── Stage A: float32 domain adaptation ─────────────────────────────────────
     if args.stage in ("float", "both"):
-        print("\n--- Loading base model for Stage A ---")
-        base_model = load_keras_model(args.model)
+        if args.from_scratch:
+            print("\n--- Building fresh MobileNetV2 model for Stage A ---")
+            base_model = build_fresh_model(SIZE)
+        else:
+            print("\n--- Loading base model for Stage A ---")
+            base_model = load_keras_model(args.model)
         if args.freeze_backbone:
             for layer in base_model.layers:
                 if "mobilenet" in layer.name.lower():

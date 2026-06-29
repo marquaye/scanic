@@ -398,6 +398,114 @@ def _download_roboflow_package(dest: Path):
         )
 
 
+# ── DocCornerDataset (HuggingFace) ────────────────────────────────────────────
+
+HF_DOCCORNER_DATASET = "mapo80/DocCornerDataset"
+
+
+def download_doccornerdataset():
+    """Download mapo80/DocCornerDataset from HuggingFace.
+
+    ~49 K annotated phone photos of documents with pre-defined train/val/test
+    splits. Images are JPEG bytes embedded in Parquet shards; we extract them
+    to disk one shard at a time (avoids double-storing ~5 GB) and write a
+    single annotations.json for 02_normalize.py.
+
+    Corners are stored normalised [0, 1]; 02_normalize.py converts them to
+    pixel coords. Negative examples (is_negative=True) are skipped.
+    """
+    dest = RAW_DIR / "doccornerdataset"
+    if (dest / ".done").exists():
+        print("[skip] DocCornerDataset already downloaded")
+        return
+
+    print(f"\n=== DocCornerDataset ({HF_DOCCORNER_DATASET}) ===")
+    dest.mkdir(parents=True, exist_ok=True)
+
+    try:
+        import pandas as pd
+        from huggingface_hub import HfApi, hf_hub_download
+    except ImportError as exc:
+        print(f"  [WARN] Missing dependency: {exc}")
+        print("  pip install huggingface_hub pandas pyarrow")
+        return
+
+    try:
+        api = HfApi()
+        info = api.dataset_info(HF_DOCCORNER_DATASET)
+    except Exception as exc:
+        print(f"  [WARN] Could not reach HuggingFace: {exc}")
+        return
+
+    parquet_files = sorted(
+        f.rfilename for f in info.siblings
+        if any(f.rfilename.startswith(s + "/") for s in ("train", "val", "test"))
+        and f.rfilename.endswith(".parquet")
+    )
+    print(f"  {len(parquet_files)} shards ({sum(1 for f in parquet_files if f.startswith('train/'))} train / "
+          f"{sum(1 for f in parquet_files if f.startswith('val/'))} val / "
+          f"{sum(1 for f in parquet_files if f.startswith('test/'))} test)")
+
+    cache_dir = dest / "_cache"
+    annotations: dict[str, list] = {"train": [], "val": [], "test": []}
+
+    try:
+        for shard_name in tqdm(parquet_files, desc="  shards"):
+            split = shard_name.split("/")[0]
+            split_dir = dest / split
+            split_dir.mkdir(exist_ok=True)
+
+            local_shard = Path(hf_hub_download(
+                repo_id=HF_DOCCORNER_DATASET,
+                filename=shard_name,
+                repo_type="dataset",
+                local_dir=str(cache_dir),
+            ))
+
+            df = pd.read_parquet(local_shard)
+            for _, row in df.iterrows():
+                fname = row["filename"]
+                out_path = split_dir / fname
+                if not out_path.exists():
+                    out_path.write_bytes(row["image"]["bytes"])
+                if not bool(row["is_negative"]):
+                    annotations[split].append({
+                        "file": str(out_path),
+                        "corners_norm": {
+                            "tl_x": float(row["corner_tl_x"]),
+                            "tl_y": float(row["corner_tl_y"]),
+                            "tr_x": float(row["corner_tr_x"]),
+                            "tr_y": float(row["corner_tr_y"]),
+                            "br_x": float(row["corner_br_x"]),
+                            "br_y": float(row["corner_br_y"]),
+                            "bl_x": float(row["corner_bl_x"]),
+                            "bl_y": float(row["corner_bl_y"]),
+                        },
+                    })
+
+            local_shard.unlink(missing_ok=True)
+
+    except Exception as exc:
+        print(f"  [WARN] Download/extraction failed: {exc}")
+        print("  Check HF login: huggingface-cli login")
+        import shutil
+        shutil.rmtree(cache_dir, ignore_errors=True)
+        return
+
+    import shutil
+    shutil.rmtree(cache_dir, ignore_errors=True)
+
+    ann_path = dest / "annotations.json"
+    ann_path.write_text(json.dumps(annotations, indent=2))
+
+    for split, records in annotations.items():
+        print(f"  {split}: {len(records)} positive examples extracted")
+    print(f"  Annotations -> {ann_path}")
+
+    (dest / ".done").write_text("ok")
+    print(f"DocCornerDataset -> {dest}")
+
+
 # ── HuggingFace model weights ──────────────────────────────────────────────────
 
 HF_REPO = "mapo80/DocCornerNet-CoordClass-V2"
@@ -430,7 +538,7 @@ def main():
     parser = argparse.ArgumentParser(description="Download datasets and model weights")
     parser.add_argument(
         "--datasets", default="all",
-        help="Comma-separated list: all | midv500 | smartdoc | fairscan | uvdoc | roboflow"
+        help="Comma-separated list: all | midv500 | smartdoc | fairscan | uvdoc | roboflow | doccornerdataset"
     )
     parser.add_argument("--model", action="store_true", default=True,
                         help="Download HuggingFace model weights (default: on)")
@@ -444,13 +552,14 @@ def main():
     selected = {s.strip() for s in args.datasets.split(",")}
     do_all = "all" in selected
 
-    if do_all or "midv500"  in selected: download_midv500(args.midv_clips)  # n_zips
-    if do_all or "smartdoc" in selected: download_smartdoc(args.smartdoc_full)
-    if do_all or "fairscan" in selected: download_fairscan()
-    if do_all or "uvdoc"    in selected: download_uvdoc()
-    if do_all or "warpdoc"  in selected: download_warpdoc()
-    if do_all or "roboflow" in selected: download_roboflow()
-    if args.model:                        download_model()
+    if do_all or "midv500"          in selected: download_midv500(args.midv_clips)
+    if do_all or "smartdoc"        in selected: download_smartdoc(args.smartdoc_full)
+    if do_all or "fairscan"        in selected: download_fairscan()
+    if do_all or "uvdoc"           in selected: download_uvdoc()
+    if do_all or "warpdoc"         in selected: download_warpdoc()
+    if do_all or "roboflow"        in selected: download_roboflow()
+    if do_all or "doccornerdataset" in selected: download_doccornerdataset()
+    if args.model:                               download_model()
 
     print("\nok All downloads complete. Run  python 02_normalize.py  next.")
 

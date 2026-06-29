@@ -16,3 +16,10 @@ __pycache__/
 
 # Generated annotation cache
 *.cache.json
+
+# TensorBoard logs
+runs/
+
+# Downloaded HF dataset parquets (gigabytes) + caches
+simcc_train/hf_dataset/
+simcc_train/**/__pycache__/
