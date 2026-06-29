@@ -31,7 +31,9 @@ const result = await scanDocument(img, { mode: 'extract', output: 'canvas' })
 | :--- | :--- | :--- | :--- |
 | `mode` | `'detect' \| 'extract'` | `'detect'` | `detect` returns coordinates; `extract` returns the warped image. |
 | `output` | `'canvas' \| 'imagedata' \| 'dataurl'` | `'canvas'` | Format of the returned processed image. |
-| `maxProcessingDimension` | `number` | `800` | Downscale to this size for detection (faster). |
+| `detector` | `'classical' \| 'ml'` | `'classical'` | Detection backend. `'ml'` uses the optional DocCornerNet model — see the [ML Detection guide](/guide/ml-detection). |
+| `ml` | `MlDetectorOptions` | — | Options for the ML detector (`assetBaseUrl`, `modelUrl`, `numThreads`, `minScore`, …). Only used when `detector: 'ml'`. |
+| `maxProcessingDimension` | `number` | `800` | Downscale to this size for detection (faster). Classical only. |
 | `lowThreshold` | `number` | adaptive | Lower Canny threshold. Omit (with `highThreshold`) for adaptive. |
 | `highThreshold` | `number` | adaptive | Upper Canny threshold. |
 | `applyDilation` | `boolean` | `true` | Enable dilation in the primary pass. |
@@ -61,6 +63,7 @@ interface ScannerResult {
   success: boolean       // Was a document found?
   message: string        // Status or error message
   confidence?: number | null
+  score?: number | null          // P(document present) — ML detector only
   corners: CornerPoints | null   // { topLeft, topRight, bottomRight, bottomLeft }
   output: HTMLCanvasElement | ImageData | string | null  // warped image (extract mode)
   contour: Point[] | null        // raw detection points
