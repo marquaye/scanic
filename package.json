@@ -61,6 +61,14 @@
     "README.md",
     "LICENSE"
   ],
+  "peerDependencies": {
+    "onnxruntime-web": "1.23.x"
+  },
+  "peerDependenciesMeta": {
+    "onnxruntime-web": {
+      "optional": true
+    }
+  },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "@vitest/coverage-v8": "^4.1.9",
@@ -68,6 +76,8 @@
     "eslint": "^10.5.0",
     "globals": "^17.6.0",
     "jsdom": "^29.1.1",
+    "onnxruntime-web": "1.23.2",
+    "playwright": "^1.61.1",
     "terser": "^5.44.1",
     "vite": "^8.0.16",
     "vitepress": "^1.6.4",
