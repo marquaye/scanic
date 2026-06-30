@@ -18,9 +18,21 @@ npm install scanic onnxruntime-web@1.23.x
 ```
 
 `onnxruntime-web` is an **optional peer dependency** — install it only if you use
-the ML detector. The model and a custom WASM runtime are fetched from a CDN on
-first use (the companion [`scanic-ml`](https://www.npmjs.com/package/scanic-ml)
-package, mirrored by jsDelivr).
+the ML detector. It supplies just the **JS API** (`InferenceSession`, `Tensor`),
+which is the only part bundled into your app.
+
+Its own ~13 MB WASM is **not used**: scanic points the runtime at the custom
+minimal WASM build instead. So on first use the browser downloads ~2 MB from a
+CDN — a 1.9 MB model plus the **custom 1.5 MB ONNX Runtime WASM** (~88% smaller
+than stock) — from the companion
+[`scanic-ml`](https://www.npmjs.com/package/scanic-ml) package, mirrored by
+jsDelivr. The onnxruntime-web WASM that lands in `node_modules` never reaches the
+browser.
+
+::: tip Why pin `1.23.x`?
+The custom WASM build is ABI-locked to a specific onnxruntime-web JS version.
+Pinning `1.23.x` keeps the JS glue and the custom WASM compatible.
+:::
 
 ```js
 import { scanDocument } from 'scanic';
