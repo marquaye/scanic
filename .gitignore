@@ -17,3 +17,10 @@ docs/public/demo/
 
 # Coverage
 coverage/
+
+# Python / ML spike artifacts
+.venv/
+__pycache__/
+overlays/
+training/data/
+training/models/
