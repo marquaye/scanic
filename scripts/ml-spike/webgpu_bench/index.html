@@ -1,0 +1,164 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8" />
+<title>DocCornerNet LEAN — WASM vs WebGPU benchmark</title>
+<script src="https://cdn.jsdelivr.net/npm/onnxruntime-web@1.27.0/dist/ort.webgpu.min.js"></script>
+<style>
+  body { font-family: -apple-system, Segoe UI, Roboto, sans-serif; margin: 24px; color: #1a1a1a; background: #fafafa; }
+  h1 { font-size: 20px; } h2 { font-size: 15px; margin: 18px 0 6px; }
+  .row { display: flex; gap: 24px; flex-wrap: wrap; align-items: flex-start; }
+  canvas { border: 1px solid #ccc; border-radius: 6px; max-width: 420px; height: auto; background:#fff; }
+  table { border-collapse: collapse; font-size: 14px; background:#fff; box-shadow:0 1px 4px rgba(0,0,0,.08); border-radius:6px; overflow:hidden; }
+  th, td { padding: 8px 14px; border-bottom: 1px solid #eee; text-align: right; }
+  th:first-child, td:first-child { text-align: left; }
+  thead th { background:#f3f4f6; }
+  .controls { margin: 12px 0; display:flex; gap:12px; align-items:center; flex-wrap:wrap; }
+  button { padding: 8px 16px; font-size: 14px; border-radius: 6px; border: 1px solid #2563eb; background:#2563eb; color:#fff; cursor:pointer; }
+  button:disabled { opacity:.5; cursor:default; }
+  select { padding:6px 10px; font-size:14px; border-radius:6px; }
+  #log { font-family: ui-monospace, monospace; font-size: 12px; color:#555; white-space: pre-wrap; margin-top:8px; }
+  .muted { color:#888; font-size:12px; }
+  .win { color:#059669; font-weight:600; }
+</style>
+</head>
+<body>
+<h1>DocCornerNet LEAN — WASM vs WebGPU latency</h1>
+<p class="muted">Runs the lean SimCC model (1.82 MB) on this browser's onnxruntime-web backends and overlays the predicted document quad. WebGPU needs Chrome/Edge with WebGPU enabled (chrome://gpu shows "WebGPU: Hardware accelerated").</p>
+
+<div class="controls">
+  <label>Image:
+    <select id="img">
+      <option>images/0123.jpg</option>
+      <option>images/test10.jpg</option>
+      <option>images/test5.JPG</option>
+      <option>images/25_2.jpg</option>
+      <option>images/test.png</option>
+      <option>images/1023-receipt.jpg</option>
+    </select>
+  </label>
+  <label>Timed runs: <input id="runs" type="number" value="50" min="10" style="width:60px"></label>
+  <button id="go">Run benchmark</button>
+</div>
+
+<div class="row">
+  <div>
+    <h2>Prediction (red quad = lean model)</h2>
+    <canvas id="cv" width="420" height="420"></canvas>
+  </div>
+  <div>
+    <h2>Latency</h2>
+    <table id="res">
+      <thead><tr><th>backend</th><th>median ms</th><th>p95 ms</th><th>status</th></tr></thead>
+      <tbody></tbody>
+    </table>
+    <div id="log"></div>
+  </div>
+</div>
+
+<script>
+const SIZE = 224, MEAN = [0.485,0.456,0.406], STD = [0.229,0.224,0.225];
+const ORDER_COLOR = '#e11d48';
+const logEl = document.getElementById('log');
+const log = (m) => { logEl.textContent += m + '\n'; console.log(m); };
+
+// jsdelivr also hosts the wasm/jsep binaries ort-web fetches at runtime
+ort.env.wasm.wasmPaths = 'https://cdn.jsdelivr.net/npm/onnxruntime-web@1.27.0/dist/';
+
+function preprocess(imgEl) {
+  const c = document.createElement('canvas'); c.width = SIZE; c.height = SIZE;
+  const ctx = c.getContext('2d');
+  ctx.drawImage(imgEl, 0, 0, imgEl.naturalWidth, imgEl.naturalHeight, 0, 0, SIZE, SIZE);
+  const { data } = ctx.getImageData(0, 0, SIZE, SIZE);
+  const t = new Float32Array(SIZE * SIZE * 3);
+  for (let p = 0, o = 0; p < data.length; p += 4, o += 3) {
+    t[o]   = (data[p]   / 255 - MEAN[0]) / STD[0];
+    t[o+1] = (data[p+1] / 255 - MEAN[1]) / STD[1];
+    t[o+2] = (data[p+2] / 255 - MEAN[2]) / STD[2];
+  }
+  return new ort.Tensor('float32', t, [1, SIZE, SIZE, 3]);
+}
+
+function coordsFrom(outputs) {
+  for (const k in outputs) { const d = outputs[k].data; if (d.length === 8) return d; }
+  return null;
+}
+
+function median(a){ const s=[...a].sort((x,y)=>x-y); return s[Math.floor(s.length/2)]; }
+function p95(a){ const s=[...a].sort((x,y)=>x-y); return s[Math.floor(s.length*0.95)]; }
+
+async function benchBackend(ep, tensor, runs) {
+  let sess;
+  try {
+    sess = await ort.InferenceSession.create('doccornernet_lean.onnx', { executionProviders: [ep] });
+  } catch (e) {
+    return { ep, err: String(e).slice(0, 90) };
+  }
+  const name = sess.inputNames[0];
+  // warmup
+  let out;
+  for (let i = 0; i < 10; i++) out = await sess.run({ [name]: tensor });
+  const times = [];
+  for (let i = 0; i < runs; i++) {
+    const t0 = performance.now();
+    out = await sess.run({ [name]: tensor });
+    times.push(performance.now() - t0);
+  }
+  return { ep, median: median(times), p95: p95(times), coords: coordsFrom(out) };
+}
+
+function drawPrediction(imgEl, coords) {
+  const cv = document.getElementById('cv'), ctx = cv.getContext('2d');
+  const W = cv.width, H = cv.height;
+  ctx.clearRect(0,0,W,H); ctx.drawImage(imgEl, 0, 0, W, H);
+  if (!coords) return;
+  ctx.strokeStyle = ORDER_COLOR; ctx.lineWidth = 3; ctx.fillStyle = ORDER_COLOR;
+  ctx.beginPath();
+  for (let i = 0; i < 4; i++) {
+    const x = coords[i*2] * W, y = coords[i*2+1] * H;
+    if (i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+  }
+  ctx.closePath(); ctx.stroke();
+  for (let i = 0; i < 4; i++) {
+    ctx.beginPath(); ctx.arc(coords[i*2]*W, coords[i*2+1]*H, 5, 0, 7); ctx.fill();
+  }
+}
+
+document.getElementById('go').onclick = async () => {
+  const btn = document.getElementById('go'); btn.disabled = true;
+  logEl.textContent = '';
+  document.querySelector('#res tbody').innerHTML = '';
+  const runs = +document.getElementById('runs').value;
+  const src = document.getElementById('img').value;
+
+  const imgEl = new Image();
+  await new Promise((r, j) => { imgEl.onload = r; imgEl.onerror = () => j(new Error('image load failed: '+src)); imgEl.src = src; });
+  log('Loaded ' + src + ' (' + imgEl.naturalWidth + 'x' + imgEl.naturalHeight + ')');
+  const tensor = preprocess(imgEl);
+
+  const tbody = document.querySelector('#res tbody');
+  const results = {};
+  for (const ep of ['wasm', 'webgpu']) {
+    log('Benchmarking ' + ep + ' ...');
+    const r = await benchBackend(ep, tensor, runs);
+    results[ep] = r;
+    const tr = document.createElement('tr');
+    if (r.err) {
+      tr.innerHTML = `<td>${ep}</td><td>—</td><td>—</td><td style="color:#b91c1c">${r.err}</td>`;
+    } else {
+      tr.innerHTML = `<td>${ep}</td><td>${r.median.toFixed(2)}</td><td>${r.p95.toFixed(2)}</td><td>ok</td>`;
+    }
+    tbody.appendChild(tr);
+    if (r.coords) drawPrediction(imgEl, r.coords);
+  }
+  if (results.wasm?.median && results.webgpu?.median) {
+    const sp = (results.wasm.median / results.webgpu.median);
+    log(`\nWebGPU speedup vs WASM: ${sp.toFixed(2)}x  (${results.wasm.median.toFixed(2)} -> ${results.webgpu.median.toFixed(2)} ms)`);
+  }
+  log('\nDevice: ' + navigator.userAgent.split(') ')[0] + ')');
+  log('navigator.gpu: ' + (navigator.gpu ? 'available' : 'NOT available (WebGPU disabled)'));
+  btn.disabled = false;
+};
+</script>
+</body>
+</html>

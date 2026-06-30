@@ -43,6 +43,7 @@ Traditional web scanning solutions often force a trade-off:
 - 🦀 **WASM Core**: High-performance Gaussian Blur, Canny Edge Detection, and Dilation.
 - 🛠️ **Modern API**: Clean, Promise-based API with full **TypeScript** support.
 - 📦 **Featherweight**: Under **100KB** total size (gzipped).
+- 🤖 **Optional ML detector**: opt into a neural corner detector for hard photos — lazy-loaded, zero cost to classical users. See the [ML Detection guide](https://marquaye.github.io/scanic/guide/ml-detection).
 - 🧪 **Production Grade**: Built-in regression tests with physical image baselines.
 
 ## 🆕 What's New

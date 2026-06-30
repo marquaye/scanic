@@ -77,6 +77,7 @@ export default defineConfig({
             { text: 'Electron', link: '/guide/electron' },
             { text: 'React & Vue', link: '/guide/frameworks' },
             { text: 'Corner Editor', link: '/guide/corner-editor' },
+            { text: 'ML Detection', link: '/guide/ml-detection' },
             { text: 'Performance', link: '/guide/performance' }
           ]
         },

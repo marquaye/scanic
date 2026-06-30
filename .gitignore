@@ -5,7 +5,8 @@ docs/private
 node_modules/
 test/output/
 wasm_blur/target/
-dist/
+# scanic's own build output (root only) — not the committed scanic-ml/dist assets.
+/dist/
 .DS_Store
 *.log
 
@@ -22,5 +23,29 @@ coverage/
 .venv/
 __pycache__/
 overlays/
+# ML training workspace (datasets, checkpoints, exported models)
 training/data/
 training/models/
+training/.venv/
+
+# Rust->WASM build output / local JS-fallback stubs
+wasm_blur/pkg/
+
+# ML eval overlays (regenerable via the eval scripts)
+scripts/ml-spike/overlays_3way/
+scripts/ml-spike/overlays/
+# WebGPU bench bundled binaries (index.html is tracked; binaries are copies)
+scripts/ml-spike/webgpu_bench/*.onnx
+scripts/ml-spike/webgpu_bench/images/
+# Retrain/re-export artifacts + the rejected INT8 model (regenerable per MODEL_CARD).
+# The source doccornernet_lean.onnx + config + card ARE tracked.
+scripts/ml-spike/model/doccornernet_int8.onnx
+scripts/ml-spike/model/*.weights.h5
+scripts/ml-spike/model/*_history.json
+# Downloaded SimCC training code + HF dataset (external, multi-GB; reproduce per MODEL_CARD)
+training/simcc_train/
+
+# Throwaway tract benchmark experiments (rejected — see docs/guide/ml-detection.md).
+# Root-owned target/ from Docker; delete with: sudo rm -rf tract_bench tract_bench_wasm
+tract_bench/
+tract_bench_wasm/

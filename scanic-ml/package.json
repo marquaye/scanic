@@ -1,0 +1,30 @@
+{
+  "name": "scanic-ml",
+  "version": "0.1.0",
+  "description": "Optional ML document-corner detector assets for scanic — a channel-slimmed SimCC model (DocCornerNet) and a custom minimal ONNX Runtime Web WASM build (1.5 MB, ~88% smaller than stock ort-web).",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/marquaye/scanic.git",
+    "directory": "scanic-ml"
+  },
+  "keywords": [
+    "scanic",
+    "document-scanner",
+    "onnx",
+    "onnxruntime-web",
+    "wasm",
+    "corner-detection",
+    "doccornernet"
+  ],
+  "files": [
+    "dist/doccornernet_lean.ort",
+    "dist/ort-wasm-simd-threaded.mjs",
+    "dist/ort-wasm-simd.wasm",
+    "MODEL_CARD.md",
+    "README.md"
+  ],
+  "scripts": {
+    "build:wasm": "bash build/build_minimal.sh"
+  }
+}

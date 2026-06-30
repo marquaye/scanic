@@ -122,9 +122,37 @@ export interface CornerEditor {
   destroy(): void;
 }
 
+/**
+ * Options for the optional ML detector (`detector: 'ml'`). Assets are lazy-loaded
+ * from the companion `scanic-ml` package on a CDN by default; `onnxruntime-web`
+ * (v1.23.x, matching the bundled wasm) must be installed as a peer dependency.
+ */
+export interface MlDetectorOptions {
+  /** Base URL for the wasm + `.ort` model. Default: scanic-ml on jsDelivr. */
+  assetBaseUrl?: string;
+  /** Explicit model URL (overrides `assetBaseUrl` for the model). */
+  modelUrl?: string;
+  /** Explicit wasm directory (overrides `assetBaseUrl` for the runtime wasm). */
+  wasmPaths?: string;
+  /** Pre-fetched `.ort` model bytes (skips the network fetch). */
+  modelBytes?: Uint8Array;
+  /** ORT thread count. Default 1; values >1 require COOP/COEP headers on the host. */
+  numThreads?: number;
+  /** Minimum P(document) to report success. Default 0.5. */
+  minScore?: number;
+}
+
 export interface DetectionOptions {
   mode?: 'detect' | 'extract';
   output?: 'canvas' | 'imagedata' | 'dataurl';
+  /**
+   * Detection backend. `'classical'` (default) is the pure-JS/WASM Canny
+   * pipeline. `'ml'` uses the optional DocCornerNet SimCC model via
+   * onnxruntime-web — more robust on cluttered/low-contrast photos.
+   */
+  detector?: 'classical' | 'ml';
+  /** Options forwarded to the ML detector when `detector: 'ml'`. */
+  ml?: MlDetectorOptions;
   debug?: boolean;
   maxProcessingDimension?: number;
   lowThreshold?: number;
@@ -159,6 +187,8 @@ export interface ScannerResult {
   success: boolean;
   message: string;
   confidence?: number | null;
+  /** P(document present) from the ML detector (`detector: 'ml'`); null otherwise. */
+  score?: number | null;
   output: HTMLCanvasElement | ImageData | string | null;
   corners: CornerPoints | null;
   contour: Point[] | null;

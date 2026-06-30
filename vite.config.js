@@ -11,6 +11,11 @@ export default defineConfig({
     },
     outDir: 'dist',
     sourcemap: 'hidden',
+    rollupOptions: {
+      // The ML detector lazy-imports onnxruntime-web; keep it external so it is
+      // never bundled into scanic's classical build (and stays an optional dep).
+      external: ['onnxruntime-web']
+    },
     minify: 'terser',
     terserOptions: {
       compress: {
