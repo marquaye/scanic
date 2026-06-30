@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.3.0] - 2026-06-30
+
+### Added
+- **Optional ML document-corner detector**: pass `detector: 'ml'` to `scanDocument` or `Scanner` to use a neural corner detector — a channel-slimmed SimCC model (DocCornerNet, 456 K params, ~1.9 MB) paired with a custom minimal ONNX Runtime Web WASM build (~1.5 MB, 88 % smaller than stock ort-web). Classical users pay nothing: the detector is fully opt-in, lazy-loaded, and gated behind the optional peer dependency `onnxruntime-web`.
+- **`scanic-ml` companion package** (`npm install scanic-ml`): the model (`.ort` format) and the custom ORT WASM loader. Published to npm and served from jsDelivr by default — no self-hosting required. Self-hosting supported via the `ml.assetBaseUrl` option.
+- **`result.score`**: when using the ML detector, `scanDocument` returns a `score` field — the model's P(document present) confidence, 0–1.
+- **`ml` options namespace**: `assetBaseUrl`, `modelUrl`, `wasmPaths`, `modelBytes`, `numThreads`, and `minScore`.
+
 ## [1.2.0] - 2026-06-19
 
 ### Added

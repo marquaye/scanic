@@ -7,7 +7,7 @@
 import { describe, it, expect, beforeAll } from 'vitest';
 import fs from 'node:fs';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const distDir = path.resolve(__dirname, '../scanic-ml/dist');
@@ -43,7 +43,7 @@ describe('mlDetector', () => {
     const res = await detectDocumentMl(image, {
       inputData,
       modelBytes,
-      assetBaseUrl: distDir + '/',
+      assetBaseUrl: pathToFileURL(distDir).href + '/',
     });
 
     expect(res).toBeTruthy();
