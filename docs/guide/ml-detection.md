@@ -1,39 +1,31 @@
-# ML Detection (optional)
+# ML detection (optional)
 
-Scanic's default detector is the classical Canny + contour pipeline — tiny, fast,
-and dependency-free. For **hard photos** (cluttered desks, low contrast, strong
-perspective) you can opt into a neural detector that's far more robust, at the
-cost of a one-time ~2 MB lazy download.
+Scanic's default detector is the classical Canny and contour pipeline. It is
+small, fast, and needs no extra dependencies, and it handles clean documents
+well. On harder photos (cluttered backgrounds, low contrast, or strong
+perspective) it can miss the document. For those cases you can switch to a neural
+detector that is more robust, at the cost of a one time download of about 2 MB
+the first time it runs.
 
-::: tip Classical stays the default
-The ML detector is **fully opt-in and lazy-loaded**. If you never pass
-`detector: 'ml'`, scanic's bundle and behaviour are exactly as before — no
-onnxruntime, no model, ~15 KB gzipped core. Classical users pay nothing.
+::: tip It is opt in
+You enable the ML detector per call with `detector: 'ml'`. If your app never
+passes that option, none of the ML code or assets are loaded, so it adds nothing
+to what your users download. Your default scanning path stays exactly as it is.
 :::
 
-## Using it
+## Installation
 
 ```bash
 npm install scanic
 ```
 
-That's it — no separate `onnxruntime-web` install. The ONNX Runtime **JS API**
-(`InferenceSession`, `Tensor`) is bundled into scanic as a **lazy, code-split
-chunk** (~50 KB, gzip ~15 KB) that is only loaded the first time you use
-`detector: 'ml'`. Classical users never download it.
+There is no separate package to install. The ONNX Runtime JavaScript API is
+bundled inside scanic as a lazy chunk (about 50 KB, roughly 15 KB gzipped) that
+loads only the first time you call `detector: 'ml'`. The model and the WebAssembly
+runtime are fetched from a CDN on that first call, so you do not pin or manage any
+runtime version yourself.
 
-On that first ML call, the browser fetches ~2 MB from a CDN — a 1.9 MB model
-plus the **custom 1.5 MB ONNX Runtime WASM** (~88% smaller than stock) — from
-the companion [`scanic-ml`](https://www.npmjs.com/package/scanic-ml) package,
-mirrored by jsDelivr. scanic ships the exact ABI-matched ORT JS, so there is
-nothing to pin and no version mismatch to get wrong.
-
-::: tip UMD / `<script>` users
-The bundled chunk applies to the ESM build (the `import` path). If you consume
-the UMD/CommonJS build (`require('scanic')` or a `<script>` tag) and want ML,
-load `onnxruntime-web@1.23.x` yourself — it stays external there because UMD
-can't code-split.
-:::
+## Basic usage
 
 ```js
 import { scanDocument } from 'scanic';
@@ -42,43 +34,55 @@ const result = await scanDocument(image, { detector: 'ml' });
 
 if (result.success) {
   console.log(result.corners); // { topLeft, topRight, bottomRight, bottomLeft }
-  console.log(result.score);   // P(document present), 0–1
+  console.log(result.score);   // P(document present), 0 to 1
 }
 ```
 
-`extract` mode works identically — the ML corners feed the same perspective warp:
+`extract` mode works the same way. The detected corners feed the same perspective
+warp:
 
 ```js
 const { output } = await scanDocument(image, { detector: 'ml', mode: 'extract' });
 ```
 
-### Warming up
+::: tip Using the UMD or `<script>` build
+The bundled runtime applies to the ESM build (the `import` path). If you load
+scanic through `require('scanic')` or a `<script>` tag and want ML, add
+`onnxruntime-web@1.23.x` to your page yourself. It stays external in that build
+because the UMD format cannot split code into separate chunks.
+:::
 
-The first ML scan loads the runtime + model (~2 MB). Warm it up ahead of time with
-the `Scanner` class so the first user-facing scan is instant:
+## Warming up
+
+The first ML scan loads the runtime and model (about 2 MB). To avoid that delay
+on the first user action, warm it up ahead of time with the `Scanner` class:
 
 ```js
 import { Scanner } from 'scanic';
 
 const scanner = new Scanner({ detector: 'ml' });
-await scanner.initialize();          // fetches + compiles wasm + model
+await scanner.initialize();   // fetches and compiles the wasm and model
 const result = await scanner.scan(image);
 ```
 
 ## Options
 
-All under `options.ml`:
+All ML options live under `options.ml`:
 
 | Option | Type | Default | Description |
 | :--- | :--- | :--- | :--- |
-| `assetBaseUrl` | `string` | jsDelivr `scanic-ml` | Base URL serving the `.wasm` + `.ort` assets. Set this to self-host. |
+| `assetBaseUrl` | `string` | jsDelivr `scanic-ml` | Base URL that serves the `.wasm` and `.ort` assets. Set this to self host. |
 | `modelUrl` | `string` | `${assetBaseUrl}doccornernet_lean.ort` | Explicit model URL. |
-| `wasmPaths` | `string` | `assetBaseUrl` | Directory for the ORT wasm/loader. |
-| `modelBytes` | `Uint8Array` | — | Pre-fetched model bytes (skips the network). |
-| `numThreads` | `number` | `1` | ORT threads. `>1` needs COOP/COEP headers (see below). |
-| `minScore` | `number` | `0.5` | Minimum P(document) for `success: true`. |
+| `wasmPaths` | `string` | `assetBaseUrl` | Directory for the ORT wasm and loader. |
+| `modelBytes` | `Uint8Array` | (none) | Pre fetched model bytes, which skips the network request. |
+| `numThreads` | `number` | `1` | ORT thread count. Values above 1 need COOP and COEP headers (see below). |
+| `minScore` | `number` | `0.5` | Minimum P(document) for `success` to be `true`. |
 
-### Self-hosting (offline / no CDN)
+## Self hosting (offline or no CDN)
+
+If you cannot rely on the CDN, install the companion
+[`scanic-ml`](https://www.npmjs.com/package/scanic-ml) package, serve its `dist/`
+folder from your own origin, and point scanic at it:
 
 ```js
 await scanDocument(image, {
@@ -87,101 +91,59 @@ await scanDocument(image, {
 });
 ```
 
-Install `scanic-ml` and copy its `dist/` (3 files) to that path.
+## Threads (advanced)
 
-### Threads (advanced)
+The shipped wasm is single threaded (about 10 ms per scan) and works on any page
+with no special headers. A multi threaded build (about 4 ms per scan) needs both
+a four thread wasm build and
+[cross origin isolation](https://developer.mozilla.org/en-US/docs/Web/API/Window/crossOriginIsolated)
+(`COOP: same-origin` and `COEP: require-corp`). Most apps do not need this.
 
-The shipped wasm is **single-thread** (~10 ms/scan) so it works on any page with
-no special headers. Multi-threading (~4 ms/scan) needs both a 4-thread build and
-[cross-origin isolation](https://developer.mozilla.org/en-US/docs/Web/API/Window/crossOriginIsolated)
-(`COOP: same-origin` + `COEP: require-corp`). Most apps don't need it.
-
-## Classical vs ML — which to use?
+## Classical or ML: which to use
 
 | | Classical (default) | ML (`detector: 'ml'`) |
 | :--- | :--- | :--- |
-| **Download** | ~15 KB gz core | + ~15 KB gz JS chunk, then ~2 MB assets (lazy, once) |
-| **Dependencies** | none | none — ORT JS bundled, assets from CDN |
-| **Latency** | ~3–10 ms | ~10 ms (1 thread) |
-| **Clean docs** | excellent | excellent |
-| **Cluttered / low-contrast / skewed** | can degrade | robust |
+| Extra download | none | about 15 KB gzipped JS, then about 2 MB of assets on first use |
+| Dependencies | none | none. The runtime is bundled, assets come from a CDN |
+| Latency | 3 to 10 ms | about 10 ms (single thread) |
+| Clean documents | excellent | excellent |
+| Cluttered, low contrast, or skewed | can miss | more robust |
 
-Rule of thumb: ship **classical** by default; offer **ML** as a fallback when the
-classical result is low-confidence, or for camera scenes you know are messy.
+A good default is to run classical first and fall back to ML when the classical
+result is missing or low confidence, or to use ML directly for camera scenes you
+know are messy.
 
----
+## How it stays small and fast
 
-## The journey: how we got a small + fast ML detector
+The ML detector is deliberately small. The model is a channel slimmed SimCC
+network ([DocCornerNet](https://github.com/mapo80/DocCornerNet-CoordClass)) that
+treats each corner coordinate as a 1D classification over pixel bins, then takes a
+soft argmax. At 456K parameters it reaches a median error around 2 to 3 px,
+sub pixel on clean documents, and is faster and smaller than the larger baseline
+it replaced. All of this is plain fp32. Quantization was tried and made things
+worse: INT8 roughly doubled WASM latency because the per operator overhead on such
+a small model costs more than it saves.
 
-We wanted ML-grade robustness without betraying scanic's "small library" identity.
-That tension drove a series of experiments — recorded here so the dead-ends stay
-dead.
+The runtime is the part that is usually large. Stock `onnxruntime-web` ships 13 to
+26 MB of WASM, which would dwarf scanic. Other options were measured rather than
+guessed:
 
-### 1. Architecture beats quantization
-
-The first lesson was about the *model*, not the runtime:
-
-- **Direct 8-coordinate regression** (MobileNetV2 + a regression head): median
-  error ~25 px. ~8× worse than the alternative. Wrong architecture.
-- **SimCC** (treat each coordinate as a 1D classification over pixel bins, then
-  soft-argmax): **2–3 px** median, sub-pixel on clean docs. This is the
-  [DocCornerNet](https://github.com/mapo80/DocCornerNet-CoordClass) approach.
-
-Then we tried to shrink the SimCC model with **post-training quantization** (INT8,
-fp16). It *backfired*: INT8 made WASM inference **~2× slower** (quantize/dequantize
-overhead on the SimCC head exceeds the compute saved on such a small model), and
-fp16 produced mixed-type graphs. The real lever turned out to be **architecture
-slimming** — narrower FPN/head channels (α=0.35, 456K params). That beat the
-600K-param baseline on *every* axis: **2.3 px median (vs 2.9), higher IoU, ~3×
-faster, 26 % smaller — all in fp32**.
-
-> **Takeaway:** for tiny vision models targeting WASM, slim the architecture; don't
-> reach for quantization. PTQ's per-op overhead can cost more than it saves.
-
-### 2. The runtime was the real size problem
-
-The model was now 1.8 MB — fine. The runtime wasn't. Stock `onnxruntime-web`
-ships **13–26 MB** of WASM. Bolting that onto a 38 KB-WASM library defeats the
-purpose. We measured the alternatives instead of guessing:
-
-| approach | wasm size | latency (1 thread) | verdict |
+| Approach | wasm size | latency (single thread) | result |
 | :--- | :--- | :--- | :--- |
-| stock onnxruntime-web | 13 MB | ~10 ms | too big ❌ |
-| **WebGPU** backend | — | ~358 ms (**35× slower**) | per-dispatch overhead on a small op-heavy graph ❌ |
-| **tract** (pure-Rust ONNX → WASM) | 4.1 MB | ~104 ms (**10× slower**) | no XNNPACK/MLAS-class kernels ❌ |
-| **hand-written WASM kernels** | ~0.5 MB | ~100 ms (projected) | tract proves the floor; matching XNNPACK by hand = weeks, worse latency ❌ |
-| **custom minimal ORT build** | **1.5 MB** | **~11 ms** | ✅ |
+| stock onnxruntime-web | 13 MB | about 10 ms | too large |
+| WebGPU backend | n/a | about 358 ms | 35x slower, per dispatch overhead on a small graph |
+| tract (pure Rust ONNX to WASM) | 4.1 MB | about 104 ms | 10x slower, no MLAS class kernels |
+| hand written WASM kernels | about 0.5 MB | about 100 ms (projected) | slower and weeks of work |
+| custom minimal ORT build | 1.5 MB | about 11 ms | chosen |
 
-The decisive data point was **tract**: a mature Rust ONNX engine, compiled tiny,
-but **10× slower** than ORT in WASM. That's because ORT's speed comes from
-**MLAS/XNNPACK** — years of hand-tuned SIMD microkernels. Hand-writing our own
-kernels would, optimistically, land at tract's ~100 ms — slower, for weeks of
-risky work. WebGPU was worse still (35×), throttled by per-op dispatch overhead.
+ONNX Runtime can be compiled for the web with only the operators a specific model
+uses, dropping the ONNX parser, RTTI, and exception handling, while keeping the
+same MLAS SIMD kernels. This model needs about 18 operators. The result is a
+1.5 MB wasm (about 527 KB gzipped), roughly 88 percent smaller than stock, with
+the same single thread latency as stock ORT and output that matches it to within
+about 0.00004. The build is scripted and reproducible in
+[`scanic-ml/build/`](https://github.com/marquaye/scanic/tree/main/scanic-ml/build).
 
-### 3. The winner: a model-specific ONNX Runtime build
-
-ONNX Runtime can be **compiled from source for the web with only the operators a
-specific model uses**, stripped of the ONNX parser, RTTI, and exception handling,
-*while keeping the same MLAS SIMD kernels*. Our model needs ~18 ops.
-
-The result:
-
-- **1.52 MB wasm** (527 KB gzipped) — **~88 % smaller** than stock.
-- **~11 ms** single-thread — identical to stock ORT (same kernels).
-- **bit-identical output** — verified against stock ORT to within 4 × 10⁻⁵.
-
-It requires converting the model to ORT's `.ort` format (minimal builds can't
-parse `.onnx`) and pinning the `onnxruntime-web` JS to the matching version
-(1.23.x — the JS↔wasm ABI is locked). The full build is scripted and reproducible
-in [`scanic-ml/build/`](https://github.com/marquaye/scanic/tree/main/scanic-ml/build).
-
-> **Takeaway:** before writing your own inference kernels, try a **reduced-operator
-> ORT build**. You keep production-grade kernel speed and drop ~90 % of the size
-> for free.
-
-### Net result
-
-ML mode costs classical users **nothing** (lazy, separate code-split chunk), and
-ML users get a **single `npm install scanic`** plus **~2 MB total** (custom
-runtime + model) at full ORT speed and accuracy — instead of 15 MB and a manual
-peer-dependency install. The small-library promise survives.
+The net effect for you: a single `npm install scanic`, nothing extra for users who
+do not use ML, and about 2 MB of lazy assets for users who do, at full ORT speed
+and accuracy.

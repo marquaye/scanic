@@ -43,7 +43,7 @@ Traditional web scanning solutions often force a trade-off:
 - 🦀 **WASM Core**: High-performance Gaussian Blur, Canny Edge Detection, and Dilation.
 - 🛠️ **Modern API**: Clean, Promise-based API with full **TypeScript** support.
 - 📦 **Featherweight**: Under **100KB** total size (gzipped).
-- 🤖 **Optional ML detector**: opt into a neural corner detector for hard photos — lazy-loaded, zero cost to classical users, and powered by a **custom minimal ONNX Runtime build** (1.5 MB WASM, ~88% smaller than stock) instead of the usual 13 MB. See the [ML Detection guide](https://marquaye.github.io/scanic/guide/ml-detection).
+- 🤖 **Optional ML detector**: switch to a neural corner detector for hard photos with `detector: 'ml'`. It is lazy loaded, needs no extra install, and uses a custom minimal ONNX Runtime build of about 1.5 MB instead of the usual 13 MB. See the [ML detection guide](https://marquaye.github.io/scanic/guide/ml-detection).
 - 🧪 **Production Grade**: Built-in regression tests with physical image baselines.
 
 ## 🆕 What's New
@@ -52,8 +52,8 @@ See the [**full documentation**](https://marquaye.github.io/scanic), the
 [**changelog**](CHANGELOG.md), and the [**releases**](https://github.com/marquaye/scanic/releases)
 for the latest. Recent highlights:
 
-- **Optional ML detector** — opt into a neural corner detector (`detector: 'ml'`) for hard photos: cluttered desks, low contrast, strong perspective. Lazy-loaded and zero cost to classical users. See the [ML detection guide](https://marquaye.github.io/scanic/guide/ml-detection).
-- **Styleable corner editor** — a built-in, touch-friendly UI to fine-tune detected corners, now fully themeable via CSS variables with a polished default toolbar. See the [corner editor guide](https://marquaye.github.io/scanic/guide/corner-editor).
+- **Optional ML detector**: a neural corner detector (`detector: 'ml'`) for hard photos such as cluttered backgrounds, low contrast, or strong perspective. Lazy loaded and opt in. See the [ML detection guide](https://marquaye.github.io/scanic/guide/ml-detection).
+- **Styleable corner editor**: a built-in, touch friendly UI to fine tune detected corners, now fully themeable via CSS variables with a polished default toolbar. See the [corner editor guide](https://marquaye.github.io/scanic/guide/corner-editor).
 - **New docs site** with guides for Web/Node.js/Electron/React/Vue and an interactive in-browser playground.
 
 ---
@@ -101,10 +101,10 @@ if (extracted.success) {
 }
 ```
 
-### ML Detection (Optional)
+### ML detection (optional)
 
-For hard photos, opt into the neural detector. It's lazy-loaded and needs **no
-extra install** — just scanic:
+On harder photos you can switch to a neural detector that is more robust. It is
+opt in per call with `detector: 'ml'`, and it needs no extra install:
 
 ```bash
 npm install scanic
@@ -116,26 +116,24 @@ import { scanDocument } from 'scanic';
 const result = await scanDocument(imageElement, { detector: 'ml' });
 if (result.success) {
   console.log(result.corners);
-  console.log(result.score); // P(document present), 0–1
+  console.log(result.score); // P(document present), 0 to 1
 }
 ```
 
-The ONNX Runtime JS API is bundled as a **lazy, code-split chunk** (~50 KB, gzip
-~15 KB) that classical users never download. On first ML use, scanic fetches
-~2 MB from a CDN (the companion [`scanic-ml`](https://www.npmjs.com/package/scanic-ml)
-package): a 1.9 MB channel-slimmed SimCC model plus a **custom minimal ONNX
-Runtime Web build** — just 1.5 MB of WASM (~88% smaller than stock ort-web's
-~13 MB), compiled with only the ~18 operators this model needs while keeping the
-same MLAS SIMD kernels, so it's the same speed at a fraction of the size.
+The ONNX Runtime JavaScript API is bundled as a lazy chunk (about 50 KB, roughly
+15 KB gzipped) that loads only when you use `detector: 'ml'`. On that first call
+scanic fetches about 2 MB from a CDN (the companion
+[`scanic-ml`](https://www.npmjs.com/package/scanic-ml) package): a 1.9 MB model
+plus a custom minimal ONNX Runtime build of about 1.5 MB, which is roughly 88
+percent smaller than the stock 13 MB runtime while running at the same speed. See
+the [ML detection guide](https://marquaye.github.io/scanic/guide/ml-detection)
+for options, self hosting, and threading.
 
-> UMD/`<script>` consumers: the bundle applies to the ESM build. For ML on the
-> UMD/CommonJS build, load `onnxruntime-web@1.23.x` yourself (it stays external
-> there because UMD can't code-split).
+> Using the UMD or `<script>` build? The bundled runtime applies to the ESM build.
+> For ML there, add `onnxruntime-web@1.23.x` to your page yourself, since the UMD
+> format cannot split code into separate chunks.
 
-See the [ML detection guide](https://marquaye.github.io/scanic/guide/ml-detection)
-for the full size/speed story, warm-up, self-hosting, and threading.
-
-### Manual Corner Adjustment UI (New)
+### Manual corner adjustment UI
 
 Use the built-in corner editor to let users drag corners on mobile and desktop,
 then pass the confirmed corners into extraction.
@@ -259,7 +257,7 @@ The primary function for detecting and extracting documents.
 | `assetBaseUrl` | `string` | jsDelivr `scanic-ml` | Base URL serving the `.wasm` + `.ort` assets. Set to self-host. |
 | `modelUrl` | `string` | `${assetBaseUrl}doccornernet_lean.ort` | Explicit model URL. |
 | `wasmPaths` | `string` | `assetBaseUrl` | Directory for the ORT wasm/loader. |
-| `modelBytes` | `Uint8Array` | — | Pre-fetched model bytes (skips the network). |
+| `modelBytes` | `Uint8Array` | (none) | Pre fetched model bytes (skips the network). |
 | `numThreads` | `number` | `1` | ORT threads. `>1` needs COOP/COEP headers. |
 | `minScore` | `number` | `0.5` | Minimum P(document) for `success: true`. |
 
