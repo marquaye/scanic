@@ -52,6 +52,7 @@ See the [**full documentation**](https://marquaye.github.io/scanic), the
 [**changelog**](CHANGELOG.md), and the [**releases**](https://github.com/marquaye/scanic/releases)
 for the latest. Recent highlights:
 
+- **Optional ML detector** — opt into a neural corner detector (`detector: 'ml'`) for hard photos: cluttered desks, low contrast, strong perspective. Lazy-loaded and zero cost to classical users. See the [ML detection guide](https://marquaye.github.io/scanic/guide/ml-detection).
 - **Styleable corner editor** — a built-in, touch-friendly UI to fine-tune detected corners, now fully themeable via CSS variables with a polished default toolbar. See the [corner editor guide](https://marquaye.github.io/scanic/guide/corner-editor).
 - **New docs site** with guides for Web/Node.js/Electron/React/Vue and an interactive in-browser playground.
 
@@ -99,6 +100,29 @@ if (extracted.success) {
   document.body.appendChild(extracted.output); // Display extracted document
 }
 ```
+
+### ML Detection (Optional)
+
+For hard photos, opt into the neural detector. It's lazy-loaded and requires the
+optional `onnxruntime-web` peer dependency — classical users pay nothing.
+
+```bash
+npm install scanic onnxruntime-web@1.23.x
+```
+
+```js
+import { scanDocument } from 'scanic';
+
+const result = await scanDocument(imageElement, { detector: 'ml' });
+if (result.success) {
+  console.log(result.corners);
+  console.log(result.score); // P(document present), 0–1
+}
+```
+
+The model + runtime (~2 MB) are fetched from a CDN on first use. See the
+[ML detection guide](https://marquaye.github.io/scanic/guide/ml-detection) for
+warm-up, self-hosting, and threading.
 
 ### Manual Corner Adjustment UI (New)
 
@@ -200,6 +224,7 @@ The primary function for detecting and extracting documents.
 #### `options` Properties
 | Option | Type | Default | Description |
 | :--- | :--- | :--- | :--- |
+| `detector` | `'classical' \| 'ml'` | `'classical'` | Corner detection method. `'ml'` uses the optional neural detector (lazy-loaded; needs the `onnxruntime-web` peer dep). See the [ML Detection guide](https://marquaye.github.io/scanic/guide/ml-detection). |
 | `mode` | `'detect' \| 'extract'` | `'detect'` | `'detect'` returns coordinates; `'extract'` returns the warped image. |
 | `output` | `'canvas' \| 'imagedata' \| 'dataurl'` | `'canvas'` | The format of the returned processed image. |
 | `maxProcessingDimension` | `number` | `800` | Downscales image to this size for detection (faster). |
@@ -217,6 +242,16 @@ The primary function for detecting and extracting documents.
 | `maxDocumentAspectRatio` | `number` | `8` | Maximum accepted aspect ratio for candidates. |
 | `debug` | `boolean` | `false` | If true, returns intermediate processing steps. |
 
+##### `options.ml` (only when `detector: 'ml'`)
+| Option | Type | Default | Description |
+| :--- | :--- | :--- | :--- |
+| `assetBaseUrl` | `string` | jsDelivr `scanic-ml` | Base URL serving the `.wasm` + `.ort` assets. Set to self-host. |
+| `modelUrl` | `string` | `${assetBaseUrl}doccornernet_lean.ort` | Explicit model URL. |
+| `wasmPaths` | `string` | `assetBaseUrl` | Directory for the ORT wasm/loader. |
+| `modelBytes` | `Uint8Array` | — | Pre-fetched model bytes (skips the network). |
+| `numThreads` | `number` | `1` | ORT threads. `>1` needs COOP/COEP headers. |
+| `minScore` | `number` | `0.5` | Minimum P(document) for `success: true`. |
+
 #### Return Value
 Returns a `Promise<ScannerResult>`:
 ```ts
@@ -225,6 +260,7 @@ Returns a `Promise<ScannerResult>`:
   corners: CornerPoints;  // { topLeft, topRight, bottomRight, bottomLeft }
   output: any;            // The warped image (if mode is 'extract')
   contour: Array<Point>;  // Raw detection points
+  score?: number;         // P(document present), 0–1 (ML detector only)
   timings: Array<Object>; // Performance breakdown
   message: string;        // Status or error message
 }
