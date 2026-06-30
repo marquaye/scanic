@@ -43,7 +43,7 @@ Traditional web scanning solutions often force a trade-off:
 - 🦀 **WASM Core**: High-performance Gaussian Blur, Canny Edge Detection, and Dilation.
 - 🛠️ **Modern API**: Clean, Promise-based API with full **TypeScript** support.
 - 📦 **Featherweight**: Under **100KB** total size (gzipped).
-- 🤖 **Optional ML detector**: opt into a neural corner detector for hard photos — lazy-loaded, zero cost to classical users. See the [ML Detection guide](https://marquaye.github.io/scanic/guide/ml-detection).
+- 🤖 **Optional ML detector**: opt into a neural corner detector for hard photos — lazy-loaded, zero cost to classical users, and powered by a **custom minimal ONNX Runtime build** (1.5 MB WASM, ~88% smaller than stock) instead of the usual 13 MB. See the [ML Detection guide](https://marquaye.github.io/scanic/guide/ml-detection).
 - 🧪 **Production Grade**: Built-in regression tests with physical image baselines.
 
 ## 🆕 What's New
@@ -120,9 +120,16 @@ if (result.success) {
 }
 ```
 
-The model + runtime (~2 MB) are fetched from a CDN on first use. See the
-[ML detection guide](https://marquaye.github.io/scanic/guide/ml-detection) for
-warm-up, self-hosting, and threading.
+On first use, scanic fetches ~2 MB from a CDN (the companion
+[`scanic-ml`](https://www.npmjs.com/package/scanic-ml) package): a 1.9 MB
+channel-slimmed SimCC model plus a **custom minimal ONNX Runtime Web build** —
+just 1.5 MB of WASM (~88% smaller than stock ort-web's ~13 MB), compiled with
+only the ~18 operators this model needs while keeping the same MLAS SIMD kernels,
+so it's the same speed at a fraction of the size. The `onnxruntime-web` peer dep
+only supplies the JS glue; the bytes that reach the browser are this custom build.
+
+See the [ML detection guide](https://marquaye.github.io/scanic/guide/ml-detection)
+for the full size/speed story, warm-up, self-hosting, and threading.
 
 ### Manual Corner Adjustment UI (New)
 
