@@ -14,24 +14,25 @@ onnxruntime, no model, ~15 KB gzipped core. Classical users pay nothing.
 ## Using it
 
 ```bash
-npm install scanic onnxruntime-web@1.23.x
+npm install scanic
 ```
 
-`onnxruntime-web` is an **optional peer dependency** — install it only if you use
-the ML detector. It supplies just the **JS API** (`InferenceSession`, `Tensor`),
-which is the only part bundled into your app.
+That's it — no separate `onnxruntime-web` install. The ONNX Runtime **JS API**
+(`InferenceSession`, `Tensor`) is bundled into scanic as a **lazy, code-split
+chunk** (~50 KB, gzip ~15 KB) that is only loaded the first time you use
+`detector: 'ml'`. Classical users never download it.
 
-Its own ~13 MB WASM is **not used**: scanic points the runtime at the custom
-minimal WASM build instead. So on first use the browser downloads ~2 MB from a
-CDN — a 1.9 MB model plus the **custom 1.5 MB ONNX Runtime WASM** (~88% smaller
-than stock) — from the companion
-[`scanic-ml`](https://www.npmjs.com/package/scanic-ml) package, mirrored by
-jsDelivr. The onnxruntime-web WASM that lands in `node_modules` never reaches the
-browser.
+On that first ML call, the browser fetches ~2 MB from a CDN — a 1.9 MB model
+plus the **custom 1.5 MB ONNX Runtime WASM** (~88% smaller than stock) — from
+the companion [`scanic-ml`](https://www.npmjs.com/package/scanic-ml) package,
+mirrored by jsDelivr. scanic ships the exact ABI-matched ORT JS, so there is
+nothing to pin and no version mismatch to get wrong.
 
-::: tip Why pin `1.23.x`?
-The custom WASM build is ABI-locked to a specific onnxruntime-web JS version.
-Pinning `1.23.x` keeps the JS glue and the custom WASM compatible.
+::: tip UMD / `<script>` users
+The bundled chunk applies to the ESM build (the `import` path). If you consume
+the UMD/CommonJS build (`require('scanic')` or a `<script>` tag) and want ML,
+load `onnxruntime-web@1.23.x` yourself — it stays external there because UMD
+can't code-split.
 :::
 
 ```js
@@ -99,8 +100,8 @@ no special headers. Multi-threading (~4 ms/scan) needs both a 4-thread build and
 
 | | Classical (default) | ML (`detector: 'ml'`) |
 | :--- | :--- | :--- |
-| **Download** | ~15 KB gz core | + ~2 MB (lazy, once) |
-| **Dependencies** | none | `onnxruntime-web` (optional peer) |
+| **Download** | ~15 KB gz core | + ~15 KB gz JS chunk, then ~2 MB assets (lazy, once) |
+| **Dependencies** | none | none — ORT JS bundled, assets from CDN |
 | **Latency** | ~3–10 ms | ~10 ms (1 thread) |
 | **Clean docs** | excellent | excellent |
 | **Cluttered / low-contrast / skewed** | can degrade | robust |
@@ -180,6 +181,7 @@ in [`scanic-ml/build/`](https://github.com/marquaye/scanic/tree/main/scanic-ml/b
 
 ### Net result
 
-ML mode costs classical users **nothing** (lazy, separate chunk, optional peer
-dep), and ML users get **~2 MB total** (custom runtime + model) at full ORT speed
-and accuracy — instead of 15 MB. The small-library promise survives.
+ML mode costs classical users **nothing** (lazy, separate code-split chunk), and
+ML users get a **single `npm install scanic`** plus **~2 MB total** (custom
+runtime + model) at full ORT speed and accuracy — instead of 15 MB and a manual
+peer-dependency install. The small-library promise survives.

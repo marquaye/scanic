@@ -103,11 +103,11 @@ if (extracted.success) {
 
 ### ML Detection (Optional)
 
-For hard photos, opt into the neural detector. It's lazy-loaded and requires the
-optional `onnxruntime-web` peer dependency — classical users pay nothing.
+For hard photos, opt into the neural detector. It's lazy-loaded and needs **no
+extra install** — just scanic:
 
 ```bash
-npm install scanic onnxruntime-web@1.23.x
+npm install scanic
 ```
 
 ```js
@@ -120,13 +120,17 @@ if (result.success) {
 }
 ```
 
-On first use, scanic fetches ~2 MB from a CDN (the companion
-[`scanic-ml`](https://www.npmjs.com/package/scanic-ml) package): a 1.9 MB
-channel-slimmed SimCC model plus a **custom minimal ONNX Runtime Web build** —
-just 1.5 MB of WASM (~88% smaller than stock ort-web's ~13 MB), compiled with
-only the ~18 operators this model needs while keeping the same MLAS SIMD kernels,
-so it's the same speed at a fraction of the size. The `onnxruntime-web` peer dep
-only supplies the JS glue; the bytes that reach the browser are this custom build.
+The ONNX Runtime JS API is bundled as a **lazy, code-split chunk** (~50 KB, gzip
+~15 KB) that classical users never download. On first ML use, scanic fetches
+~2 MB from a CDN (the companion [`scanic-ml`](https://www.npmjs.com/package/scanic-ml)
+package): a 1.9 MB channel-slimmed SimCC model plus a **custom minimal ONNX
+Runtime Web build** — just 1.5 MB of WASM (~88% smaller than stock ort-web's
+~13 MB), compiled with only the ~18 operators this model needs while keeping the
+same MLAS SIMD kernels, so it's the same speed at a fraction of the size.
+
+> UMD/`<script>` consumers: the bundle applies to the ESM build. For ML on the
+> UMD/CommonJS build, load `onnxruntime-web@1.23.x` yourself (it stays external
+> there because UMD can't code-split).
 
 See the [ML detection guide](https://marquaye.github.io/scanic/guide/ml-detection)
 for the full size/speed story, warm-up, self-hosting, and threading.
@@ -231,7 +235,7 @@ The primary function for detecting and extracting documents.
 #### `options` Properties
 | Option | Type | Default | Description |
 | :--- | :--- | :--- | :--- |
-| `detector` | `'classical' \| 'ml'` | `'classical'` | Corner detection method. `'ml'` uses the optional neural detector (lazy-loaded; needs the `onnxruntime-web` peer dep). See the [ML Detection guide](https://marquaye.github.io/scanic/guide/ml-detection). |
+| `detector` | `'classical' \| 'ml'` | `'classical'` | Corner detection method. `'ml'` uses the optional neural detector (lazy-loaded; no extra install). See the [ML Detection guide](https://marquaye.github.io/scanic/guide/ml-detection). |
 | `mode` | `'detect' \| 'extract'` | `'detect'` | `'detect'` returns coordinates; `'extract'` returns the warped image. |
 | `output` | `'canvas' \| 'imagedata' \| 'dataurl'` | `'canvas'` | The format of the returned processed image. |
 | `maxProcessingDimension` | `number` | `800` | Downscales image to this size for detection (faster). |

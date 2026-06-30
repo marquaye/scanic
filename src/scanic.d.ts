@@ -123,9 +123,11 @@ export interface CornerEditor {
 }
 
 /**
- * Options for the optional ML detector (`detector: 'ml'`). Assets are lazy-loaded
- * from the companion `scanic-ml` package on a CDN by default; `onnxruntime-web`
- * (v1.23.x, matching the bundled wasm) must be installed as a peer dependency.
+ * Options for the optional ML detector (`detector: 'ml'`). The ONNX Runtime JS
+ * API is bundled into scanic's ESM build as a lazy, code-split chunk (no extra
+ * install); the model and custom wasm are lazy-loaded from the companion
+ * `scanic-ml` package on a CDN by default. (UMD/CommonJS consumers must provide
+ * `onnxruntime-web@1.23.x` themselves, as UMD can't code-split.)
  */
 export interface MlDetectorOptions {
   /** Base URL for the wasm + `.ort` model. Default: scanic-ml on jsDelivr. */

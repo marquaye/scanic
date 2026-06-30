@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.4.0] - 2026-06-30
+
+### Changed
+- **ML detector no longer needs a separate install**: the ONNX Runtime JS API is now bundled into scanic's ESM build as a **lazy, code-split chunk** (~50 KB, gzip ~15 KB) loaded only on first `detector: 'ml'` use. `onnxruntime-web` is no longer an (optional) peer dependency — `npm install scanic` is all ML users need. The custom wasm + model still stream from the `scanic-ml` CDN at runtime, and classical users still download none of it. The matching ORT version is bundled, so there is no longer a peer-version mismatch to get wrong.
+  - UMD/CommonJS consumers are unchanged: `onnxruntime-web` stays external there (UMD can't code-split), so script-tag/`require` ML users still self-provide `onnxruntime-web@1.23.x`.
+
 ## [1.3.0] - 2026-06-30
 
 ### Added

@@ -19,10 +19,10 @@
   },
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
-    "build:gh-pages": "vite build && node scripts/post-build.js",
+    "build": "node scripts/build-lib.mjs",
+    "build:gh-pages": "npm run build && node scripts/post-build.js",
     "docs:dev": "vitepress dev docs",
-    "docs:build": "vite build && node scripts/stage-docs-demo.mjs && vitepress build docs",
+    "docs:build": "npm run build && node scripts/stage-docs-demo.mjs && vitepress build docs",
     "docs:preview": "vitepress preview docs",
     "lint": "eslint src scripts",
     "build:wasm": "docker compose -f dev/docker-compose.yml up --build && node scripts/postprocess-wasm.mjs",
@@ -57,18 +57,12 @@
   "files": [
     "dist/scanic.js",
     "dist/scanic.umd.cjs",
+    "dist/scanic-mlDetector.js",
+    "dist/scanic-ort.wasm.min.js",
     "src/scanic.d.ts",
     "README.md",
     "LICENSE"
   ],
-  "peerDependencies": {
-    "onnxruntime-web": "1.23.x"
-  },
-  "peerDependenciesMeta": {
-    "onnxruntime-web": {
-      "optional": true
-    }
-  },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "@vitest/coverage-v8": "^4.1.9",

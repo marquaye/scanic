@@ -12,8 +12,10 @@ export default defineConfig({
     outDir: 'dist',
     sourcemap: 'hidden',
     rollupOptions: {
-      // The ML detector lazy-imports onnxruntime-web; keep it external so it is
-      // never bundled into scanic's classical build (and stays an optional dep).
+      // NOTE: the canonical library build is `npm run build` (scripts/build-lib.mjs),
+      // which bundles onnxruntime-web into a lazy ESM chunk and keeps it external
+      // only for UMD. This config is the fallback for a bare `vite build` / preview
+      // and just keeps ORT external for both formats.
       external: ['onnxruntime-web']
     },
     minify: 'terser',

@@ -26,7 +26,7 @@ You generally don't import this package. You point scanic's ML detector at it:
 
 ```js
 import { scanDocument } from 'scanic';
-// requires the optional peer dep: npm install onnxruntime-web@1.23.x
+// ESM build bundles the ONNX Runtime JS — no extra install needed.
 
 const result = await scanDocument(image, { detector: 'ml' });
 // result.corners, result.score (P(document present))

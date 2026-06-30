@@ -39,8 +39,9 @@ async function loadOrt() {
     ortModulePromise = import('onnxruntime-web').catch((error) => {
       ortModulePromise = null;
       throw new Error(
-        "scanic: the 'ml' detector requires the optional 'onnxruntime-web' dependency. " +
-          'Install it alongside scanic: `npm install onnxruntime-web`. ' +
+        "scanic: failed to load the ML runtime (onnxruntime-web). " +
+          "It is bundled with scanic's ESM build; if you use the UMD/CommonJS build, " +
+          'install it alongside scanic: `npm install onnxruntime-web@1.23.x`. ' +
           `(original error: ${error?.message || error})`
       );
     });
