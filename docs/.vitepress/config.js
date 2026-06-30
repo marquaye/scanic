@@ -1,11 +1,27 @@
 import { readFileSync } from 'node:fs'
 import { defineConfig } from 'vitepress'
 
+// Match what build-lib.mjs does: resolve onnxruntime-web to the external-wasm
+// variant (ort.wasm.min.mjs) so the playground never loads the full ORT bundle
+// with JSEP/WebGPU probing (which fetches ort-wasm-simd-threaded.jsep.mjs —
+// a file our minimal scanic-ml CDN build does not include).
+const viteCfg = {
+  resolve: {
+    alias: [{ find: /^onnxruntime-web$/, replacement: 'onnxruntime-web/wasm' }],
+    conditions: [
+      'onnxruntime-web-use-extern-wasm',
+      'module', 'browser', 'production', 'import', 'default',
+    ],
+  },
+}
+
 // Read the version from package.json so the nav never goes stale.
 const { version } = JSON.parse(readFileSync(new URL('../../package.json', import.meta.url)))
 
 // https://vitepress.dev/reference/site-config
 export default defineConfig({
+  vite: viteCfg,
+
   title: 'Scanic',
   description: 'Ultra-fast, production-ready document scanning for the modern Web — pure JavaScript + Rust/WebAssembly.',
 
