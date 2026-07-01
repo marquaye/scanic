@@ -150,12 +150,16 @@ async function runScan() {
     currentCorners = result.corners
     hasCorners.value = true
     drawSource(currentImage, result.corners)
-    const scoreStr = result.score != null
-      ? ` · score ${(result.score * 100).toFixed(0)}%`
-      : result.confidence != null
-        ? ` · confidence ${(result.confidence * 100).toFixed(0)}%`
+    // Classical: show geometry confidence (varies by image quality).
+    // ML: the sigmoid P(document) is always ~100% for clear photos — not
+    // informative as a percentage, so just tag which detector ran instead.
+    const scoreStr = detector.value !== 'ml' && result.confidence != null
+      ? ` · confidence ${(result.confidence * 100).toFixed(0)}%`
+      : detector.value === 'ml' && result.score != null && result.score < 0.99
+        ? ` · score ${(result.score * 100).toFixed(0)}%`
         : ''
-    status.value = `Document detected${scoreStr}`
+    const detectorTag = detector.value === 'ml' ? ' (ML)' : ''
+    status.value = `Document detected${detectorTag}${scoreStr}`
 
     if (mode.value === 'extract' && result.output) {
       drawResult(result.output)
