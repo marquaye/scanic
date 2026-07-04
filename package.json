@@ -70,7 +70,7 @@
     "eslint": "^10.5.0",
     "globals": "^17.6.0",
     "jsdom": "^29.1.1",
-    "onnxruntime-web": "1.23.2",
+    "onnxruntime-web": "1.27.0",
     "playwright": "^1.61.1",
     "terser": "^5.44.1",
     "vite": "^8.0.16",
