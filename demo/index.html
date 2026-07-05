@@ -471,6 +471,10 @@
     import { Scanner, scanDocument, extractDocument, createCornerEditor } from './scanic.js';
 
     const scanner = new Scanner();
+    // Dedicated instance used only to warm up the ML backend (ORT + model)
+    // ahead of time; its initialize() lazy-loads the same code-split chunk
+    // scanDocument()/scanner.scan() use when { detector: 'ml' } is passed.
+    const mlScanner = new Scanner({ detector: 'ml' });
     let isLive = false;
     let stream = null;
     let video = null;
@@ -527,8 +531,7 @@
       detectorProgress.classList.add('active');
       setDetectorHelp('Loading neural network model (~2MB)…', 'is-loading');
 
-      mlLoadPromise = import('./src/mlDetector.js')
-        .then(({ initializeMl }) => initializeMl())
+      mlLoadPromise = mlScanner.initialize()
         .then(() => {
           mlModelReady = true;
           detectorProgress.classList.remove('active');
