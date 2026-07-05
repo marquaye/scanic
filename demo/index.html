@@ -163,6 +163,7 @@
     }
 
     .detector-bar {
+      position: relative;
       display: flex;
       align-items: center;
       justify-content: space-between;
@@ -174,6 +175,7 @@
       padding: 14px 20px;
       margin-bottom: 24px;
       box-shadow: var(--shadow);
+      overflow: hidden;
     }
 
     .detector-bar-info {
@@ -219,6 +221,51 @@
       background: linear-gradient(135deg, #6366f1, #8b5cf6);
       color: #fff;
       vertical-align: middle;
+    }
+
+    .detector-progress {
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      height: 2.5px;
+      overflow: hidden;
+      opacity: 0;
+      transition: opacity 0.25s ease;
+      pointer-events: none;
+      border-radius: 0 0 var(--radius) var(--radius);
+    }
+
+    .detector-progress.active {
+      opacity: 1;
+    }
+
+    .detector-progress::after {
+      content: '';
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      width: 35%;
+      background: linear-gradient(90deg, transparent, #6366f1, #8b5cf6, transparent);
+      animation: detector-progress-slide 1.15s ease-in-out infinite;
+    }
+
+    @keyframes detector-progress-slide {
+      0% { left: -35%; }
+      100% { left: 100%; }
+    }
+
+    .detector-bar-help.is-ready {
+      color: var(--success);
+      font-weight: 600;
+    }
+
+    .detector-bar-help.is-loading {
+      color: var(--primary);
+    }
+
+    .detector-bar-help.is-error {
+      color: var(--danger);
     }
 
     .samples {
@@ -358,6 +405,7 @@
         <button class="mode-chip active" type="button" data-detector="classical">Classical</button>
         <button class="mode-chip" type="button" data-detector="ml">ML (neural)<span class="chip-badge">NEW</span></button>
       </div>
+      <div class="detector-progress" id="detectorProgress" aria-hidden="true"></div>
     </div>
 
     <div class="grid">
@@ -453,21 +501,72 @@
     let staticMode = 'detect';
     let detectorBackend = 'classical'; // 'classical' | 'ml'
     let mlModelReady = false; // true once the ML model has been fetched once
+    let mlLoadPromise = null; // in-flight preload, if any
     let activeCornerEditor = null;
     let currentStaticImage = null;
     let currentDetectedCorners = null;
     const AUTO_EDITOR_CONFIDENCE_THRESHOLD = 0.6;
     const detectorSwitch = document.getElementById('detectorSwitch');
     const detectorHelp = document.getElementById('detectorHelp');
+    const detectorProgress = document.getElementById('detectorProgress');
+    const ML_READY_TEXT = 'ML detector (DocCornerNet) — better on cluttered backgrounds & low contrast.';
+    const CLASSICAL_TEXT = 'Classical geometry detector — fast, no download.';
+
+    function setDetectorHelp(text, state) {
+      detectorHelp.textContent = text;
+      detectorHelp.classList.remove('is-ready', 'is-loading', 'is-error');
+      if (state) detectorHelp.classList.add(state);
+    }
+
+    // Preload the ML model (ORT + weights) as soon as the backend is selected,
+    // so the first scan is instant instead of paying the ~2MB fetch mid-flow.
+    function preloadMlModel() {
+      if (mlModelReady) return Promise.resolve();
+      if (mlLoadPromise) return mlLoadPromise;
+
+      detectorProgress.classList.add('active');
+      setDetectorHelp('Loading neural network model (~2MB)…', 'is-loading');
+
+      mlLoadPromise = import('./src/mlDetector.js')
+        .then(({ initializeMl }) => initializeMl())
+        .then(() => {
+          mlModelReady = true;
+          detectorProgress.classList.remove('active');
+          if (detectorBackend === 'ml') {
+            setDetectorHelp('✓ Model ready — instant neural detection.', 'is-ready');
+            setTimeout(() => {
+              if (detectorBackend === 'ml') setDetectorHelp(ML_READY_TEXT);
+            }, 2200);
+          }
+        })
+        .catch((err) => {
+          console.error(err);
+          detectorProgress.classList.remove('active');
+          if (detectorBackend === 'ml') {
+            setDetectorHelp('⚠️ Could not preload the model — it will retry on your next scan.', 'is-error');
+          }
+        })
+        .finally(() => {
+          mlLoadPromise = null;
+        });
+      return mlLoadPromise;
+    }
 
     function setDetectorBackend(value) {
       detectorBackend = value;
       detectorSwitch.querySelectorAll('[data-detector]').forEach((button) => {
         button.classList.toggle('active', button.dataset.detector === value);
       });
-      detectorHelp.textContent = value === 'ml'
-        ? 'ML detector (DocCornerNet) — better on cluttered backgrounds & low contrast. Loads a ~2MB model on first use.'
-        : 'Classical geometry detector — fast, no download.';
+
+      if (value === 'ml') {
+        if (mlModelReady) {
+          setDetectorHelp(ML_READY_TEXT);
+        } else {
+          preloadMlModel();
+        }
+      } else {
+        setDetectorHelp(CLASSICAL_TEXT);
+      }
     }
 
     detectorSwitch.querySelectorAll('[data-detector]').forEach((button) => {
