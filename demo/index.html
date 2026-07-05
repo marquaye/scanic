@@ -162,6 +162,65 @@
       font-size: 12px;
     }
 
+    .detector-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 14px;
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 14px 20px;
+      margin-bottom: 24px;
+      box-shadow: var(--shadow);
+    }
+
+    .detector-bar-info {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .detector-bar-info strong {
+      font-size: 0.95rem;
+    }
+
+    .detector-bar-info a {
+      color: var(--primary);
+      text-decoration: none;
+      font-size: 0.78rem;
+    }
+
+    .detector-bar-info a:hover {
+      text-decoration: underline;
+    }
+
+    .detector-bar-help {
+      margin: 0;
+      color: var(--text-muted);
+      font-size: 0.78rem;
+    }
+
+    .detector-switch {
+      margin-top: 0;
+      width: auto;
+      min-width: 260px;
+    }
+
+    .chip-badge {
+      display: inline-block;
+      margin-left: 6px;
+      padding: 1px 6px;
+      font-size: 9px;
+      font-weight: 800;
+      letter-spacing: 0.04em;
+      border-radius: 999px;
+      background: linear-gradient(135deg, #6366f1, #8b5cf6);
+      color: #fff;
+      vertical-align: middle;
+    }
+
     .samples {
       display: grid;
       grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
@@ -289,6 +348,18 @@
       </div>
     </header>
 
+    <div class="detector-bar">
+      <div class="detector-bar-info">
+        <strong>🧠 Detection Backend</strong>
+        <p class="detector-bar-help" id="detectorHelp">Classical geometry detector — fast, no download.</p>
+        <a href="https://marquaye.github.io/scanic/guide/ml-detection" target="_blank" rel="noopener">What's the ML detector?</a>
+      </div>
+      <div class="mode-switch detector-switch" id="detectorSwitch" role="tablist" aria-label="Detection backend">
+        <button class="mode-chip active" type="button" data-detector="classical">Classical</button>
+        <button class="mode-chip" type="button" data-detector="ml">ML (neural)<span class="chip-badge">NEW</span></button>
+      </div>
+    </div>
+
     <div class="grid">
       <!-- Upload Section -->
       <div class="card">
@@ -380,10 +451,33 @@
     const btnCancelCorners = document.getElementById('btnCancelCorners');
 
     let staticMode = 'detect';
+    let detectorBackend = 'classical'; // 'classical' | 'ml'
+    let mlModelReady = false; // true once the ML model has been fetched once
     let activeCornerEditor = null;
     let currentStaticImage = null;
     let currentDetectedCorners = null;
     const AUTO_EDITOR_CONFIDENCE_THRESHOLD = 0.6;
+    const detectorSwitch = document.getElementById('detectorSwitch');
+    const detectorHelp = document.getElementById('detectorHelp');
+
+    function setDetectorBackend(value) {
+      detectorBackend = value;
+      detectorSwitch.querySelectorAll('[data-detector]').forEach((button) => {
+        button.classList.toggle('active', button.dataset.detector === value);
+      });
+      detectorHelp.textContent = value === 'ml'
+        ? 'ML detector (DocCornerNet) — better on cluttered backgrounds & low contrast. Loads a ~2MB model on first use.'
+        : 'Classical geometry detector — fast, no download.';
+    }
+
+    detectorSwitch.querySelectorAll('[data-detector]').forEach((button) => {
+      button.onclick = () => setDetectorBackend(button.dataset.detector);
+    });
+
+    function withDetectorOption(opts) {
+      if (detectorBackend === 'ml') opts.detector = 'ml';
+      return opts;
+    }
 
     const sampleImageFiles = [
       '25_2.jpg',
@@ -612,16 +706,32 @@
     async function processImage(img) {
       closeCornerEditor();
       extractedContainer.classList.remove('hidden');
-      statStatus.textContent = 'Processing static image...';
+      const usingMl = detectorBackend === 'ml';
+      statStatus.textContent = usingMl && !mlModelReady
+        ? 'Loading ML model (~2MB)...'
+        : 'Processing static image...';
       currentStaticImage = img;
       currentDetectedCorners = null;
       btnAdjustCorners.classList.add('hidden');
 
-      const result = await scanDocument(img, { mode: staticMode });
+      const result = await scanDocument(img, withDetectorOption({ mode: staticMode }));
+      if (usingMl) mlModelReady = true;
+      const detectorTag = usingMl ? ' (ML)' : '';
       if (result.success) {
         const staticCtx = staticCanvas.getContext('2d');
         currentDetectedCorners = result.corners || null;
         btnAdjustCorners.classList.toggle('hidden', !currentDetectedCorners);
+
+        // Classical: geometry confidence varies by image quality and is a
+        // useful signal. ML: the sigmoid score is ~100% for clear photos, so
+        // only surface it when it dips below near-certain.
+        const scoreText = !usingMl && result.confidence != null
+          ? `Confidence ${(result.confidence * 100).toFixed(1)}%`
+          : usingMl && result.score != null && result.score < 0.99
+            ? `Score ${(result.score * 100).toFixed(1)}%`
+            : 'Corners detected';
+        const lowConfidence = (!usingMl && result.confidence != null && result.confidence < AUTO_EDITOR_CONFIDENCE_THRESHOLD)
+          || (usingMl && result.score != null && result.score < AUTO_EDITOR_CONFIDENCE_THRESHOLD);
 
         if (staticMode === 'detect') {
           staticCanvas.width = img.width;
@@ -630,12 +740,11 @@
           if (result.corners) {
             drawModernDetectionOverlay(staticCtx, result.corners);
           }
-          resultTitle.textContent = '📐 Detection Preview';
-          const confidenceText = result.confidence != null ? `Confidence ${(result.confidence * 100).toFixed(1)}%` : 'Corners detected';
-          resultSubtitle.textContent = `${confidenceText}. Switch to Extract mode to crop the document.`;
+          resultTitle.textContent = `📐 Detection Preview${detectorTag}`;
+          resultSubtitle.textContent = `${scoreText}. Switch to Extract mode to crop the document.`;
 
-          if (result.corners && result.confidence != null && result.confidence < AUTO_EDITOR_CONFIDENCE_THRESHOLD) {
-            openCornerEditorForImage(img, result.corners, `Low confidence (${(result.confidence * 100).toFixed(1)}%)`);
+          if (result.corners && lowConfidence) {
+            openCornerEditorForImage(img, result.corners, `Low confidence (${scoreText})`);
           } else {
             showCanvasView();
           }
@@ -643,12 +752,11 @@
           staticCanvas.width = result.output.width;
           staticCanvas.height = result.output.height;
           staticCtx.drawImage(result.output, 0, 0);
-          resultTitle.textContent = '✨ Extracted Document';
-          const confidenceText = result.confidence != null ? `Confidence ${(result.confidence * 100).toFixed(1)}%. ` : '';
-          resultSubtitle.textContent = `${confidenceText}Perspective-corrected output ready to download.`;
+          resultTitle.textContent = `✨ Extracted Document${detectorTag}`;
+          resultSubtitle.textContent = `${scoreText}. Perspective-corrected output ready to download.`;
 
-          if (result.corners && result.confidence != null && result.confidence < AUTO_EDITOR_CONFIDENCE_THRESHOLD) {
-            openCornerEditorForImage(img, result.corners, `Low confidence (${(result.confidence * 100).toFixed(1)}%)`);
+          if (result.corners && lowConfidence) {
+            openCornerEditorForImage(img, result.corners, `Low confidence (${scoreText})`);
           } else {
             showCanvasView();
           }
@@ -733,12 +841,17 @@
 
       // Process every other frame for performance
       if (true) {
-        const result = await scanner.scan(liveCanvas, { mode: 'detect' });
+        const usingMl = detectorBackend === 'ml';
+        const result = await scanner.scan(liveCanvas, withDetectorOption({ mode: 'detect' }));
+        if (usingMl) mlModelReady = true;
         statTime.textContent = `${Math.round(performance.now() - t0)}ms`;
-        
+
         if (result.success && result.corners) {
-          const confidencePercent = result.confidence != null ? `${Math.round(result.confidence * 100)}%` : '';
-          statDetect.textContent = confidencePercent ? `YES ${confidencePercent}` : 'YES';
+          const scorePercent = usingMl
+            ? (result.score != null ? `${Math.round(result.score * 100)}%` : '')
+            : (result.confidence != null ? `${Math.round(result.confidence * 100)}%` : '');
+          const tag = usingMl ? ' ML' : '';
+          statDetect.textContent = scorePercent ? `YES${tag} ${scorePercent}` : `YES${tag}`;
           drawModernDetectionOverlay(ctx, result.corners, { pulseSeed: performance.now() });
         } else {
           statDetect.textContent = 'NO';
@@ -750,7 +863,7 @@
 
     btnCapture.onclick = async () => {
       statStatus.textContent = 'Extracting...';
-      const result = await scanner.scan(liveCanvas, { mode: 'extract' });
+      const result = await scanner.scan(liveCanvas, withDetectorOption({ mode: 'extract' }));
       if (result.success) {
         extractedContainer.classList.remove('hidden');
         staticCanvas.width = result.output.width;
@@ -770,6 +883,7 @@
     };
 
     setStaticMode('detect');
+    setDetectorBackend('classical');
 
     // Init sample gallery
     loadSampleImages();
