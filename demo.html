@@ -78,6 +78,26 @@
       transition: opacity 0.2s;
     }
 
+    .btn-home {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 16px;
+      background: var(--card-bg);
+      color: var(--text);
+      text-decoration: none;
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      font-weight: 500;
+      font-size: 14px;
+      transition: opacity 0.2s, border-color 0.2s;
+    }
+
+    .btn-home:hover {
+      border-color: var(--primary);
+      color: var(--primary);
+    }
+
     .grid {
       display: grid;
       grid-template-columns: 1fr 1fr;
@@ -160,6 +180,112 @@
       margin: 10px 0 0;
       color: var(--text-muted);
       font-size: 12px;
+    }
+
+    .detector-bar {
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 14px;
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 14px 20px;
+      margin-bottom: 24px;
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+
+    .detector-bar-info {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .detector-bar-info strong {
+      font-size: 0.95rem;
+    }
+
+    .detector-bar-info a {
+      color: var(--primary);
+      text-decoration: none;
+      font-size: 0.78rem;
+    }
+
+    .detector-bar-info a:hover {
+      text-decoration: underline;
+    }
+
+    .detector-bar-help {
+      margin: 0;
+      color: var(--text-muted);
+      font-size: 0.78rem;
+    }
+
+    .detector-switch {
+      margin-top: 0;
+      width: auto;
+      min-width: 260px;
+    }
+
+    .chip-badge {
+      display: inline-block;
+      margin-left: 6px;
+      padding: 1px 6px;
+      font-size: 9px;
+      font-weight: 800;
+      letter-spacing: 0.04em;
+      border-radius: 999px;
+      background: linear-gradient(135deg, #6366f1, #8b5cf6);
+      color: #fff;
+      vertical-align: middle;
+    }
+
+    .detector-progress {
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      height: 2.5px;
+      overflow: hidden;
+      opacity: 0;
+      transition: opacity 0.25s ease;
+      pointer-events: none;
+      border-radius: 0 0 var(--radius) var(--radius);
+    }
+
+    .detector-progress.active {
+      opacity: 1;
+    }
+
+    .detector-progress::after {
+      content: '';
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      width: 35%;
+      background: linear-gradient(90deg, transparent, #6366f1, #8b5cf6, transparent);
+      animation: detector-progress-slide 1.15s ease-in-out infinite;
+    }
+
+    @keyframes detector-progress-slide {
+      0% { left: -35%; }
+      100% { left: 100%; }
+    }
+
+    .detector-bar-help.is-ready {
+      color: var(--success);
+      font-weight: 600;
+    }
+
+    .detector-bar-help.is-loading {
+      color: var(--primary);
+    }
+
+    .detector-bar-help.is-error {
+      color: var(--danger);
     }
 
     .samples {
@@ -282,12 +408,29 @@
         <h1>Scanic Live</h1>
       </div>
       <div class="nav-links">
+        <a href="https://marquaye.github.io/scanic/" class="btn-home">
+          <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M9 22V12h6v10"/></svg>
+          Back to Site
+        </a>
         <a href="https://github.com/marquaye/scanic" class="btn-github">
           <svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/></svg>
           GitHub
         </a>
       </div>
     </header>
+
+    <div class="detector-bar">
+      <div class="detector-bar-info">
+        <strong>🧠 Detection Backend</strong>
+        <p class="detector-bar-help" id="detectorHelp">Classical geometry detector — fast, no download.</p>
+        <a href="https://marquaye.github.io/scanic/guide/ml-detection" target="_blank" rel="noopener">What's the ML detector?</a>
+      </div>
+      <div class="mode-switch detector-switch" id="detectorSwitch" role="tablist" aria-label="Detection backend">
+        <button class="mode-chip active" type="button" data-detector="classical">Classical</button>
+        <button class="mode-chip" type="button" data-detector="ml">ML (neural)<span class="chip-badge">NEW</span></button>
+      </div>
+      <div class="detector-progress" id="detectorProgress" aria-hidden="true"></div>
+    </div>
 
     <div class="grid">
       <!-- Upload Section -->
@@ -352,6 +495,10 @@
     import { Scanner, scanDocument, extractDocument, createCornerEditor } from './scanic.js';
 
     const scanner = new Scanner();
+    // Dedicated instance used only to warm up the ML backend (ORT + model)
+    // ahead of time; its initialize() lazy-loads the same code-split chunk
+    // scanDocument()/scanner.scan() use when { detector: 'ml' } is passed.
+    const mlScanner = new Scanner({ detector: 'ml' });
     let isLive = false;
     let stream = null;
     let video = null;
@@ -380,10 +527,83 @@
     const btnCancelCorners = document.getElementById('btnCancelCorners');
 
     let staticMode = 'detect';
+    let detectorBackend = 'classical'; // 'classical' | 'ml'
+    let mlModelReady = false; // true once the ML model has been fetched once
+    let mlLoadPromise = null; // in-flight preload, if any
     let activeCornerEditor = null;
     let currentStaticImage = null;
     let currentDetectedCorners = null;
     const AUTO_EDITOR_CONFIDENCE_THRESHOLD = 0.6;
+    const detectorSwitch = document.getElementById('detectorSwitch');
+    const detectorHelp = document.getElementById('detectorHelp');
+    const detectorProgress = document.getElementById('detectorProgress');
+    const ML_READY_TEXT = 'ML detector (DocCornerNet) — better on cluttered backgrounds & low contrast.';
+    const CLASSICAL_TEXT = 'Classical geometry detector — fast, no download.';
+
+    function setDetectorHelp(text, state) {
+      detectorHelp.textContent = text;
+      detectorHelp.classList.remove('is-ready', 'is-loading', 'is-error');
+      if (state) detectorHelp.classList.add(state);
+    }
+
+    // Preload the ML model (ORT + weights) as soon as the backend is selected,
+    // so the first scan is instant instead of paying the ~2MB fetch mid-flow.
+    function preloadMlModel() {
+      if (mlModelReady) return Promise.resolve();
+      if (mlLoadPromise) return mlLoadPromise;
+
+      detectorProgress.classList.add('active');
+      setDetectorHelp('Loading neural network model (~2MB)…', 'is-loading');
+
+      mlLoadPromise = mlScanner.initialize()
+        .then(() => {
+          mlModelReady = true;
+          detectorProgress.classList.remove('active');
+          if (detectorBackend === 'ml') {
+            setDetectorHelp('✓ Model ready — instant neural detection.', 'is-ready');
+            setTimeout(() => {
+              if (detectorBackend === 'ml') setDetectorHelp(ML_READY_TEXT);
+            }, 2200);
+          }
+        })
+        .catch((err) => {
+          console.error(err);
+          detectorProgress.classList.remove('active');
+          if (detectorBackend === 'ml') {
+            setDetectorHelp('⚠️ Could not preload the model — it will retry on your next scan.', 'is-error');
+          }
+        })
+        .finally(() => {
+          mlLoadPromise = null;
+        });
+      return mlLoadPromise;
+    }
+
+    function setDetectorBackend(value) {
+      detectorBackend = value;
+      detectorSwitch.querySelectorAll('[data-detector]').forEach((button) => {
+        button.classList.toggle('active', button.dataset.detector === value);
+      });
+
+      if (value === 'ml') {
+        if (mlModelReady) {
+          setDetectorHelp(ML_READY_TEXT);
+        } else {
+          preloadMlModel();
+        }
+      } else {
+        setDetectorHelp(CLASSICAL_TEXT);
+      }
+    }
+
+    detectorSwitch.querySelectorAll('[data-detector]').forEach((button) => {
+      button.onclick = () => setDetectorBackend(button.dataset.detector);
+    });
+
+    function withDetectorOption(opts) {
+      if (detectorBackend === 'ml') opts.detector = 'ml';
+      return opts;
+    }
 
     const sampleImageFiles = [
       '25_2.jpg',
@@ -612,16 +832,32 @@
     async function processImage(img) {
       closeCornerEditor();
       extractedContainer.classList.remove('hidden');
-      statStatus.textContent = 'Processing static image...';
+      const usingMl = detectorBackend === 'ml';
+      statStatus.textContent = usingMl && !mlModelReady
+        ? 'Loading ML model (~2MB)...'
+        : 'Processing static image...';
       currentStaticImage = img;
       currentDetectedCorners = null;
       btnAdjustCorners.classList.add('hidden');
 
-      const result = await scanDocument(img, { mode: staticMode });
+      const result = await scanDocument(img, withDetectorOption({ mode: staticMode }));
+      if (usingMl) mlModelReady = true;
+      const detectorTag = usingMl ? ' (ML)' : '';
       if (result.success) {
         const staticCtx = staticCanvas.getContext('2d');
         currentDetectedCorners = result.corners || null;
         btnAdjustCorners.classList.toggle('hidden', !currentDetectedCorners);
+
+        // Classical: geometry confidence varies by image quality and is a
+        // useful signal. ML: the sigmoid score is ~100% for clear photos, so
+        // only surface it when it dips below near-certain.
+        const scoreText = !usingMl && result.confidence != null
+          ? `Confidence ${(result.confidence * 100).toFixed(1)}%`
+          : usingMl && result.score != null && result.score < 0.99
+            ? `Score ${(result.score * 100).toFixed(1)}%`
+            : 'Corners detected';
+        const lowConfidence = (!usingMl && result.confidence != null && result.confidence < AUTO_EDITOR_CONFIDENCE_THRESHOLD)
+          || (usingMl && result.score != null && result.score < AUTO_EDITOR_CONFIDENCE_THRESHOLD);
 
         if (staticMode === 'detect') {
           staticCanvas.width = img.width;
@@ -630,12 +866,11 @@
           if (result.corners) {
             drawModernDetectionOverlay(staticCtx, result.corners);
           }
-          resultTitle.textContent = '📐 Detection Preview';
-          const confidenceText = result.confidence != null ? `Confidence ${(result.confidence * 100).toFixed(1)}%` : 'Corners detected';
-          resultSubtitle.textContent = `${confidenceText}. Switch to Extract mode to crop the document.`;
+          resultTitle.textContent = `📐 Detection Preview${detectorTag}`;
+          resultSubtitle.textContent = `${scoreText}. Switch to Extract mode to crop the document.`;
 
-          if (result.corners && result.confidence != null && result.confidence < AUTO_EDITOR_CONFIDENCE_THRESHOLD) {
-            openCornerEditorForImage(img, result.corners, `Low confidence (${(result.confidence * 100).toFixed(1)}%)`);
+          if (result.corners && lowConfidence) {
+            openCornerEditorForImage(img, result.corners, `Low confidence (${scoreText})`);
           } else {
             showCanvasView();
           }
@@ -643,12 +878,11 @@
           staticCanvas.width = result.output.width;
           staticCanvas.height = result.output.height;
           staticCtx.drawImage(result.output, 0, 0);
-          resultTitle.textContent = '✨ Extracted Document';
-          const confidenceText = result.confidence != null ? `Confidence ${(result.confidence * 100).toFixed(1)}%. ` : '';
-          resultSubtitle.textContent = `${confidenceText}Perspective-corrected output ready to download.`;
+          resultTitle.textContent = `✨ Extracted Document${detectorTag}`;
+          resultSubtitle.textContent = `${scoreText}. Perspective-corrected output ready to download.`;
 
-          if (result.corners && result.confidence != null && result.confidence < AUTO_EDITOR_CONFIDENCE_THRESHOLD) {
-            openCornerEditorForImage(img, result.corners, `Low confidence (${(result.confidence * 100).toFixed(1)}%)`);
+          if (result.corners && lowConfidence) {
+            openCornerEditorForImage(img, result.corners, `Low confidence (${scoreText})`);
           } else {
             showCanvasView();
           }
@@ -733,12 +967,17 @@
 
       // Process every other frame for performance
       if (true) {
-        const result = await scanner.scan(liveCanvas, { mode: 'detect' });
+        const usingMl = detectorBackend === 'ml';
+        const result = await scanner.scan(liveCanvas, withDetectorOption({ mode: 'detect' }));
+        if (usingMl) mlModelReady = true;
         statTime.textContent = `${Math.round(performance.now() - t0)}ms`;
-        
+
         if (result.success && result.corners) {
-          const confidencePercent = result.confidence != null ? `${Math.round(result.confidence * 100)}%` : '';
-          statDetect.textContent = confidencePercent ? `YES ${confidencePercent}` : 'YES';
+          const scorePercent = usingMl
+            ? (result.score != null ? `${Math.round(result.score * 100)}%` : '')
+            : (result.confidence != null ? `${Math.round(result.confidence * 100)}%` : '');
+          const tag = usingMl ? ' ML' : '';
+          statDetect.textContent = scorePercent ? `YES${tag} ${scorePercent}` : `YES${tag}`;
           drawModernDetectionOverlay(ctx, result.corners, { pulseSeed: performance.now() });
         } else {
           statDetect.textContent = 'NO';
@@ -750,7 +989,7 @@
 
     btnCapture.onclick = async () => {
       statStatus.textContent = 'Extracting...';
-      const result = await scanner.scan(liveCanvas, { mode: 'extract' });
+      const result = await scanner.scan(liveCanvas, withDetectorOption({ mode: 'extract' }));
       if (result.success) {
         extractedContainer.classList.remove('hidden');
         staticCanvas.width = result.output.width;
@@ -770,6 +1009,7 @@
     };
 
     setStaticMode('detect');
+    setDetectorBackend('classical');
 
     // Init sample gallery
     loadSampleImages();

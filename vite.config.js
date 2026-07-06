@@ -11,6 +11,13 @@ export default defineConfig({
     },
     outDir: 'dist',
     sourcemap: 'hidden',
+    rollupOptions: {
+      // NOTE: the canonical library build is `npm run build` (scripts/build-lib.mjs),
+      // which bundles onnxruntime-web into a lazy ESM chunk and keeps it external
+      // only for UMD. This config is the fallback for a bare `vite build` / preview
+      // and just keeps ORT external for both formats.
+      external: ['onnxruntime-web']
+    },
     minify: 'terser',
     terserOptions: {
       compress: {

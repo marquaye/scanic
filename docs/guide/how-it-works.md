@@ -28,12 +28,13 @@ A Gaussian blur smooths out noise and texture so that only meaningful edges
 survive. This is one of the hot loops handled by the **Rust/WebAssembly** core
 with SIMD optimizations.
 
-### 3. Edge detection (WASM)
+### 3. Edge detection
 
-A **Canny edge detector** finds the document's outline. It uses Sobel gradients,
-non-maximum suppression to thin edges to one pixel wide, and hysteresis
-thresholding to keep only connected, confident edges. Thresholds are
-**adaptive** by default, but you can pin them with
+A **Canny edge detector** finds the document's outline. It computes Sobel
+gradients (JS), thins edges to one pixel wide with non-maximum suppression
+(**WASM**), and keeps only connected, confident edges with hysteresis
+thresholding (JS by default; a WASM path exists and can be opted into).
+Thresholds are **adaptive** by default, but you can pin them with
 [`lowThreshold`](/api/reference#options) / `highThreshold`.
 
 ### 4. Dilation (WASM)
@@ -61,14 +62,16 @@ low-contrast images. This is the `enableDetectionCascade` behaviour.
 ### 6. Extraction: the perspective warp
 
 In `extract` mode, the four corners define a quadrilateral that gets mapped onto
-a clean rectangle. Instead of a slow per-pixel loop, Scanic uses a **triangle
-subdivision** technique that hands the heavy lifting to the GPU via the Canvas
-API — completing the warp in roughly **10ms**.
+a clean rectangle. Instead of a slow forward per-pixel loop, Scanic uses a
+**bilinear inverse-map**: for every output pixel it computes the corresponding
+source coordinate via the inverse perspective matrix and bilinearly samples the
+source image — completing the warp in roughly **10ms**, with no Canvas
+state-machine overhead and no seam artifacts.
 
 ## Why hybrid JS + WASM?
 
-- **JavaScript layer** — the high-level API, DOM/canvas handling, contour logic, and workflow coordination.
-- **WebAssembly layer** — the pixel-crunching inner loops: Gaussian blur, Sobel gradients, non-maximum suppression, hysteresis, and dilation.
+- **JavaScript layer** — the high-level API, DOM/canvas handling, contour detection, corner selection, the perspective warp, and workflow coordination.
+- **WebAssembly layer** — the pixel-crunching inner loops where it pays off most by default: Gaussian blur, non-maximum suppression, and dilation. Sobel gradients and hysteresis thresholding also have WASM implementations, but currently run in JS by default.
 
 This split keeps the bundle tiny (~100KB) while delivering near-native speed
 where it matters.

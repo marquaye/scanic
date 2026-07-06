@@ -6,7 +6,7 @@ flat image — the same "scan from a photo" experience you get in mobile scanner
 apps, but running entirely in the browser or in Node.js.
 
 It combines **Rust-powered WebAssembly** for the pixel-crunching parts (blur,
-edge detection, morphology) with a **GPU-accelerated Canvas** warp for
+edge detection, morphology) with a **fast bilinear inverse-map warp** for
 perspective correction, giving near-native performance in a tiny package.
 
 ## Why Scanic?

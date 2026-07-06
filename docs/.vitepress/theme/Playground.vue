@@ -20,7 +20,9 @@ const dragging = ref(false)
 const error = ref('')
 
 const mode = ref('extract') // 'detect' | 'extract'
+const detector = ref('classical') // 'classical' | 'ml'
 const maxDim = ref(800)
+const mlReady = ref(false) // true once the ML model has been fetched once
 
 const sourceCanvas = ref(null) // original image + detection overlay
 const resultCanvas = ref(null) // extracted document (extract mode)
@@ -126,12 +128,15 @@ async function runScan() {
 
   try {
     const t0 = performance.now()
-    const result = await scanic.value.scanDocument(currentImage, {
+    const opts = {
       mode: mode.value,
       output: 'canvas',
       maxProcessingDimension: Number(maxDim.value)
-    })
+    }
+    if (detector.value === 'ml') opts.detector = 'ml'
+    const result = await scanic.value.scanDocument(currentImage, opts)
     timeMs.value = Math.round(performance.now() - t0)
+    if (detector.value === 'ml') mlReady.value = true
 
     if (!result.success) {
       status.value = result.message || 'No document detected.'
@@ -145,7 +150,16 @@ async function runScan() {
     currentCorners = result.corners
     hasCorners.value = true
     drawSource(currentImage, result.corners)
-    status.value = `Document detected${result.confidence != null ? ` · confidence ${(result.confidence * 100).toFixed(0)}%` : ''}`
+    // Classical: show geometry confidence (varies by image quality).
+    // ML: the sigmoid P(document) is always ~100% for clear photos — not
+    // informative as a percentage, so just tag which detector ran instead.
+    const scoreStr = detector.value !== 'ml' && result.confidence != null
+      ? ` · confidence ${(result.confidence * 100).toFixed(0)}%`
+      : detector.value === 'ml' && result.score != null && result.score < 0.99
+        ? ` · score ${(result.score * 100).toFixed(0)}%`
+        : ''
+    const detectorTag = detector.value === 'ml' ? ' (ML)' : ''
+    status.value = `Document detected${detectorTag}${scoreStr}`
 
     if (mode.value === 'extract' && result.output) {
       drawResult(result.output)
@@ -275,6 +289,13 @@ onUnmounted(() => closeEditor())
           </select>
         </label>
         <label>
+          Detector
+          <select v-model="detector" @change="runScan">
+            <option value="classical">Classical (default)</option>
+            <option value="ml">ML (neural)</option>
+          </select>
+        </label>
+        <label>
           Max dimension
           <select v-model="maxDim" @change="runScan">
             <option :value="600">600px (fastest)</option>
@@ -283,6 +304,7 @@ onUnmounted(() => closeEditor())
           </select>
         </label>
         <span v-if="!ready" class="pg-loading">Loading engine…</span>
+        <span v-else-if="busy && detector === 'ml' && !mlReady" class="pg-loading">Loading ML model (~2 MB)…</span>
         <span v-else-if="busy" class="pg-loading">Scanning…</span>
       </div>
 

@@ -23,7 +23,7 @@ hero:
 features:
   - icon: ⚡
     title: Near-native speed
-    details: Rust/WASM handles the CPU-heavy edge detection; a GPU-accelerated triangle-subdivision warp does perspective correction in under 10ms.
+    details: Rust/WASM handles the CPU-heavy edge detection; a fast bilinear inverse-map warp does perspective correction in under 10ms.
   - icon: 📦
     title: Featherweight
     details: Under 100KB gzipped — versus 30MB+ for OpenCV.js. The WASM is inlined, so there are no extra files to host or fetch.

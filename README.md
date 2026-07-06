@@ -17,7 +17,7 @@
 
 **Ultra-fast, production-ready document scanning for the modern Web.**
 
-Scanic is a high-performance document scanner library that brings professional-grade document edge detection and perspective correction to the browser and Node.js. By combining **Rust-powered WebAssembly** for pixel crunching and **GPU-accelerated Canvas** for image warping, Scanic delivers near-native performance (~10ms transforms) with a tiny footprint.
+Scanic is a high-performance document scanner library that brings professional-grade document edge detection and perspective correction to the browser and Node.js. By combining **Rust-powered WebAssembly** for pixel crunching and a **fast bilinear inverse-map warp** for image extraction, Scanic delivers near-native performance (~10ms transforms) with a tiny footprint.
 
 [**Documentation**](https://marquaye.github.io/scanic) | [**Live Demo**](https://marquaye.github.io/scanic/demo/) | [**Framework Examples**](#💻-framework-examples) | [**API Reference**](https://marquaye.github.io/scanic/api/reference)
 
@@ -31,7 +31,7 @@ Traditional web scanning solutions often force a trade-off:
 
 **Scanic bridges this gap:**
 - **Hybrid Engine**: Rust/WASM handles the CPU-heavy edge detection.
-- **Turbo Warp**: Custom Triangle Subdivision algorithm utilizes the GPU for perspective correction.
+- **Turbo Warp**: A per-pixel bilinear inverse-map does perspective correction with no Canvas state-machine overhead or seam artifacts.
 - **Zero Latency**: Designed for real-time applications like webcam scanning.
 
 ---
@@ -43,6 +43,7 @@ Traditional web scanning solutions often force a trade-off:
 - 🦀 **WASM Core**: High-performance Gaussian Blur, Canny Edge Detection, and Dilation.
 - 🛠️ **Modern API**: Clean, Promise-based API with full **TypeScript** support.
 - 📦 **Featherweight**: Under **100KB** total size (gzipped).
+- 🤖 **Optional ML detector**: switch to a neural corner detector for hard photos with `detector: 'ml'`. It is lazy loaded, needs no extra install, and uses a custom minimal ONNX Runtime build of about 1.5 MB instead of the usual 13 MB. See the [ML detection guide](https://marquaye.github.io/scanic/guide/ml-detection).
 - 🧪 **Production Grade**: Built-in regression tests with physical image baselines.
 
 ## 🆕 What's New
@@ -51,7 +52,8 @@ See the [**full documentation**](https://marquaye.github.io/scanic), the
 [**changelog**](CHANGELOG.md), and the [**releases**](https://github.com/marquaye/scanic/releases)
 for the latest. Recent highlights:
 
-- **Styleable corner editor** — a built-in, touch-friendly UI to fine-tune detected corners, now fully themeable via CSS variables with a polished default toolbar. See the [corner editor guide](https://marquaye.github.io/scanic/guide/corner-editor).
+- **Optional ML detector**: a neural corner detector (`detector: 'ml'`) for hard photos such as cluttered backgrounds, low contrast, or strong perspective. Lazy loaded and opt in. See the [ML detection guide](https://marquaye.github.io/scanic/guide/ml-detection).
+- **Styleable corner editor**: a built-in, touch friendly UI to fine tune detected corners, now fully themeable via CSS variables with a polished default toolbar. See the [corner editor guide](https://marquaye.github.io/scanic/guide/corner-editor).
 - **New docs site** with guides for Web/Node.js/Electron/React/Vue and an interactive in-browser playground.
 
 ---
@@ -99,7 +101,39 @@ if (extracted.success) {
 }
 ```
 
-### Manual Corner Adjustment UI (New)
+### ML detection (optional)
+
+On harder photos you can switch to a neural detector that is more robust. It is
+opt in per call with `detector: 'ml'`, and it needs no extra install:
+
+```bash
+npm install scanic
+```
+
+```js
+import { scanDocument } from 'scanic';
+
+const result = await scanDocument(imageElement, { detector: 'ml' });
+if (result.success) {
+  console.log(result.corners);
+  console.log(result.score); // P(document present), 0 to 1
+}
+```
+
+The ONNX Runtime JavaScript API is bundled as a lazy chunk (about 50 KB, roughly
+15 KB gzipped) that loads only when you use `detector: 'ml'`. On that first call
+scanic fetches about 2 MB from a CDN (the companion
+[`scanic-ml`](https://www.npmjs.com/package/scanic-ml) package): a 1.9 MB model
+plus a custom minimal ONNX Runtime build of about 1.5 MB, which is roughly 88
+percent smaller than the stock 13 MB runtime while running at the same speed. See
+the [ML detection guide](https://marquaye.github.io/scanic/guide/ml-detection)
+for options, self hosting, and threading.
+
+> Using the UMD or `<script>` build? The bundled runtime applies to the ESM build.
+> For ML there, add `onnxruntime-web@1.23.x` to your page yourself, since the UMD
+> format cannot split code into separate chunks.
+
+### Manual corner adjustment UI
 
 Use the built-in corner editor to let users drag corners on mobile and desktop,
 then pass the confirmed corners into extraction.
@@ -199,6 +233,7 @@ The primary function for detecting and extracting documents.
 #### `options` Properties
 | Option | Type | Default | Description |
 | :--- | :--- | :--- | :--- |
+| `detector` | `'classical' \| 'ml'` | `'classical'` | Corner detection method. `'ml'` uses the optional neural detector (lazy-loaded; no extra install). See the [ML Detection guide](https://marquaye.github.io/scanic/guide/ml-detection). |
 | `mode` | `'detect' \| 'extract'` | `'detect'` | `'detect'` returns coordinates; `'extract'` returns the warped image. |
 | `output` | `'canvas' \| 'imagedata' \| 'dataurl'` | `'canvas'` | The format of the returned processed image. |
 | `maxProcessingDimension` | `number` | `800` | Downscales image to this size for detection (faster). |
@@ -216,6 +251,16 @@ The primary function for detecting and extracting documents.
 | `maxDocumentAspectRatio` | `number` | `8` | Maximum accepted aspect ratio for candidates. |
 | `debug` | `boolean` | `false` | If true, returns intermediate processing steps. |
 
+##### `options.ml` (only when `detector: 'ml'`)
+| Option | Type | Default | Description |
+| :--- | :--- | :--- | :--- |
+| `assetBaseUrl` | `string` | jsDelivr `scanic-ml` | Base URL serving the `.wasm` + `.ort` assets. Set to self-host. |
+| `modelUrl` | `string` | `${assetBaseUrl}doccornernet_lean.ort` | Explicit model URL. |
+| `wasmPaths` | `string` | `assetBaseUrl` | Directory for the ORT wasm/loader. |
+| `modelBytes` | `Uint8Array` | (none) | Pre fetched model bytes (skips the network). |
+| `numThreads` | `number` | `1` | ORT threads. `>1` needs COOP/COEP headers. |
+| `minScore` | `number` | `0.5` | Minimum P(document) for `success: true`. |
+
 #### Return Value
 Returns a `Promise<ScannerResult>`:
 ```ts
@@ -224,6 +269,7 @@ Returns a `Promise<ScannerResult>`:
   corners: CornerPoints;  // { topLeft, topRight, bottomRight, bottomLeft }
   output: any;            // The warped image (if mode is 'extract')
   contour: Array<Point>;  // Raw detection points
+  score?: number;         // P(document present), 0–1 (ML detector only)
   timings: Array<Object>; // Performance breakdown
   message: string;        // Status or error message
 }
@@ -397,6 +443,7 @@ Contributions are welcome! Whether it's reporting a bug, suggesting a feature, o
 
 - Inspired by [jscanify](https://github.com/puffinsoft/jscanify).
 - WASM Blur module powered by Rust.
+- The optional ML corner detector's architecture is [DocCornerNet](https://github.com/mapo80/DocCornerNet-CoordClass) (MIT licensed) by [mapo80](https://github.com/mapo80), based on [SimCC](https://arxiv.org/abs/2107.03332) (Li et al., ECCV 2022) — see the [ML detection guide](https://marquaye.github.io/scanic/guide/ml-detection) for how it's trained, slimmed, and deployed in scanic.
 
 ---
 

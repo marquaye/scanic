@@ -1,0 +1,66 @@
+name: Publish scanic-ml
+
+on:
+  push:
+    tags:
+      - 'scanic-ml-v*'
+
+permissions:
+  contents: write
+  id-token: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v7
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v6
+      with:
+        node-version: '20'
+        registry-url: 'https://registry.npmjs.org'
+
+    - name: Validate NPM publish access
+      env:
+        NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+      run: |
+        if [ -z "$NODE_AUTH_TOKEN" ]; then
+          echo "::error::Missing NPM_TOKEN secret."
+          exit 1
+        fi
+        NPM_USER="$(npm whoami 2>/dev/null || true)"
+        if [ -z "$NPM_USER" ]; then
+          echo "::error::NPM_TOKEN is invalid or lacks publish permissions."
+          exit 1
+        fi
+        echo "Using npm account: $NPM_USER"
+
+    - name: Publish scanic-ml to NPM
+      run: npm publish --access public --provenance
+      working-directory: scanic-ml
+      env:
+        NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+    - name: Extract version from tag
+      id: version
+      run: echo "version=${GITHUB_REF_NAME#scanic-ml-v}" >> "$GITHUB_OUTPUT"
+
+    - name: Create GitHub Release
+      uses: softprops/action-gh-release@v3
+      with:
+        tag_name: ${{ github.ref_name }}
+        name: scanic-ml v${{ steps.version.outputs.version }}
+        body: |
+          Optional ML assets for scanic's `detector: 'ml'` mode.
+
+          **Install**
+          ```bash
+          npm install scanic-ml@${{ steps.version.outputs.version }}
+          ```
+
+          Most users don't install this directly — scanic fetches the assets from jsDelivr at runtime. See the [ML detection guide](https://marquaye.github.io/scanic/guide/ml-detection) for details.
+        draft: false
+        prerelease: false

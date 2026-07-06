@@ -10,7 +10,6 @@ how to tune it for your workload.
 | **Download size** | **~100KB** | ~31MB | ~30MB |
 | **Perspective speed** | **~10ms** | ~200ms | ~5ms |
 | **WASM optimized** | ✅ | ❌ | ✅ |
-| **GPU acceleration** | ✅ | ❌ | ❌ |
 | **TypeScript** | ✅ | ❌ | ✅ |
 
 ## Architecture
@@ -25,9 +24,12 @@ Scanic uses a **hybrid JavaScript + WebAssembly** approach:
   - Non-maximum suppression (edge thinning)
   - Morphological dilation
 
-The perspective warp runs on the GPU via a **triangle-subdivision** technique on
-the Canvas API, completing in roughly **10ms** versus 500ms+ for a naive
-per-pixel loop.
+The perspective warp uses a **per-pixel bilinear inverse-map**: for each output
+pixel, the inverse perspective matrix locates the corresponding source
+coordinate, which is then bilinearly sampled directly via `ImageData`. This
+completes in roughly **10ms**, versus 500ms+ for a naive forward per-pixel loop
+and versus the older GPU/Canvas triangle-subdivision approach it replaced,
+which also had visible seam artifacts.
 
 ## Tuning tips
 

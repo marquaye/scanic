@@ -48,6 +48,13 @@ try {
   copyFile(path.join(root, 'demo.html'), path.join(target, 'index.html'));
   // The library bundle the demo imports as ./scanic.js
   copyFile(path.join(root, 'dist', 'scanic.js'), path.join(target, 'scanic.js'));
+  // Lazy, code-split sibling chunks (mlDetector + bundled onnxruntime-web) that
+  // scanic.js dynamically imports when `detector: 'ml'` is used.
+  for (const chunk of fs.readdirSync(path.join(root, 'dist'))) {
+    if (chunk.startsWith('scanic-') && chunk.endsWith('.js')) {
+      copyFile(path.join(root, 'dist', chunk), path.join(target, chunk));
+    }
+  }
   // Assets the demo references
   copyFile(path.join(root, 'public', 'scanic-logo-bg.png'), path.join(target, 'scanic-logo-bg.png'));
   copyFile(path.join(root, 'public', 'favicon.ico'), path.join(target, 'favicon.ico'));

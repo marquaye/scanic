@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.4.1] - 2026-06-30
+
+### Changed
+- Rewrote the ML detection guide and the README ML section to be clearer and aimed at developers using the library.
+
+## [1.4.0] - 2026-06-30
+
+### Changed
+- **ML detector no longer needs a separate install**: the ONNX Runtime JS API is now bundled into scanic's ESM build as a **lazy, code-split chunk** (~50 KB, gzip ~15 KB) loaded only on first `detector: 'ml'` use. `onnxruntime-web` is no longer an (optional) peer dependency — `npm install scanic` is all ML users need. The custom wasm + model still stream from the `scanic-ml` CDN at runtime, and classical users still download none of it. The matching ORT version is bundled, so there is no longer a peer-version mismatch to get wrong.
+  - UMD/CommonJS consumers are unchanged: `onnxruntime-web` stays external there (UMD can't code-split), so script-tag/`require` ML users still self-provide `onnxruntime-web@1.23.x`.
+
+## [1.3.0] - 2026-06-30
+
+### Added
+- **Optional ML document-corner detector**: pass `detector: 'ml'` to `scanDocument` or `Scanner` to use a neural corner detector — a channel-slimmed SimCC model (DocCornerNet, 456 K params, ~1.9 MB) paired with a custom minimal ONNX Runtime Web WASM build (~1.5 MB, 88 % smaller than stock ort-web). Classical users pay nothing: the detector is fully opt-in, lazy-loaded, and gated behind the optional peer dependency `onnxruntime-web`.
+- **`scanic-ml` companion package** (`npm install scanic-ml`): the model (`.ort` format) and the custom ORT WASM loader. Published to npm and served from jsDelivr by default — no self-hosting required. Self-hosting supported via the `ml.assetBaseUrl` option.
+- **`result.score`**: when using the ML detector, `scanDocument` returns a `score` field — the model's P(document present) confidence, 0–1.
+- **`ml` options namespace**: `assetBaseUrl`, `modelUrl`, `wasmPaths`, `modelBytes`, `numThreads`, and `minScore`.
+
 ## [1.2.0] - 2026-06-19
 
 ### Added
@@ -37,6 +56,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Updated detection candidate sorting to prefer valid geometry and better near-tie tie-breaking.
 - Improved non-debug performance by storing timings without retaining heavy debug arrays.
 - Updated public detection options typings with cascade and geometry-threshold controls.
+- **Rewrote the perspective warp**: replaced the GPU-accelerated 8,192-triangle Canvas subdivision (introduced in 1.0.0) with a per-pixel bilinear inverse-map (`getImageData`/`putImageData`). Removes all Canvas 2D state-machine overhead and the triangle-seam artifacts the old approach needed a centroid-expansion hack to hide, while keeping the ~10ms transform time.
 
 ### Fixed
 - Fixed corner regression caused by near-duplicate approximation vertices on `test.png`.

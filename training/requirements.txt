@@ -1,0 +1,29 @@
+# Core ML stack
+# Pinned to TF 2.13 + tfmot 0.7.5: the last combo where `tf.keras` is Keras 2
+# *natively* (no lazy-loader routing). TF 2.15/2.16 + tfmot 0.8.0 break
+# `quantize_model` on Windows -- the Keras-3-era KerasLazyLoader raises
+# "Keras cannot be imported", and forcing tf_keras hits a keras/tf_keras layer
+# identity mismatch. 2.13.1 / 0.7.5 quantizes cleanly. TF 2.13 requires numpy<1.25.
+tensorflow==2.13.1
+tensorflow-model-optimization==0.7.5
+
+# ONNX export + quantization
+tf2onnx>=1.16.0
+onnx>=1.16.0,<1.17.0
+onnxruntime>=1.18.0
+
+# Dataset download helpers
+requests>=2.31.0
+tqdm>=4.66.0
+huggingface_hub>=0.24.0
+roboflow>=1.1.0
+gdown>=5.1.0
+
+# Image processing
+Pillow>=10.0.0
+opencv-python>=4.9.0
+numpy>=1.23.0,<1.25.0   # upper bound required by TF 2.13
+
+# Visualization / reporting
+matplotlib>=3.8.0
+tabulate>=0.9.0
