@@ -75,14 +75,16 @@ All ML options live under `options.ml`:
 | `modelUrl` | `string` | `${assetBaseUrl}doccornernet_lean.ort` | Explicit model URL. |
 | `wasmPaths` | `string` | `assetBaseUrl` | Directory for the ORT wasm and loader. |
 | `modelBytes` | `Uint8Array` | (none) | Pre fetched model bytes, which skips the network request. |
-| `numThreads` | `number` | `1` | ORT thread count. Values above 1 need COOP and COEP headers (see below). |
+| `threaded` | `boolean` | `false` | Use the multi thread wasm build (`assetBaseUrl + 'threaded/'`). See [Threads](#threads-advanced). |
+| `numThreads` | `number` | `1`, or `4` when `threaded: true` | ORT thread count. Values above 1 need COOP and COEP headers (see below). |
 | `minScore` | `number` | `0.5` | Minimum P(document) for `success` to be `true`. |
 
 ## Self hosting (offline or no CDN)
 
 If you cannot rely on the CDN, install the companion
 [`scanic-ml`](https://www.npmjs.com/package/scanic-ml) package, serve its `dist/`
-folder from your own origin, and point scanic at it:
+folder (which contains both the single-thread files and a `threaded/`
+subfolder) from your own origin, and point scanic at it:
 
 ```js
 await scanDocument(image, {
@@ -93,11 +95,31 @@ await scanDocument(image, {
 
 ## Threads (advanced)
 
-The shipped wasm is single threaded (about 10 ms per scan) and works on any page
-with no special headers. A multi threaded build (about 4 ms per scan) needs both
-a four thread wasm build and
-[cross origin isolation](https://developer.mozilla.org/en-US/docs/Web/API/Window/crossOriginIsolated)
-(`COOP: same-origin` and `COEP: require-corp`). Most apps do not need this.
+scanic ships **both** wasm flavors, so you can opt into whichever fits your host:
+
+- **Single threaded** (default, `threaded` unset or `false`): about 13 ms of
+  model inference per scan, works on any page with no special headers.
+- **Multi threaded** (`ml: { threaded: true }`): about 2x faster inference
+  (roughly 6 to 7 ms at 4 threads in a cross-origin-isolated browser), served
+  from `assetBaseUrl + 'threaded/'`. Needs the host page to be
+  [cross origin isolated](https://developer.mozilla.org/en-US/docs/Web/API/Window/crossOriginIsolated)
+  (`COOP: same-origin` and `COEP: require-corp` response headers) for
+  `SharedArrayBuffer` to be available; without that it falls back to running
+  on a single thread, so it's safe to request speculatively. Defaults to 4
+  threads, override with `numThreads`. The speedup is on the model inference
+  step. A full scan also includes single-threaded image preprocessing, so the
+  end-to-end gain is smaller for a one-off scan.
+
+```js
+await scanDocument(image, {
+  detector: 'ml',
+  ml: { threaded: true }
+});
+```
+
+Most apps do not need this — only reach for it if you already control the
+response headers of the page hosting scanic (e.g. an internal tool or an app
+you fully control the server for).
 
 ## Classical or ML: which to use
 

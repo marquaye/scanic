@@ -258,7 +258,8 @@ The primary function for detecting and extracting documents.
 | `modelUrl` | `string` | `${assetBaseUrl}doccornernet_lean.ort` | Explicit model URL. |
 | `wasmPaths` | `string` | `assetBaseUrl` | Directory for the ORT wasm/loader. |
 | `modelBytes` | `Uint8Array` | (none) | Pre fetched model bytes (skips the network). |
-| `numThreads` | `number` | `1` | ORT threads. `>1` needs COOP/COEP headers. |
+| `threaded` | `boolean` | `false` | Use the multi thread wasm build (`assetBaseUrl + 'threaded/'`). Roughly 2x faster inference on a cross-origin isolated page. See the [ML detection guide](https://marquaye.github.io/scanic/guide/ml-detection). |
+| `numThreads` | `number` | `1`, or `4` when `threaded` | ORT threads. `>1` needs COOP/COEP headers. |
 | `minScore` | `number` | `0.5` | Minimum P(document) for `success: true`. |
 
 #### Return Value
@@ -380,6 +381,21 @@ Scanic uses Vitest for unit and regression testing. We test against real documen
 ```bash
 npm test
 ```
+
+The regression suite covers both the classical detector and the optional ML detector
+(`src/baseline.test.js` and `src/baseline.ml.test.js`), each checked against its own
+golden baseline in `testImages/`:
+
+```bash
+npm run baseline:check       # classical detector vs testImages/baseline-results.json
+npm run baseline:check:ml    # ML detector vs testImages/baseline-results.ml.json
+
+npm run baseline:update      # regenerate the classical baseline
+npm run baseline:update:ml   # regenerate the ML baseline
+```
+
+The ML baseline test skips automatically when `onnxruntime-web` or the `scanic-ml`
+model assets aren't available locally.
 
 
 ## 🖥️ Node.js Support

@@ -28,16 +28,41 @@ Measured on 200 ground-truth `dcd_test` images (err in px @224):
 | DocCornerNet V2 baseline | 2.9 px | 0.854 | 2.46 MB | 600K |
 | **LEAN (this)** | **2.3 px** | **0.892** | 1.82 MB onnx / 1.9 MB ort | 456K |
 
-Runtime (custom minimal ORT-Web build, measured in Node, single image repeated):
+Runtime (custom minimal ORT-Web build). Two numbers matter: the ML Inference
+step, which is the only part multi-threading touches, and the end-to-end
+`detectDocumentMl` call, which also includes single-threaded canvas
+preprocessing. Measured via `npm run bench:detectors` (Node) and a
+cross-origin-isolated Chromium page, averaged after a warm-up call:
 
-| backend | wasm size | latency |
+| ML Inference step | Node | Browser (Chromium, COI) |
 |---|---|---|
-| stock onnxruntime-web | 13 MB | ~10.6 ms (1 thread) |
-| **minimal build (shipped)** | **1.5 MB** (527 KB gzip) | **~10.9 ms (1 thread)** |
-| minimal build, 4 threads* | 1.5 MB | ~4.0 ms |
+| single-thread (`dist/`, default) | ~13.4 ms | ~13.3 ms |
+| multi-thread, 2 threads (`dist/threaded/`) | ~10.3 ms | ~10.8 ms |
+| multi-thread, 4 threads (`dist/threaded/`) | ~7.5 ms | ~6.4 ms |
+| speedup at 4 threads | 1.8x | 2.1x |
 
-\* Threads need a 4-thread build **and** cross-origin isolation (COOP/COEP) on the
-host page. The shipped artifact is single-thread for universal, header-free use.
+The wasm is ~1.5 MB (527 KB gzip) for both flavors, shipped side by side (see
+`dist/` vs `dist/threaded/`). The single-thread build is the default and works
+on any page with no special headers. The multi-thread build needs a
+cross-origin isolated host page (COOP and COEP); opt in with `ml: { threaded: true }`.
+
+Multi-threading roughly halves inference time: about 1.8x in Node and 2.1x in a
+cross-origin-isolated browser at 4 threads. A `cpu/wall` ratio near 3.5x
+confirms the work really is running in parallel. The end-to-end
+`detectDocumentMl` gain is smaller, about 1.1x in Node, because canvas
+preprocessing runs single-threaded and, for a model this fast, is a large share
+of the full call. So threading is a clear win when inference dominates (repeated
+scans, larger inputs, worker offload) and a modest one when preprocessing
+dominates a single call. Absolute numbers vary by machine and load, so treat the
+relative single-thread vs multi-thread comparison as the signal, not the
+absolute ms.
+
+An earlier revision of this card claimed "no measurable speedup." That was a
+benchmarking artifact, not a property of the model: ORT-Web initializes its
+wasm thread pool once per process, so a single-process script comparing a
+1-thread and a 4-thread session ran both on whichever pool was created first,
+which hid the real gain. `npm run bench:detectors` forks a fresh process per
+config so each is measured correctly.
 
 **Do not INT8/fp16-quantize this model.** Post-training quantization *slowed* it
 ~2× in WASM (QDQ overhead on the SimCC head) for only a size drop. fp32 is the
