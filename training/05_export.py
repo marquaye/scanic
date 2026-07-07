@@ -55,7 +55,7 @@ MEAN = np.array([0.485, 0.456, 0.406], dtype=np.float32)
 STD  = np.array([0.229, 0.224, 0.225], dtype=np.float32)
 
 
-# ── preprocessing ──────────────────────────────────────────────────────────────
+# preprocessing 
 
 def preprocess(bgr: np.ndarray) -> np.ndarray:
     rgb = cv2.cvtColor(bgr, cv2.COLOR_BGR2RGB)
@@ -64,14 +64,14 @@ def preprocess(bgr: np.ndarray) -> np.ndarray:
     return rgb[np.newaxis]
 
 
-# ── Stage 1: SavedModel -> ONNX ────────────────────────────────────────────────
+# Stage 1: SavedModel -> ONNX 
 
 def export_to_onnx(model_path: Path, out_path: Path, opset: int = 17) -> Path:
     """Convert Keras SavedModel to ONNX float32 (or QDQ INT8 if QAT model)."""
     import tensorflow as tf
     import tf2onnx  # type: ignore
 
-    print(f"\n── Stage 1: SavedModel -> ONNX (opset {opset}) ──")
+    print(f"\n Stage 1: SavedModel -> ONNX (opset {opset}) ")
     print(f"  Input:  {model_path}")
     print(f"  Output: {out_path}")
 
@@ -120,7 +120,7 @@ def _rename_onnx_outputs(onnx_path: Path, keras_model):
         print(f"  [WARN] Could not rename outputs: {exc}")
 
 
-# ── Stage 2: ONNX float32 -> ONNX INT8 (static quantization) ─────────────────
+# Stage 2: ONNX float32 -> ONNX INT8 (static quantization) 
 
 class _CalibrationReader:
     """ORT calibration data reader -- feeds real document images."""
@@ -152,7 +152,7 @@ def quantize_static(fp32_onnx: Path, int8_onnx: Path, val_records: list[dict],
         quant_pre_process,
     )
 
-    print(f"\n── Stage 2: ONNX float32 -> INT8 (static, {n_calib} calibration images) ──")
+    print(f"\n Stage 2: ONNX float32 -> INT8 (static, {n_calib} calibration images) ")
     print(f"  Input:  {fp32_onnx}")
     print(f"  Output: {int8_onnx}")
 
@@ -204,7 +204,7 @@ def quantize_static(fp32_onnx: Path, int8_onnx: Path, val_records: list[dict],
     return int8_onnx
 
 
-# ── accuracy / latency validation ─────────────────────────────────────────────
+# accuracy / latency validation 
 
 def decode_corners(coords: np.ndarray, w: int, h: int) -> dict:
     c = coords.flatten()
@@ -229,7 +229,7 @@ def validate_onnx(onnx_path: Path, records: list[dict], n: int = 100,
     """Run validation: latency + corner error vs ground truth."""
     import onnxruntime as ort
 
-    print(f"\n── Validation: {onnx_path.name} ──")
+    print(f"\n Validation: {onnx_path.name} ")
     opts = ort.SessionOptions()
     opts.intra_op_num_threads = 1
     sess = ort.InferenceSession(str(onnx_path), opts, providers=["CPUExecutionProvider"])
@@ -281,7 +281,7 @@ def validate_onnx(onnx_path: Path, records: list[dict], n: int = 100,
     return result
 
 
-# ── main ───────────────────────────────────────────────────────────────────────
+# main 
 
 def main():
     parser = argparse.ArgumentParser()
@@ -297,7 +297,7 @@ def main():
 
     EXPORT_DIR.mkdir(parents=True, exist_ok=True)
 
-    # ── Stage 1 ────────────────────────────────────────────────────────────────
+    # Stage 1 
     fp32_out = EXPORT_DIR / "model_float32.onnx"
 
     if args.onnx_only:
@@ -315,7 +315,7 @@ def main():
     else:
         fp32_out = export_to_onnx(args.model, fp32_out, args.opset)
 
-    # ── Load calibration data ──────────────────────────────────────────────────
+    # Load calibration data 
     val_json = NORM_DIR / "val.json"
     val_records = []
     if val_json.exists():
@@ -325,7 +325,7 @@ def main():
         print("  [WARN] No val.json found -- skipping calibration-based quantization")
         args.no_static_quant = True
 
-    # ── Stage 2 ────────────────────────────────────────────────────────────────
+    # Stage 2 
     int8_out = EXPORT_DIR / "model_int8.onnx"
     if not args.no_static_quant:
         # Determine the correct input name from the float32 model
@@ -337,7 +337,7 @@ def main():
         int8_out = quantize_static(fp32_out, int8_out, val_records,
                                    args.calibration_n, input_name)
 
-    # ── Validate all models ────────────────────────────────────────────────────
+    # Validate all models 
     print("\n=== Validation report ===")
     results = []
 
@@ -354,7 +354,7 @@ def main():
     report_path.write_text(json.dumps({"models": results}, indent=2))
     print(f"\n  Report written -> {report_path}")
 
-    # ── Copy best model to scripts/ml-spike for immediate use ─────────────────
+    # Copy best model to scripts/ml-spike for immediate use 
     best = int8_out if (int8_out.exists() and not args.no_static_quant) else fp32_out
     dest = REPO_ROOT / "scripts" / "ml-spike" / "model" / "doccornernet_finetuned.onnx"
     import shutil

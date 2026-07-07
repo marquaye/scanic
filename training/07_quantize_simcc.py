@@ -1,7 +1,7 @@
 """
-07_quantize_simcc.py — INT8-quantize the existing DocCornerNet (SimCC) ONNX.
+07_quantize_simcc.py: INT8-quantize the existing DocCornerNet (SimCC) ONNX.
 
-ORT static quantisation (QDQ, per-channel, calibrated on val images) — the same
+ORT static quantisation (QDQ, per-channel, calibrated on val images), the same
 lossless path used for the regression model. Input is NHWC [1,224,224,3].
 
     python 07_quantize_simcc.py

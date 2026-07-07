@@ -1,5 +1,5 @@
 """
-06_compare_three.py — Head-to-head: classical vs ML(no-finetune) vs ML(finetune).
+06_compare_three.py: Head-to-head: classical vs ML(no-finetune) vs ML(finetune).
 
 Scores all approaches on the SAME ground-truth set (dcd_test) for:
   • Quality : mean/median per-corner error (px@224) + mean IoU vs GT + detect rate
@@ -109,7 +109,7 @@ def main():
     if CLASSICAL.exists():
         rows.append(("Classical (scanic, JS fallback)", eval_classical(items)))
     else:
-        print("[warn] /tmp/classical_pred.json missing — run scripts/eval_classical.js first\n")
+        print("[warn] /tmp/classical_pred.json missing. Run scripts/eval_classical.js first\n")
     for name, path in MODELS.items():
         if path.exists():
             rows.append((name, eval_onnx(path, items)))
@@ -120,11 +120,11 @@ def main():
     print(h); print("-"*len(h))
     for name, r in rows:
         e = r["errs"]
-        med = f"{np.median(e):.1f}" if len(e) else "—"
-        mean = f"{e.mean():.1f}" if len(e) else "—"
-        iou = f"{r['ious'].mean():.3f}" if len(r["ious"]) else "—"
-        p10 = f"{(e<10).mean()*100:.0f}%" if len(e) else "—"
-        size = f"{r['size_mb']:.2f}" if r["size_mb"] else "—"
+        med = f"{np.median(e):.1f}" if len(e) else "-"
+        mean = f"{e.mean():.1f}" if len(e) else "-"
+        iou = f"{r['ious'].mean():.3f}" if len(r["ious"]) else "-"
+        p10 = f"{(e<10).mean()*100:.0f}%" if len(e) else "-"
+        size = f"{r['size_mb']:.2f}" if r["size_mb"] else "-"
         print(f"{name:<34} {med:>8} {mean:>9} {iou:>6} {p10:>6} "
               f"{r['detect']*100:>6.0f}% {r['lat']:>7.1f} {size:>8}")
     print("\nNotes: err in px@224 (lower=better); IoU/<10px on DETECTED only for classical.")

@@ -65,7 +65,7 @@ NORM_DIR.mkdir(parents=True, exist_ok=True)
 DEFAULT_MIN_AREA_RATIO = 0.03
 
 
-# ── geometry helpers ───────────────────────────────────────────────────────────
+# Geometry helpers
 
 def _quad_area(corners: list[dict]) -> float:
     pts = np.array([[c["x"], c["y"]] for c in corners], dtype=float)
@@ -96,7 +96,7 @@ def _order_corners(pts: list) -> dict:
     }
 
 
-# ── MIDV-500 ───────────────────────────────────────────────────────────────────
+# MIDV-500 
 
 def _parse_midv500() -> list[dict]:
     """
@@ -288,7 +288,7 @@ def _parse_smartdoc() -> list[dict]:
     return records
 
 
-# ── UVDoc ──────────────────────────────────────────────────────────────────────
+# UVDoc 
 
 def _parse_uvdoc() -> list[dict]:
     """
@@ -353,7 +353,7 @@ def _parse_uvdoc() -> list[dict]:
                             for key in ("grid2d", "grid", "corners", "pts"):
                                 if key in hf:
                                     arr = np.array(hf[key])
-                                    # HDF5 .mat stores as (2, H, W) — transpose to (H, W, 2)
+                                    # HDF5 .mat stores as (2, H, W). Transpose to (H, W, 2)
                                     if arr.ndim == 3 and arr.shape[0] == 2:
                                         arr = arr.transpose(1, 2, 0)
                                     grid_data = arr
@@ -412,7 +412,7 @@ def _parse_uvdoc() -> list[dict]:
     return records
 
 
-# ── Roboflow ───────────────────────────────────────────────────────────────────
+# Roboflow 
 
 def _parse_yolo_line(line: str, w: int, h: int) -> dict | None:
     """
@@ -471,7 +471,7 @@ def _parse_yolo_line(line: str, w: int, h: int) -> dict | None:
     return None
 
 
-# ── WarpDoc ────────────────────────────────────────────────────────────────────
+# WarpDoc 
 
 def _parse_warpdoc() -> list[dict]:
     """
@@ -484,7 +484,7 @@ def _parse_warpdoc() -> list[dict]:
         digital_margin/<distortion>/####.jpg -- flat with visible page margin
 
     WarpDoc is a document DEWARPING dataset, not a detection dataset. The archive
-    contains no corner annotations — the GT is the flat reference image, not
+    contains no corner annotations. The GT is the flat reference image, not
     corner coordinates. In every distortion category (curved, fold, perspective,
     rotate, random, incomplete) the document lies inside the frame with visible
     background, so a full-frame fallback would be badly wrong. This dataset is
@@ -564,7 +564,7 @@ def _parse_roboflow() -> list[dict]:
     return records
 
 
-# ── DocCornerDataset ───────────────────────────────────────────────────────────
+# DocCornerDataset 
 
 def _parse_doccornerdataset() -> list[dict]:
     """mapo80/DocCornerDataset: normalized corners from annotations.json.
@@ -602,7 +602,7 @@ def _parse_doccornerdataset() -> list[dict]:
     return records
 
 
-# ── split + write ──────────────────────────────────────────────────────────────
+# split + write 
 
 def _filter_degenerate(records: list[dict], min_area_ratio: float) -> list[dict]:
     kept = []

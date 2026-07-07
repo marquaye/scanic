@@ -33,11 +33,11 @@ python -c "import tensorflow as tf; print(tf.config.list_physical_devices('GPU')
 
 > The TF 2.13 + tfmot 0.7.5 pin is required for `quantize_model` to work (see the
 > note in `requirements.txt`); it holds on Linux too, so QAT runs the same on the
-> 4090 — just far faster.
+> 4090, just far faster.
 
-## Pipeline — run in order
+## Pipeline: run in order
 
-### Step 1 — Download datasets + model weights
+### Step 1: Download datasets + model weights
 
 ```bash
 python 01_download.py
@@ -64,7 +64,7 @@ python 01_download.py --no-model                    # skip model download
 > **WarpDoc note**: downloads from Google Drive via `gdown`. If it fails, see
 > the printed manual-download instructions.
 
-### Step 2 — Normalize annotations
+### Step 2: Normalize annotations
 
 ```bash
 python 02_normalize.py
@@ -79,7 +79,7 @@ python 02_normalize.py --val-split 0.20   # use 20% for validation (default 15%)
 python 02_normalize.py --min-area 0.05    # stricter area filter
 ```
 
-### Step 3 — Baseline benchmark
+### Step 3: Baseline benchmark
 
 ```bash
 python 03_benchmark.py
@@ -96,13 +96,13 @@ python 03_benchmark.py --n 0               # benchmark all val images
 python 03_benchmark.py --onnx path/to/model.onnx
 ```
 
-> **Classical vs ML (no-finetune) baseline** — for the full methodology,
+> **Classical vs ML (no-finetune) baseline**: for the full methodology,
 > reproduction commands, and findings comparing Scanic's classical detector
 > against the off-the-shelf model, see
 > [`../scripts/ml-spike/EVALUATION.md`](../scripts/ml-spike/EVALUATION.md).
 > That is the yardstick the fine-tuned/INT8 model must beat.
 
-### Step 4 — Two-stage fine-tuning
+### Step 4: Two-stage fine-tuning
 
 ```bash
 python 04_finetune_qat.py          # full pipeline: Stage A (float) -> Stage B (QAT)
@@ -111,31 +111,31 @@ python 04_finetune_qat.py          # full pipeline: Stage A (float) -> Stage B (
 Runs in two stages (recipe from NVIDIA's integer-quant guidance + the TF Model
 Optimization QAT docs):
 
-- **Stage A — float32 domain adaptation.** Fine-tunes the original float model
+- **Stage A: float32 domain adaptation.** Fine-tunes the original float model
   on our combined corner dataset with geometric + photometric augmentation and
   a cosine-with-warmup LR (default 1e-4). Moves weights onto our distribution
   *before* any quantization noise. Saved to `models/float_checkpoint/final_model`.
-- **Stage B — QAT.** Loads the Stage-A weights, applies
+- **Stage B: QAT.** Loads the Stage-A weights, applies
   `tfmot.quantization.keras.quantize_model` (fake-quant nodes for INT8), and
   fine-tunes at a much lower LR (default 2e-5, ~1 order below the float LR).
   BatchNorm running stats are frozen in the last ~30% of epochs so the simulated
   INT8 activation ranges settle. Saved to `models/qat_checkpoint/final_model`.
 
 **Loss:** Wing Loss (Feng et al. 2018) computed in **pixel units** (coords ×224)
-so the `w=10px` / `eps=2px` knobs are meaningful — on normalized [0,1] coords the
+so the `w=10px` / `eps=2px` knobs are meaningful. On normalized [0,1] coords the
 loss degenerates to pure log.
 
 **Validation (dual, reported separately):**
-- `val.json` — group-aware held-out split, used for checkpointing / early stop.
-- `roboflow_test.json` — real-world phone photos, logged each epoch as a
+- `val.json`: group-aware held-out split, used for checkpointing / early stop.
+- `roboflow_test.json`: real-world phone photos, logged each epoch as a
   deployment-representative sanity metric (`roboflow_test_err_px224`).
 
 **Why QAT and not dynamic quantization?**  
 Dynamic INT8 (weight-only) destroyed accuracy on this model: mean IoU dropped
 from 0.865 to 0.009. MobileNetV2's depthwise convolutions accumulate large
 errors when only weights are quantized post-hoc. QAT simulates both weight and
-activation quantization during training, so the model learns to compensate —
-accuracy is preserved at INT8.
+activation quantization during training, so the model learns to compensate.
+Accuracy is preserved at INT8.
 
 Options:
 ```bash
@@ -149,7 +149,7 @@ python 04_finetune_qat.py --freeze-backbone      # only train the head
 
 Saves to `models/qat_checkpoint/final_model` (SavedModel format).
 
-### Step 5 — Export to ONNX INT8
+### Step 5: Export to ONNX INT8
 
 ```bash
 python 05_export.py
@@ -161,7 +161,7 @@ QAT fake-quant nodes, tf2onnx converts them to ONNX `QuantizeLinear` /
 
 **Stage 2**: ONNX float32 → ONNX INT8 via ORT static quantization with
 calibration data from `val.json`. Uses `QDQ` format (QLinearConv), which is
-the standard ONNX INT8 path — ORT-Web's WASM SIMD backend has optimized
+the standard ONNX INT8 path. ORT-Web's WASM SIMD backend has optimized
 kernels for this format.
 
 Outputs:
@@ -201,7 +201,7 @@ training/
   05_export.py         # ONNX INT8 export + validation
   requirements.txt
   README.md
-  data/                # gitignored — created at runtime
+  data/                # gitignored, created at runtime
     raw/               # downloaded datasets
     normalized/        # train.json, val.json
   models/              # gitignored

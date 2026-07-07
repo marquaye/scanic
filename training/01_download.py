@@ -30,7 +30,7 @@ from pathlib import Path
 import requests
 from tqdm import tqdm
 
-# ── paths ──────────────────────────────────────────────────────────────────────
+# paths 
 SCRIPT_DIR = Path(__file__).parent
 RAW_DIR    = SCRIPT_DIR / "data" / "raw"
 MODELS_DIR = SCRIPT_DIR / "models" / "base"
@@ -39,7 +39,7 @@ RAW_DIR.mkdir(parents=True, exist_ok=True)
 MODELS_DIR.mkdir(parents=True, exist_ok=True)
 
 
-# ── helpers ────────────────────────────────────────────────────────────────────
+# helpers 
 
 def _progress_bar(desc: str, total: int | None):
     return tqdm(total=total, unit="B", unit_scale=True, unit_divisor=1024, desc=desc)
@@ -79,7 +79,7 @@ def _extract(archive: Path, dest: Path):
     print("  Done.")
 
 
-# ── MIDV-500 ───────────────────────────────────────────────────────────────────
+# MIDV-500 
 
 MIDV500_FTP_HOST = "smartengines.com"
 MIDV500_FTP_BASE = "/midv-500/dataset/"  # 50 ZIPs, one per document type
@@ -148,7 +148,7 @@ def download_midv500(n_zips: int = 10):
         print(f"  Helper written: {helper}")
 
 
-# ── SmartDoc 2015 ──────────────────────────────────────────────────────────────
+# SmartDoc 2015 
 
 SMARTDOC_SAMPLE_URL = "https://zenodo.org/records/1230218/files/sampleDataset.tar.gz"
 SMARTDOC_TEST_URL   = "https://zenodo.org/records/1230218/files/testDataset.tar.gz"
@@ -181,7 +181,7 @@ def download_smartdoc(full: bool = False):
     print(f"SmartDoc 2015 -> {dest}")
 
 
-# ── UVDoc ──────────────────────────────────────────────────────────────────────
+# UVDoc 
 
 # UVDoc benchmark split is small (~300 MB) and MIT licensed.
 # The full dataset (UVDoc_final.zip) is several GB; we use the benchmark split.
@@ -213,7 +213,7 @@ def download_uvdoc():
     print(f"UVDoc -> {dest}")
 
 
-# ── Roboflow ───────────────────────────────────────────────────────────────────
+# Roboflow 
 
 ROBOFLOW_DS_ID  = "36EORXAglU"
 ROBOFLOW_API_KEY = "IY7GpshBBM"
@@ -277,7 +277,7 @@ def download_roboflow():
     print(f"Roboflow -> {dest}")
 
 
-# ── WarpDoc ────────────────────────────────────────────────────────────────────
+# WarpDoc 
 
 WARPDOC_GDRIVE_ID = "1UHzgERrRR6E08bpL1AyCzD01bFczlAVP"
 
@@ -354,7 +354,7 @@ def _download_roboflow_package(dest: Path):
         )
 
 
-# ── DocCornerDataset (HuggingFace) ────────────────────────────────────────────
+# DocCornerDataset (HuggingFace) 
 
 HF_DOCCORNER_DATASET = "mapo80/DocCornerDataset"
 
@@ -462,7 +462,7 @@ def download_doccornerdataset():
     print(f"DocCornerDataset -> {dest}")
 
 
-# ── HuggingFace model weights ──────────────────────────────────────────────────
+# HuggingFace model weights 
 
 HF_REPO = "mapo80/DocCornerNet-CoordClass-V2"
 
@@ -488,7 +488,7 @@ def download_model():
         print(f"  Manual: pip install huggingface_hub && huggingface-cli download {HF_REPO}")
 
 
-# ── CLI ────────────────────────────────────────────────────────────────────────
+# CLI 
 
 def main():
     parser = argparse.ArgumentParser(description="Download datasets and model weights")

@@ -68,7 +68,7 @@ STD  = np.array([0.229, 0.224, 0.225], dtype=np.float32)
 CORNER_ORDER = ["topLeft", "topRight", "bottomRight", "bottomLeft"]
 
 
-# ── Wing Loss ──────────────────────────────────────────────────────────────────
+# Wing Loss
 
 def wing_loss(y_true, y_pred, w: float = 10.0, eps: float = 2.0):
     """
@@ -87,7 +87,7 @@ def wing_loss(y_true, y_pred, w: float = 10.0, eps: float = 2.0):
     return tf.reduce_mean(loss)
 
 
-# ── data augmentation ─────────────────────────────────────────────────────────
+# data augmentation
 
 def _photometric(img: np.ndarray) -> np.ndarray:
     """Brightness + contrast jitter on a uint8 BGR image."""
@@ -194,7 +194,7 @@ def preprocess(rec: dict, augment: bool, geom_aug: bool) -> tuple:
     return rgb.astype(np.float32), coords
 
 
-# ── tf.data pipeline ──────────────────────────────────────────────────────────
+# tf.data pipeline
 
 def load_records(json_paths: list[Path]) -> list[dict]:
     records = []
@@ -232,7 +232,7 @@ def make_dataset(records: list[dict], batch_size: int, augment: bool,
     return ds
 
 
-# ── model loading ─────────────────────────────────────────────────────────────
+# model loading
 
 def load_keras_model(model_dir: Path) -> tf.keras.Model:
     """Load a SavedModel / .h5 / .keras from a directory (first match wins)."""
@@ -281,7 +281,7 @@ def build_fresh_model(input_size: int = 224) -> tf.keras.Model:
     return model
 
 
-# ── custom trainer ──────────────────────────────────────────────────────────────
+# custom trainer
 
 class CornerTrainer(tf.keras.Model):
     """Wraps DocCornerNet with the pixel-space Wing Loss on the corner output."""
@@ -325,7 +325,7 @@ class CornerTrainer(tf.keras.Model):
         return {"loss": loss, "corner_err_px224": err}
 
 
-# ── callbacks ────────────────────────────────────────────────────────────────
+# callbacks
 
 class ExtraValCallback(tf.keras.callbacks.Callback):
     """Log mean corner error on an extra dataset (e.g. Roboflow test) each epoch."""
@@ -402,7 +402,7 @@ def cosine_warmup_scheduler(total_epochs: int, base_lr: float,
     return tf.keras.callbacks.LearningRateScheduler(schedule, verbose=0)
 
 
-# ── one training stage ──────────────────────────────────────────────────────────
+# one training stage
 
 def make_optimizer(lr: float):
     try:
@@ -442,7 +442,7 @@ def run_stage(active_model, out_dir: Path, *, epochs: int, base_lr: float,
     return trainer.base
 
 
-# ── main ───────────────────────────────────────────────────────────────────────
+# main
 
 def main():
     parser = argparse.ArgumentParser()
@@ -471,7 +471,7 @@ def main():
           f"QAT: {args.qat_epochs}e @ {args.qat_lr:g} | batch {args.batch} | "
           f"geom_aug={geom_aug}")
 
-    # ── data ──────────────────────────────────────────────────────────────────
+    # data
     train_paths = [NORM_DIR / "train.json"]
     if args.merge_val:
         train_paths.append(NORM_DIR / "val.json")
@@ -493,7 +493,7 @@ def main():
     rf_test_ds = (make_dataset(rf_records, args.batch, augment=False,
                                shuffle=False) if rf_records else None)
 
-    # ── Stage A: float32 domain adaptation ─────────────────────────────────────
+    # Stage A: float32 domain adaptation
     if args.stage in ("float", "both"):
         if args.from_scratch:
             print("\n--- Building fresh MobileNetV2 model for Stage A ---")
@@ -512,7 +512,7 @@ def main():
                   train_ds=train_ds, val_ds=val_ds, rf_test_ds=rf_test_ds,
                   bn_freeze_epoch=None, stage_name="A (float32)")
 
-    # ── Stage B: QAT from the Stage-A weights ──────────────────────────────────
+    # Stage B: QAT from the Stage-A weights
     if args.stage in ("qat", "both"):
         qat_src = FLOAT_CKPT / "final_model"
         src_dir = qat_src if qat_src.exists() else args.model

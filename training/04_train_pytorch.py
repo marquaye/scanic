@@ -1,11 +1,11 @@
 """
-04_train_pytorch.py — Corner-detection training + INT8 export (PyTorch).
+04_train_pytorch.py: Corner-detection training + INT8 export (PyTorch).
 
 A/B comparison driver: trains a MobileNetV2 corner regressor at a chosen width,
 exports float32 + INT8 ONNX (INT8 via ONNX Runtime static quantisation,
 calibrated on the val set), and reports accuracy / size / CPU latency for both.
 
-The INT8 path here is post-training static quantisation — the reliable,
+The INT8 path here is post-training static quantisation, the reliable,
 ORT-Web-friendly route used to *compare* backbones. Run full QAT
 (separate script) on the winning backbone afterwards if INT8 accuracy needs it.
 
@@ -44,7 +44,7 @@ STD  = np.array([0.229, 0.224, 0.225], dtype=np.float32)
 CORNER_ORDER = ["topLeft", "topRight", "bottomRight", "bottomLeft"]
 
 
-# ── Wing Loss ─────────────────────────────────────────────────────────────────
+# Wing Loss
 
 def wing_loss(pred, target, w: float = 10.0, eps: float = 2.0):
     """Wing loss in pixel units (inputs already × SIZE)."""
@@ -66,7 +66,7 @@ def corner_px_error_np(pred, target):
     return float(np.sqrt(((p - t) ** 2).sum(-1)).mean())
 
 
-# ── augmentation ─────────────────────────────────────────────────────────────
+# augmentation
 
 def _photometric(bgr):
     hsv = cv2.cvtColor(bgr, cv2.COLOR_BGR2HSV).astype(np.float32)
@@ -112,7 +112,7 @@ def _order_pts(pts):
     return np.stack([tl, tr, br, bl], axis=0)
 
 
-# ── dataset ───────────────────────────────────────────────────────────────────
+# dataset
 
 class CornerDataset(Dataset):
     def __init__(self, records, augment, geom_aug=True):
@@ -162,7 +162,7 @@ def make_loader(records, batch, augment, shuffle, geom_aug=True, workers=8):
                       pin_memory=True, persistent_workers=workers > 0)
 
 
-# ── model ─────────────────────────────────────────────────────────────────────
+# model
 
 class CornerNet(nn.Module):
     def __init__(self, backbone, feat_dim):
@@ -199,7 +199,7 @@ def build_model(width: float, pretrained: bool) -> CornerNet:
     return CornerNet(backbone, feat)
 
 
-# ── LR schedule + train / eval ────────────────────────────────────────────────
+# LR schedule + train / eval
 
 def cosine_with_warmup(optimizer, warmup, total):
     def f(step):
@@ -234,7 +234,7 @@ def eval_torch(model, loader, device):
     return float(np.mean(errs)) if errs else float("nan")
 
 
-# ── ONNX export + static INT8 quantisation + ONNX eval ─────────────────────────
+# ONNX export + static INT8 quantisation + ONNX eval
 
 def export_and_quantize(model, val_records, export_dir, device):
     import onnxruntime as ort
@@ -294,7 +294,7 @@ def cpu_latency(onnx_path, runs=50):
     return (time.perf_counter() - t0) / runs * 1000
 
 
-# ── main ──────────────────────────────────────────────────────────────────────
+# main
 
 def main():
     ap = argparse.ArgumentParser()

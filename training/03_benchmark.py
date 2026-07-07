@@ -50,7 +50,7 @@ WARMUP = 5
 TIMED  = 30
 
 
-# ── preprocessing ──────────────────────────────────────────────────────────────
+# preprocessing 
 
 def preprocess(bgr: np.ndarray) -> np.ndarray:
     """Resize to 224×224, ImageNet-normalize, return NHWC float32."""
@@ -61,7 +61,7 @@ def preprocess(bgr: np.ndarray) -> np.ndarray:
     return rgb[np.newaxis]  # [1, 224, 224, 3]
 
 
-# ── decoding + metrics ─────────────────────────────────────────────────────────
+# decoding + metrics 
 
 def decode_corners(coords: np.ndarray, w: int, h: int) -> dict:
     c = coords.flatten()
@@ -104,7 +104,7 @@ def quad_iou(pred: dict, gt: dict, w: int, h: int, R: int = 256) -> float:
     return inter / union if union else 0.0
 
 
-# ── ORT session ────────────────────────────────────────────────────────────────
+# ORT session 
 
 def make_session(onnx_path: Path, threads: int) -> ort.InferenceSession:
     opts = ort.SessionOptions()
@@ -141,7 +141,7 @@ def benchmark_image(sess, bgr: np.ndarray, warmup: int, timed: int):
     return np.array(times), coords, score
 
 
-# ── Part A: normalized dataset benchmark ──────────────────────────────────────
+# Part A: normalized dataset benchmark 
 
 def bench_dataset(sess: ort.InferenceSession, split_json: Path, max_n: int) -> list[dict]:
     data = json.loads(split_json.read_text())["images"]
@@ -173,7 +173,7 @@ def bench_dataset(sess: ort.InferenceSession, split_json: Path, max_n: int) -> l
     return rows
 
 
-# ── Part B: Scanic test-image benchmark ───────────────────────────────────────
+# Part B: Scanic test-image benchmark 
 
 def bench_scanic_testset(sess: ort.InferenceSession) -> list[dict]:
     """Benchmark our 17 test images, comparing ML vs stored classical corners."""
@@ -213,7 +213,7 @@ def bench_scanic_testset(sess: ort.InferenceSession) -> list[dict]:
     return rows
 
 
-# ── aggregate stats ────────────────────────────────────────────────────────────
+# aggregate stats 
 
 def print_stats(rows: list[dict], value_key: str, label: str):
     vals = [r[value_key] for r in rows if r.get(value_key) not in (None, "no-classic")]
@@ -227,7 +227,7 @@ def print_stats(rows: list[dict], value_key: str, label: str):
     print(f"    min    {vals.min():.3f}   max {vals.max():.3f}")
 
 
-# ── main ───────────────────────────────────────────────────────────────────────
+# main 
 
 def main():
     parser = argparse.ArgumentParser()
@@ -255,8 +255,8 @@ def main():
     print(f"  Inputs:  {[i.name for i in sess.get_inputs()]}")
     print(f"  Outputs: {[o.name for o in sess.get_outputs()]}")
 
-    # ── Part B: Scanic test images ─────────────────────────────────────────────
-    print("\n─── Part B: Scanic test images (ML vs stored classical) ───")
+    # Part B: Scanic test images 
+    print("\n Part B: Scanic test images (ML vs stored classical) ")
     scanic_rows = bench_scanic_testset(sess)
     if scanic_rows:
         print(tabulate(scanic_rows, headers="keys", tablefmt="rounded_outline"))
@@ -265,7 +265,7 @@ def main():
               f"({args.threads} thread(s))")
         print_stats(scanic_rows, "iou_vs_classic", "IoU vs classical")
 
-    # ── Part A: normalized dataset ─────────────────────────────────────────────
+    # Part A: normalized dataset 
     splits = ["train", "val"] if args.dataset == "all" else [args.dataset]
     for split in splits:
         split_json = NORM_DIR / f"{split}.json"
@@ -273,7 +273,7 @@ def main():
             print(f"\n[skip] {split_json} not found -- run 02_normalize.py first")
             continue
 
-        print(f"\n─── Part A: {split} split (ML vs ground-truth corners) ───")
+        print(f"\n Part A: {split} split (ML vs ground-truth corners) ")
         ds_rows = bench_dataset(sess, split_json, args.n)
         if not ds_rows:
             print("  No images benchmarked.")
