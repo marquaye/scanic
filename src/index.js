@@ -50,14 +50,14 @@ export class Scanner {
         const { initializeMl } = await import('./mlDetector.js');
         await initializeMl(this.defaultOptions.ml || {});
       } catch {
-        // ORT / assets unavailable — scan() will surface the error per-call.
+        // ORT / assets unavailable. scan() will surface the error per-call.
       }
     } else {
       // Best-effort WASM warm-up; pure-JS fallbacks cover engines without it.
       try {
         await initializeWasm();
       } catch {
-        // WASM unavailable — continue with the JavaScript implementation.
+        // WASM unavailable. Continue with the JavaScript implementation.
       }
     }
     this.initialized = true;
@@ -1057,7 +1057,6 @@ export async function scanDocument(image, options = {}) {
   
   const mode = options.mode || 'detect';
   const outputType = options.output || 'canvas';
-  const debug = !!options.debug;
   const maxProcessingDimension = options.maxProcessingDimension || 800;
   const detector = options.detector || 'classical';
 
@@ -1066,7 +1065,7 @@ export async function scanDocument(image, options = {}) {
 
   if (detector === 'ml') {
     // Optional ML detector. Lazily imported so the classical build never bundles
-    // onnxruntime-web or the model loader — classical-only users pay zero bytes.
+    // onnxruntime-web or the model loader. Classical-only users pay zero bytes.
     t0 = performance.now();
     const { detectDocumentMl } = await import('./mlDetector.js');
     detection = await detectDocumentMl(image, options.ml || {});

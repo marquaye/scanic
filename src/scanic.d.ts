@@ -150,7 +150,7 @@ export interface DetectionOptions {
   /**
    * Detection backend. `'classical'` (default) is the pure-JS/WASM Canny
    * pipeline. `'ml'` uses the optional DocCornerNet SimCC model via
-   * onnxruntime-web — more robust on cluttered/low-contrast photos.
+   * onnxruntime-web, more robust on cluttered/low-contrast photos.
    */
   detector?: 'classical' | 'ml';
   /** Options forwarded to the ML detector when `detector: 'ml'`. */

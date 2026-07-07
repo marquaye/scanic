@@ -10,21 +10,10 @@ import { DEFAULTS } from './constants.js';
 const RETR_EXTERNAL = 0;
 const RETR_LIST = 1;
 // Constants for different approximation methods (subset of OpenCV)
-const CHAIN_APPROX_NONE = 1;
 const CHAIN_APPROX_SIMPLE = 2;
 
-// Deltas for 8-connectivity neighborhood checks (0-7 clockwise from top)
-// Corresponds to OpenCV's chain code directions
-const deltas = [
-  { dx:  0, dy: -1 }, // 0: Top
-  { dx:  1, dy: -1 }, // 1: Top-right
-  { dx:  1, dy:  0 }, // 2: Right
-  { dx:  1, dy:  1 }, // 3: Bottom-right
-  { dx:  0, dy:  1 }, // 4: Bottom
-  { dx: -1, dy:  1 }, // 5: Bottom-left
-  { dx: -1, dy:  0 }, // 6: Left
-  { dx: -1, dy: -1 }  // 7: Top-left
-];
+// Deltas for 8-connectivity neighborhood checks (0-7 clockwise from top),
+// used as parallel dx/dy arrays inside detectDocumentContour below.
 
 /**
  * Detects contours in a binary edge image using Suzuki's border following algorithm.
@@ -33,7 +22,7 @@ const deltas = [
  * @param {number} [options.width] - Image width (required if not square)
  * @param {number} [options.height] - Image height (required if not square)
  * @param {number} [options.mode=RETR_LIST] - Contour retrieval mode (RETR_EXTERNAL or RETR_LIST)
- * @param {number} [options.method=CHAIN_APPROX_SIMPLE] - Contour approximation method (CHAIN_APPROX_NONE or CHAIN_APPROX_SIMPLE)
+ * @param {number} [options.method=CHAIN_APPROX_SIMPLE] - Contour approximation method (1=none, or CHAIN_APPROX_SIMPLE)
  * @param {number} [options.minArea=DEFAULTS.MIN_CONTOUR_AREA] - Minimum contour area filter (applied after detection)
  * @param {Object} [options.debug] - Optional debug object to store intermediate results
  * @returns {Array} Array of contours, each contour is an array of points {x, y}. Sorted by area (largest first).
@@ -230,7 +219,6 @@ function traceContour(labels, width, height, startPoint, initialDirection, conto
 
         let nextX = -1;
         let nextY = -1;
-        let nextDirection = -1;
 
         // Search clockwise for the next boundary pixel
         for (let i = 0; i < 8; i++) {
@@ -244,7 +232,6 @@ function traceContour(labels, width, height, startPoint, initialDirection, conto
                     nextX = checkX;
                     nextY = checkY;
                     // The direction *from* currentPoint *to* nextPoint is checkDirection
-                    nextDirection = checkDirection;
                     // The direction *from* which we will arrive *at* nextPoint is (checkDirection + 4) % 8
                     prevDirection = (checkDirection + 4) & 7;
                     break;

@@ -1,5 +1,5 @@
 /**
- * scanic — optional ML document-corner detector.
+ * scanic: optional ML document-corner detector.
  *
  * This module is **never** imported by the classical pipeline. It is only
  * pulled in via a dynamic `import()` when `scanDocument(image, { detector:'ml' })`
@@ -100,7 +100,7 @@ function getImageDimensions(image) {
 
 /**
  * Draw the image into a 224×224 RGB tensor with ImageNet normalization (NHWC).
- * Uses OffscreenCanvas when available, falling back to a DOM canvas — same
+ * Uses OffscreenCanvas when available, falling back to a DOM canvas. Same
  * strategy the classical pipeline uses.
  */
 function preprocess(image) {

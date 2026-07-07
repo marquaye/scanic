@@ -19,9 +19,7 @@ const __dirname = path.dirname(__filename);
 const rootDir = path.resolve(__dirname, '..');
 const baselineFile = path.join(rootDir, 'testImages', 'baseline-results.json');
 
-// ──────────────────────────────────────────────────────────────
 // DOM shims required for node-canvas + jsdom
-// ──────────────────────────────────────────────────────────────
 if (typeof globalThis.ImageData === 'undefined') {
   globalThis.ImageData = CanvasImageData;
 }
@@ -34,9 +32,7 @@ globalThis.document.createElement = function createElement(tagName, ...args) {
   return originalCreateElement ? originalCreateElement(tagName, ...args) : null;
 };
 
-// ──────────────────────────────────────────────────────────────
 // Constants
-// ──────────────────────────────────────────────────────────────
 const MIN_CONFIDENCE_FOR_SUCCESS = 0.1;
 const MIN_COVERAGE_RATIO_FOR_SUCCESS = 0.01;
 /**
@@ -49,9 +45,7 @@ const TIMING_BUDGET_MULTIPLIER  = 5;
 // timing budgets meaningless, so skip those assertions under `npm run test:coverage`.
 const SKIP_TIMING_BUDGETS = process.env.npm_lifecycle_event === 'test:coverage';
 
-// ──────────────────────────────────────────────────────────────
 // Helpers
-// ──────────────────────────────────────────────────────────────
 function round2(v) {
   return Math.round(v * 100) / 100;
 }
@@ -132,9 +126,7 @@ function printTimingTable(imageName, mode, actualTimings, baselineTimings, actua
   ].join('\n'));
 }
 
-// ──────────────────────────────────────────────────────────────
 // Load baseline + warm up WASM before any test runs
-// ──────────────────────────────────────────────────────────────
 let baselineData;
 beforeAll(async () => {
   if (!fs.existsSync(baselineFile)) {
@@ -162,9 +154,7 @@ beforeAll(async () => {
   }
 }, 30_000);
 
-// ──────────────────────────────────────────────────────────────
 // Dynamic per-image tests
-// ──────────────────────────────────────────────────────────────
 describe('Baseline regression (all test images)', () => {
   const imagesDir = path.join(rootDir, 'testImages');
 
@@ -198,7 +188,7 @@ describe('Baseline regression (all test images)', () => {
         console.table = originalTable;
       }
 
-      // ── Timing tables (always printed, even on failed detections) ─
+      // Timing tables (always printed, even on failed detections)
       const actualDetectTimings  = parseTimings(detectResult);
       const actualExtractTimings = parseTimings(extractResult);
       const baselineDetectTimings  = expected.detect.timings  ?? {};
@@ -223,7 +213,7 @@ describe('Baseline regression (all test images)', () => {
       expect(detectResult.success, `detect should succeed`).toBe(true);
       expect(extractResult.success, `extract should succeed`).toBe(true);
 
-      // ── Quality gates for successful detections ───────────────
+      // Quality gates for successful detections 
       expect(
         detectResult.confidence ?? 0,
         `detection confidence too low`
@@ -241,7 +231,7 @@ describe('Baseline regression (all test images)', () => {
       expect(actualWidth, 'extract output width must be positive').toBeGreaterThan(0);
       expect(actualHeight, 'extract output height must be positive').toBeGreaterThan(0);
 
-      // ── Per-phase timing budget assertions ────────────────────
+      // Per-phase timing budget assertions 
       // Only phases present in the stored baseline are checked.
       // Phases with a baseline of ≤1 ms are skipped to avoid noise on
       // near-instant operations where jitter dominates.

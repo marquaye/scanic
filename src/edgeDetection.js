@@ -10,8 +10,7 @@ import init, {
   dilate as wasmDilate,
   non_maximum_suppression as wasmMaximumSuppression,
   canny_edge_detector_full as wasmFullCanny,
-  hysteresis_thresholding as wasmHysteresis,
-  hysteresis_thresholding_binary as wasmHysteresisBinary
+  hysteresis_thresholding as wasmHysteresis
 } from '../wasm_blur/pkg/wasm_blur.js';
 import wasmBase64 from '../wasm_blur/pkg/wasm_blur_bg_base64.js';
 
@@ -40,14 +39,14 @@ function wasmBytesFromBase64(base64) {
  * Statically checks whether the current engine is new enough to run scanic's
  * compiled WASM without crashing.
  *
- * Older engines (notably Electron 13 / Chromium 91 — V8 9.1) *hard-crash the
+ * Older engines (notably Electron 13 / Chromium 91, V8 9.1) *hard-crash the
  * process* while compiling this wasm-bindgen + SIMD128 module, instead of
  * throwing a catchable error. The abort happens during instantiation, so a
  * surrounding try/catch cannot recover from it; the only safe option is to never
  * start it on such engines and use the pure-JS path instead.
  *
- * We use `WebAssembly.validate()` — a static check that never instantiates and
- * never crashes — to probe two proposals:
+ * We use `WebAssembly.validate()`, a static check that never instantiates and
+ * never crashes, to probe two proposals:
  *   - SIMD128: the module genuinely requires it.
  *   - reference-types: the module does not strictly need this, but support for
  *     it is a reliable proxy for "Chromium >= 96 / a modern V8". Every engine
@@ -79,7 +78,7 @@ async function initializeWasmInternal() {
   // Bail out before instantiation on engines that can't run this module. On
   // some of them (e.g. Electron 13 / Chromium 91) a failed instantiation is a
   // native renderer crash rather than a catchable exception, so the only safe
-  // option is to never start it — callers then use the pure-JS path.
+  // option is to never start it. Callers then use the pure-JS path.
   if (!wasmModuleSupported()) {
     throw new Error('scanic: WebAssembly features required by the WASM module (reference-types, SIMD) are unavailable in this engine; using the JavaScript fallback.');
   }
@@ -535,7 +534,7 @@ export async function cannyEdgeDetector(input, options = {}) {
   let lowThreshold = options.lowThreshold !== undefined ? options.lowThreshold : null;
   let highThreshold = options.highThreshold !== undefined ? options.highThreshold : null;
 
-  // ── Adaptive thresholds: compute from gradient magnitudes if not provided
+  // Adaptive thresholds: compute from gradient magnitudes if not provided
   if (lowThreshold === null || highThreshold === null) {
     // Quick 3×3 Sobel gradient magnitude scan on raw grayscale (O(n), single pass).
     // Uses L1 norm (|gx|+|gy|) to match the default Canny magnitude scale.
@@ -592,7 +591,7 @@ export async function cannyEdgeDetector(input, options = {}) {
       [lowThreshold, highThreshold] = [highThreshold, lowThreshold];
   }
 
-  // ── Fast path: single WASM call for entire Canny pipeline ──────────
+  // Fast path: single WASM call for entire Canny pipeline.
   // Eliminates 4 intermediate JS↔WASM data marshalling round-trips by
   // keeping blur → gradients → NMS → hysteresis → dilation in WASM memory.
   if (useWasmFullCanny) {
@@ -625,7 +624,7 @@ export async function cannyEdgeDetector(input, options = {}) {
       timings.unshift({ step: 'Edge Detection Total', ms: (tEnd - tStart).toFixed(2) });
       return finalEdges;
     } catch (error) {
-      // WASM full Canny unavailable — fall through to step-by-step path
+      // WASM full Canny unavailable, fall through to step-by-step path
       if (!hasLoggedFullCannyFallback) {
         hasLoggedFullCannyFallback = true;
         const reason = error instanceof Error ? error.message : String(error);
@@ -634,7 +633,7 @@ export async function cannyEdgeDetector(input, options = {}) {
     }
   }
 
-  // ── Fallback: step-by-step path (individual WASM/JS calls) ─────────
+  // Fallback: step-by-step path (individual WASM/JS calls).
   // Timing variables
   let t0, t1;
 
@@ -645,7 +644,7 @@ export async function cannyEdgeDetector(input, options = {}) {
     try {
       await initializeWasm(); // Ensure wasm is initialized
       blurred = wasmBlur(grayscale, width, height, kernelSize, sigma);
-    } catch (e) {
+    } catch {
       blurred = gaussianBlurGrayscale(grayscale, width, height, kernelSize, sigma);
     }
   } else {
@@ -666,7 +665,7 @@ export async function cannyEdgeDetector(input, options = {}) {
       const gradientResult = wasmGradients(blurred, width, height);
       dx = new Int16Array(gradientResult.gx);
       dy = new Int16Array(gradientResult.gy);
-    } catch (e) {
+    } catch {
       const gradients = calculateGradients(blurred, width, height);
       dx = gradients.dx;
       dy = gradients.dy;
@@ -686,7 +685,7 @@ export async function cannyEdgeDetector(input, options = {}) {
     try {
       await initializeWasm();
       suppressed = await wasmMaximumSuppression(dx, dy, width, height, L2gradient);
-    } catch (e) {
+    } catch {
       suppressed = nonMaximumSuppression(dx, dy, width, height, L2gradient);
     }
   } else {
@@ -733,7 +732,7 @@ export async function cannyEdgeDetector(input, options = {}) {
       try {
         await initializeWasm(); // Ensure wasm is initialized
         finalEdges = wasmDilate(cannyEdges, width, height, dilationKernelSize);
-      } catch (e) {
+      } catch {
         finalEdges = dilateEdges(cannyEdges, width, height, dilationKernelSize);
       }
     } else {

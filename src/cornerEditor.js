@@ -97,10 +97,10 @@ function normalizeImageToCanvas(image) {
   return { canvas, width, height };
 }
 
-// ── Default theme & styles ───────────────────────────────────────────────────
+// Default theme & styles.
 // Shipped once per document. Everything is driven by CSS custom properties on
 // `.scanic-corner-editor`, so consumers restyle the editor by overriding a few
-// variables (or whole classes) — no JS required. Set `injectStyles: false` to
+// variables (or whole classes). No JS required. Set `injectStyles: false` to
 // supply your own stylesheet instead.
 const STYLE_ID = 'scanic-corner-editor-styles';
 const EDITOR_CSS = `
@@ -150,7 +150,7 @@ const EDITOR_CSS = `
   transform: translate(-50%, -50%);
   border-radius: 50%;
 }
-/* Soft accent halo that blooms when a handle is grabbed — the "depth" layer. */
+/* Soft accent halo that blooms when a handle is grabbed. This is the "depth" layer. */
 .scanic-handle::before {
   content: '';
   position: absolute;
@@ -173,7 +173,7 @@ const EDITOR_CSS = `
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--scanic-accent) 45%, transparent),
               var(--scanic-handle-shadow);
 }
-/* The currently selected corner — the target of nudges / keyboard. */
+/* The currently selected corner: the target of nudges / keyboard. */
 .scanic-handle.is-selected {
   border-color: var(--scanic-accent);
   transform: translate(-50%, -50%) scale(1.12);
@@ -305,7 +305,7 @@ export function createCornerEditor(options = {}) {
 
   const { canvas: sourceCanvas, width: imageWidth, height: imageHeight } = normalizeImageToCanvas(options.image);
 
-  // ── Host element ───────────────────────────────────────────────────────────
+  // Host element
   const addedRootClass = !container.classList.contains('scanic-corner-editor');
   container.classList.add('scanic-corner-editor');
   if (options.classNames?.root) container.classList.add(options.classNames.root);
@@ -325,7 +325,7 @@ export function createCornerEditor(options = {}) {
   // Programmatic theme overrides → CSS variables on the host.
   applyThemeOption(options.theme);
 
-  // ── Canvas (image + mask + edges + magnifier) ───────────────────────────────
+  // Canvas (image + mask + edges + magnifier)
   const editorCanvas = doc.createElement('canvas');
   editorCanvas.style.position = 'absolute';
   editorCanvas.style.top = '0';
@@ -399,7 +399,7 @@ export function createCornerEditor(options = {}) {
   let view = { scale: 1, offsetX: 0, offsetY: 0, width: 1, height: 1 };
   const resolved = { mask: 'rgba(15,23,42,0.45)', edgeColor: '#6366f1', edgeWidth: 2.5 };
 
-  // ── DOM handles ──────────────────────────────────────────────────────────────
+  // DOM handles
   const handleEls = {};
   for (const key of cornerOrder) {
     const el = doc.createElement('button');
@@ -418,7 +418,7 @@ export function createCornerEditor(options = {}) {
     handleEls[key] = el;
   }
 
-  // ── Theme resolution for the canvas layer ────────────────────────────────────
+  // Theme resolution for the canvas layer
   // CSS custom properties can contain unresolved var() references, which canvas
   // can't use directly. We resolve them to concrete values by letting the browser
   // compute them through the `color` property on a probe element.
@@ -468,7 +468,7 @@ export function createCornerEditor(options = {}) {
     }
   }
 
-  // ── Sizing (kept loop-safe: canvas is out of flow, see original notes) ────────
+  // Sizing (kept loop-safe: canvas is out of flow, see original notes)
   let lastDisplayWidth = 0;
   let lastDisplayHeight = 0;
 
@@ -549,7 +549,7 @@ export function createCornerEditor(options = {}) {
     };
   }
 
-  // ── Drawing ──────────────────────────────────────────────────────────────────
+  // Drawing
   function drawOverlay() {
     const points = cornerOrder.map((key) => imageToView(corners[key]));
 
@@ -707,7 +707,7 @@ export function createCornerEditor(options = {}) {
     return true;
   }
 
-  // ── Handle interaction ───────────────────────────────────────────────────────
+  // Handle interaction
   function onHandlePointerDown(key, event) {
     if (isDestroyed) return;
     if (typeof event.preventDefault === 'function') event.preventDefault();
@@ -720,10 +720,10 @@ export function createCornerEditor(options = {}) {
     handleEls[key].classList.add('is-active');
 
     if (keyboardEnabled && typeof handleEls[key].focus === 'function') {
-      try { handleEls[key].focus({ preventScroll: true }); } catch (_) { handleEls[key].focus(); }
+      try { handleEls[key].focus({ preventScroll: true }); } catch { handleEls[key].focus(); }
     }
     if (handleEls[key].setPointerCapture && event.pointerId != null) {
-      try { handleEls[key].setPointerCapture(event.pointerId); } catch (_) { /* ignore */ }
+      try { handleEls[key].setPointerCapture(event.pointerId); } catch { /* ignore */ }
     }
     scheduleRender();
   }
@@ -739,7 +739,7 @@ export function createCornerEditor(options = {}) {
     if (activeCornerKey !== key) return;
     if (dragPointerId !== null && event.pointerId !== dragPointerId) return;
     if (handleEls[key].releasePointerCapture && dragPointerId != null) {
-      try { handleEls[key].releasePointerCapture(dragPointerId); } catch (_) { /* ignore */ }
+      try { handleEls[key].releasePointerCapture(dragPointerId); } catch { /* ignore */ }
     }
     handleEls[key].classList.remove('is-active');
     activeCornerKey = null;
@@ -775,7 +775,7 @@ export function createCornerEditor(options = {}) {
     setCorner(key, { x: corners[key].x + dx * step, y: corners[key].y + dy * step });
   }
 
-  // ── Toolbar & nudge pad ──────────────────────────────────────────────────────
+  // Toolbar & nudge pad
   let toolbarEl = null;
   let nudgeControls = null;
   let expertBtn = null;
@@ -860,7 +860,7 @@ export function createCornerEditor(options = {}) {
     if (hasExpertToggle) nudgeControls.style.display = 'none';
   }
 
-  // ── DPR watch (crisp on monitor moves / zoom) ────────────────────────────────
+  // DPR watch (crisp on monitor moves / zoom)
   let dprCleanup = null;
   function watchDevicePixelRatio() {
     if (typeof runtimeGlobal.matchMedia !== 'function') return;

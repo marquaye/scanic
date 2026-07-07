@@ -36,7 +36,7 @@ describe('mlDetector', () => {
       return;
     }
 
-    // A constant normalized input — we assert structure/contract, not exact coords.
+    // A constant normalized input. We assert structure/contract, not exact coords.
     const inputData = new Float32Array(224 * 224 * 3).fill(0.1);
     const image = { width: 640, height: 480, data: new Uint8ClampedArray(1) };
 
