@@ -27,7 +27,7 @@ for (const it of items) {
   let res;
   try {
     res = await scanDocument(img, { mode: 'detect', maxProcessingDimension: 800 });
-  } catch (e) {
+  } catch {
     res = { success: false };
   }
   const ms = performance.now() - t0;

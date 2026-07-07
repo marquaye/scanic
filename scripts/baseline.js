@@ -306,7 +306,7 @@ function createContactSheet(cases, artifactsDir) {
   });
 }
 
-function writeBaseline(cases, artifactsDir) {
+function writeBaseline(cases) {
   const baseline = {
     formatVersion: 1,
     generatedAt: new Date().toISOString(),
@@ -350,7 +350,7 @@ async function run() {
   console.table = originalTable;
 
   if (isUpdateMode) {
-    const baseline = writeBaseline(cases, artifactsDir);
+    const baseline = writeBaseline(cases);
     console.log('Baseline updated successfully.');
     console.log(`Images processed: ${baseline.summary.totalImages}`);
     console.log(`Detection successes: ${baseline.summary.detectSuccesses}`);
