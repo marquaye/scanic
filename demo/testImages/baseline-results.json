@@ -1,6 +1,7 @@
 {
   "formatVersion": 1,
-  "generatedAt": "2026-04-12T22:56:08.156Z",
+  "generatedAt": "2026-07-07T10:46:42.183Z",
+  "detector": "classical",
   "scannerOptions": {
     "maxProcessingDimension": 800
   },
@@ -12,8 +13,11 @@
     "totalImages": 17,
     "detectSuccesses": 17,
     "extractSuccesses": 17,
-    "avgDetectMs": 170.61,
-    "avgExtractMs": 248.59
+    "avgDetectMs": 147.77,
+    "avgExtractMs": 228.22,
+    "groundTruthImages": 17,
+    "avgGroundTruthIou": 0.82,
+    "avgGroundTruthCornerErrorPx": 101.95
   },
   "cases": [
     {
@@ -26,57 +30,108 @@
         "success": true,
         "corners": {
           "topLeft": {
-            "x": 475,
-            "y": 1
-          },
-          "topRight": {
-            "x": 599,
+            "x": 446,
             "y": 0
           },
+          "topRight": {
+            "x": 446,
+            "y": 4
+          },
           "bottomRight": {
-            "x": 639,
-            "y": 67
+            "x": 591,
+            "y": 446
           },
           "bottomLeft": {
-            "x": 424,
-            "y": 184
+            "x": 97,
+            "y": 639
           }
         },
-        "totalMs": 717.91,
+        "totalMs": 158.51,
         "timings": {
-          "Image Prep + Scale + Gray": 467.33,
-          "Gaussian Blur": 32.73,
-          "Gradients": 7.54,
-          "Non-Max Suppression": 21.35,
-          "Hysteresis": 11.03,
-          "Binary Image": 6.23,
-          "Dilation": 16.05,
-          "Find Contours": 72.48,
-          "Corner Detection": 0.78
+          "Image Prep + Scale + Gray": 4.54,
+          "Gaussian Blur": 2.87,
+          "Gradients": 2.14,
+          "Non-Max Suppression": 6.13,
+          "Hysteresis": 2.42,
+          "Binary Image": 1.43,
+          "Dilation": 2.17,
+          "Find Contours": 31.03,
+          "Corner Detection": 3.26,
+          "Gaussian Blur (connect-edges)": 4,
+          "Gradients (connect-edges)": 2.69,
+          "Non-Max Suppression (connect-edges)": 7.02,
+          "Hysteresis (connect-edges)": 2.09,
+          "Binary Image (connect-edges)": 11.39,
+          "Dilation (connect-edges)": 2.1,
+          "Find Contours (connect-edges)": 4.51,
+          "Corner Detection (connect-edges)": 1.79,
+          "Gaussian Blur (no-dilation)": 2.95,
+          "Gradients (no-dilation)": 2.21,
+          "Non-Max Suppression (no-dilation)": 5.95,
+          "Hysteresis (no-dilation)": 2.82,
+          "Binary Image (no-dilation)": 1.11,
+          "Dilation (no-dilation)": 0,
+          "Find Contours (no-dilation)": 7.77,
+          "Corner Detection (no-dilation)": 0.01,
+          "Gaussian Blur (fixed-mid-thresholds)": 2.71,
+          "Gradients (fixed-mid-thresholds)": 2.18,
+          "Non-Max Suppression (fixed-mid-thresholds)": 6.68,
+          "Hysteresis (fixed-mid-thresholds)": 1.53,
+          "Binary Image (fixed-mid-thresholds)": 0.81,
+          "Dilation (fixed-mid-thresholds)": 1.33,
+          "Find Contours (fixed-mid-thresholds)": 8.45,
+          "Corner Detection (fixed-mid-thresholds)": 1.41
         }
       },
       "extract": {
         "success": true,
-        "outputWidth": 245,
-        "outputHeight": 190,
-        "totalMs": 259.38,
+        "outputWidth": 530,
+        "outputHeight": 728,
+        "totalMs": 168.98,
         "timings": {
-          "Image Prep + Scale + Gray": 7.09,
-          "Gaussian Blur": 28.71,
-          "Gradients": 9.38,
-          "Non-Max Suppression": 18.09,
-          "Hysteresis": 18.72,
-          "Binary Image": 14.86,
-          "Dilation": 15.03,
-          "Find Contours": 59.24,
-          "Corner Detection": 0.17,
-          "Perspective Transform": 20.04,
+          "Image Prep + Scale + Gray": 7.88,
+          "Gaussian Blur": 2.68,
+          "Gradients": 3.84,
+          "Non-Max Suppression": 6.74,
+          "Hysteresis": 2.59,
+          "Binary Image": 1.09,
+          "Dilation": 1.45,
+          "Find Contours": 33.62,
+          "Corner Detection": 3.63,
+          "Gaussian Blur (connect-edges)": 2.8,
+          "Gradients (connect-edges)": 2.19,
+          "Non-Max Suppression (connect-edges)": 6.78,
+          "Hysteresis (connect-edges)": 2.89,
+          "Binary Image (connect-edges)": 1.13,
+          "Dilation (connect-edges)": 2.75,
+          "Find Contours (connect-edges)": 6.19,
+          "Corner Detection (connect-edges)": 1.2,
+          "Gaussian Blur (no-dilation)": 3.34,
+          "Gradients (no-dilation)": 2.18,
+          "Non-Max Suppression (no-dilation)": 6.89,
+          "Hysteresis (no-dilation)": 2.57,
+          "Binary Image (no-dilation)": 0.98,
+          "Dilation (no-dilation)": 0,
+          "Find Contours (no-dilation)": 8.68,
+          "Corner Detection (no-dilation)": 0.02,
+          "Gaussian Blur (fixed-mid-thresholds)": 2.76,
+          "Gradients (fixed-mid-thresholds)": 2.16,
+          "Non-Max Suppression (fixed-mid-thresholds)": 6.49,
+          "Hysteresis (fixed-mid-thresholds)": 2.58,
+          "Binary Image (fixed-mid-thresholds)": 0.88,
+          "Dilation (fixed-mid-thresholds)": 1.46,
+          "Find Contours (fixed-mid-thresholds)": 8.56,
+          "Corner Detection (fixed-mid-thresholds)": 1.37,
+          "Perspective Transform": 18.92,
           "Output Conversion": 0
         },
         "artifact": "0123.extracted.png"
       },
       "metrics": {
-        "documentCoverageRatio": 0.05
+        "documentCoverageRatio": 0.3,
+        "detectionConfidence": 0.16,
+        "groundTruthIou": 0.41,
+        "groundTruthCornerErrorPx": 219.22
       }
     },
     {
@@ -89,57 +144,108 @@
         "success": true,
         "corners": {
           "topLeft": {
-            "x": 213,
-            "y": 126
+            "x": 240,
+            "y": 0
           },
           "topRight": {
-            "x": 592,
-            "y": 156
+            "x": 639,
+            "y": 0
           },
           "bottomRight": {
-            "x": 448,
-            "y": 591
+            "x": 485,
+            "y": 639
           },
           "bottomLeft": {
-            "x": 119,
-            "y": 498
+            "x": 0,
+            "y": 453
           }
         },
-        "totalMs": 114.44,
+        "totalMs": 236.48,
         "timings": {
-          "Image Prep + Scale + Gray": 3.02,
-          "Gaussian Blur": 22.97,
-          "Gradients": 3.52,
-          "Non-Max Suppression": 12.64,
-          "Hysteresis": 7.78,
-          "Binary Image": 1.3,
-          "Dilation": 10.84,
-          "Find Contours": 45.68,
-          "Corner Detection": 0.06
+          "Image Prep + Scale + Gray": 5.92,
+          "Gaussian Blur": 3.93,
+          "Gradients": 2.32,
+          "Non-Max Suppression": 5.82,
+          "Hysteresis": 2.87,
+          "Binary Image": 1.22,
+          "Dilation": 1.59,
+          "Find Contours": 116.45,
+          "Corner Detection": 4.07,
+          "Gaussian Blur (connect-edges)": 2.7,
+          "Gradients (connect-edges)": 2.16,
+          "Non-Max Suppression (connect-edges)": 5.33,
+          "Hysteresis (connect-edges)": 4.24,
+          "Binary Image (connect-edges)": 1.06,
+          "Dilation (connect-edges)": 2.32,
+          "Find Contours (connect-edges)": 3.95,
+          "Corner Detection (connect-edges)": 0.59,
+          "Gaussian Blur (no-dilation)": 3.5,
+          "Gradients (no-dilation)": 2.19,
+          "Non-Max Suppression (no-dilation)": 6.76,
+          "Hysteresis (no-dilation)": 4.02,
+          "Binary Image (no-dilation)": 1.1,
+          "Dilation (no-dilation)": 0,
+          "Find Contours (no-dilation)": 12.25,
+          "Corner Detection (no-dilation)": 0.62,
+          "Gaussian Blur (fixed-mid-thresholds)": 3.01,
+          "Gradients (fixed-mid-thresholds)": 2.14,
+          "Non-Max Suppression (fixed-mid-thresholds)": 5.27,
+          "Hysteresis (fixed-mid-thresholds)": 1.61,
+          "Binary Image (fixed-mid-thresholds)": 0.76,
+          "Dilation (fixed-mid-thresholds)": 1.37,
+          "Find Contours (fixed-mid-thresholds)": 13.75,
+          "Corner Detection (fixed-mid-thresholds)": 1.95
         }
       },
       "extract": {
         "success": true,
-        "outputWidth": 380,
-        "outputHeight": 458,
-        "totalMs": 128.47,
+        "outputWidth": 519,
+        "outputHeight": 657,
+        "totalMs": 276.81,
         "timings": {
-          "Image Prep + Scale + Gray": 3.27,
-          "Gaussian Blur": 19.97,
-          "Gradients": 3.07,
-          "Non-Max Suppression": 10.58,
-          "Hysteresis": 4.85,
-          "Binary Image": 1.22,
-          "Dilation": 10.6,
-          "Find Contours": 47.33,
-          "Corner Detection": 0.05,
-          "Perspective Transform": 21.93,
+          "Image Prep + Scale + Gray": 2.48,
+          "Gaussian Blur": 2.78,
+          "Gradients": 2.26,
+          "Non-Max Suppression": 5.37,
+          "Hysteresis": 4.22,
+          "Binary Image": 1.12,
+          "Dilation": 2.45,
+          "Find Contours": 132.17,
+          "Corner Detection": 5.06,
+          "Gaussian Blur (connect-edges)": 3.81,
+          "Gradients (connect-edges)": 3.07,
+          "Non-Max Suppression (connect-edges)": 6.85,
+          "Hysteresis (connect-edges)": 3.5,
+          "Binary Image (connect-edges)": 1.05,
+          "Dilation (connect-edges)": 2.67,
+          "Find Contours (connect-edges)": 6.62,
+          "Corner Detection (connect-edges)": 1.07,
+          "Gaussian Blur (no-dilation)": 4.23,
+          "Gradients (no-dilation)": 2.78,
+          "Non-Max Suppression (no-dilation)": 5.87,
+          "Hysteresis (no-dilation)": 3.82,
+          "Binary Image (no-dilation)": 1.05,
+          "Dilation (no-dilation)": 0,
+          "Find Contours (no-dilation)": 12.44,
+          "Corner Detection (no-dilation)": 0.24,
+          "Gaussian Blur (fixed-mid-thresholds)": 2.77,
+          "Gradients (fixed-mid-thresholds)": 2.53,
+          "Non-Max Suppression (fixed-mid-thresholds)": 7.22,
+          "Hysteresis (fixed-mid-thresholds)": 1.77,
+          "Binary Image (fixed-mid-thresholds)": 0.82,
+          "Dilation (fixed-mid-thresholds)": 1.37,
+          "Find Contours (fixed-mid-thresholds)": 14.54,
+          "Corner Detection (fixed-mid-thresholds)": 1.35,
+          "Perspective Transform": 16.44,
           "Output Conversion": 0
         },
         "artifact": "0149_p-50-.extracted.png"
       },
       "metrics": {
-        "documentCoverageRatio": 0.37
+        "documentCoverageRatio": 0.63,
+        "detectionConfidence": 0.87,
+        "groundTruthIou": 0.59,
+        "groundTruthCornerErrorPx": 122.21
       }
     },
     {
@@ -152,57 +258,108 @@
         "success": true,
         "corners": {
           "topLeft": {
-            "x": 560,
-            "y": 0
+            "x": 177.5,
+            "y": 371.25
           },
           "topRight": {
-            "x": 748.75,
-            "y": 61.25
+            "x": 405,
+            "y": 412.5
           },
           "bottomRight": {
-            "x": 647.5,
-            "y": 998.75
+            "x": 407.5,
+            "y": 477.5
           },
           "bottomLeft": {
-            "x": 645,
-            "y": 998.75
+            "x": 176.25,
+            "y": 460
           }
         },
-        "totalMs": 94.21,
+        "totalMs": 164.48,
         "timings": {
-          "Image Prep + Scale + Gray": 12.03,
-          "Gaussian Blur": 24.79,
-          "Gradients": 3.81,
-          "Non-Max Suppression": 13.71,
-          "Hysteresis": 5.47,
-          "Binary Image": 1.29,
-          "Dilation": 13.16,
-          "Find Contours": 12.89,
-          "Corner Detection": 0.07
+          "Image Prep + Scale + Gray": 7.77,
+          "Gaussian Blur": 3.19,
+          "Gradients": 2.59,
+          "Non-Max Suppression": 8,
+          "Hysteresis": 3.59,
+          "Binary Image": 1.12,
+          "Dilation": 1.72,
+          "Find Contours": 33.08,
+          "Corner Detection": 1.1,
+          "Gaussian Blur (connect-edges)": 3.17,
+          "Gradients (connect-edges)": 2.49,
+          "Non-Max Suppression (connect-edges)": 6.81,
+          "Hysteresis (connect-edges)": 2.94,
+          "Binary Image (connect-edges)": 1.09,
+          "Dilation (connect-edges)": 3.47,
+          "Find Contours (connect-edges)": 17.17,
+          "Corner Detection (connect-edges)": 2.23,
+          "Gaussian Blur (no-dilation)": 3.2,
+          "Gradients (no-dilation)": 2.75,
+          "Non-Max Suppression (no-dilation)": 6.6,
+          "Hysteresis (no-dilation)": 3.35,
+          "Binary Image (no-dilation)": 1.12,
+          "Dilation (no-dilation)": 0,
+          "Find Contours (no-dilation)": 9.41,
+          "Corner Detection (no-dilation)": 0.18,
+          "Gaussian Blur (fixed-mid-thresholds)": 3.24,
+          "Gradients (fixed-mid-thresholds)": 2.64,
+          "Non-Max Suppression (fixed-mid-thresholds)": 9.38,
+          "Hysteresis (fixed-mid-thresholds)": 2.2,
+          "Binary Image (fixed-mid-thresholds)": 1.06,
+          "Dilation (fixed-mid-thresholds)": 1.85,
+          "Find Contours (fixed-mid-thresholds)": 5.45,
+          "Corner Detection (fixed-mid-thresholds)": 0.69
         }
       },
       "extract": {
         "success": true,
-        "outputWidth": 198,
-        "outputHeight": 1002,
-        "totalMs": 106.51,
+        "outputWidth": 232,
+        "outputHeight": 89,
+        "totalMs": 131.09,
         "timings": {
-          "Image Prep + Scale + Gray": 6.83,
-          "Gaussian Blur": 24,
-          "Gradients": 4.08,
-          "Non-Max Suppression": 14.47,
-          "Hysteresis": 9.4,
-          "Binary Image": 1.69,
-          "Dilation": 12.35,
-          "Find Contours": 12.35,
-          "Corner Detection": 0.08,
-          "Perspective Transform": 13.74,
+          "Image Prep + Scale + Gray": 3.79,
+          "Gaussian Blur": 3.67,
+          "Gradients": 3.33,
+          "Non-Max Suppression": 7.37,
+          "Hysteresis": 3.08,
+          "Binary Image": 1.12,
+          "Dilation": 2.87,
+          "Find Contours": 10.03,
+          "Corner Detection": 0.81,
+          "Gaussian Blur (connect-edges)": 4.03,
+          "Gradients (connect-edges)": 2.59,
+          "Non-Max Suppression (connect-edges)": 7.04,
+          "Hysteresis (connect-edges)": 2.9,
+          "Binary Image (connect-edges)": 1.08,
+          "Dilation (connect-edges)": 2.57,
+          "Find Contours (connect-edges)": 7.91,
+          "Corner Detection (connect-edges)": 1.39,
+          "Gaussian Blur (no-dilation)": 3.38,
+          "Gradients (no-dilation)": 2.56,
+          "Non-Max Suppression (no-dilation)": 6.63,
+          "Hysteresis (no-dilation)": 3.03,
+          "Binary Image (no-dilation)": 1.23,
+          "Dilation (no-dilation)": 0,
+          "Find Contours (no-dilation)": 10.98,
+          "Corner Detection (no-dilation)": 0.18,
+          "Gaussian Blur (fixed-mid-thresholds)": 3.23,
+          "Gradients (fixed-mid-thresholds)": 2.94,
+          "Non-Max Suppression (fixed-mid-thresholds)": 8.12,
+          "Hysteresis (fixed-mid-thresholds)": 2.16,
+          "Binary Image (fixed-mid-thresholds)": 1.05,
+          "Dilation (fixed-mid-thresholds)": 1.62,
+          "Find Contours (fixed-mid-thresholds)": 5.41,
+          "Corner Detection (fixed-mid-thresholds)": 0.7,
+          "Perspective Transform": 2.31,
           "Output Conversion": 0
         },
         "artifact": "1023-receipt.extracted.png"
       },
       "metrics": {
-        "documentCoverageRatio": 0.12
+        "documentCoverageRatio": 0.02,
+        "detectionConfidence": 0.19,
+        "groundTruthIou": 0.04,
+        "groundTruthCornerErrorPx": 471.1
       }
     },
     {
@@ -215,57 +372,108 @@
         "success": true,
         "corners": {
           "topLeft": {
-            "x": 0,
-            "y": 83
+            "x": 201,
+            "y": 192
           },
           "topRight": {
-            "x": 584,
-            "y": 62
+            "x": 459,
+            "y": 184
           },
           "bottomRight": {
-            "x": 630,
-            "y": 514
+            "x": 473,
+            "y": 468
           },
           "bottomLeft": {
-            "x": 0,
-            "y": 483
+            "x": 153,
+            "y": 456
           }
         },
-        "totalMs": 73.34,
+        "totalMs": 118.93,
         "timings": {
-          "Image Prep + Scale + Gray": 3.37,
-          "Gaussian Blur": 20.12,
-          "Gradients": 3,
-          "Non-Max Suppression": 9.41,
-          "Hysteresis": 3.4,
-          "Binary Image": 1.08,
-          "Dilation": 10.39,
-          "Find Contours": 16.71,
-          "Corner Detection": 0.08
+          "Image Prep + Scale + Gray": 2.2,
+          "Gaussian Blur": 2.72,
+          "Gradients": 2.35,
+          "Non-Max Suppression": 5.06,
+          "Hysteresis": 2.19,
+          "Binary Image": 0.91,
+          "Dilation": 1.39,
+          "Find Contours": 12.5,
+          "Corner Detection": 1.69,
+          "Gaussian Blur (connect-edges)": 5.98,
+          "Gradients (connect-edges)": 3.97,
+          "Non-Max Suppression (connect-edges)": 5.9,
+          "Hysteresis (connect-edges)": 2.33,
+          "Binary Image (connect-edges)": 0.94,
+          "Dilation (connect-edges)": 2.05,
+          "Find Contours (connect-edges)": 5.75,
+          "Corner Detection (connect-edges)": 0.94,
+          "Gaussian Blur (no-dilation)": 3.33,
+          "Gradients (no-dilation)": 3.7,
+          "Non-Max Suppression (no-dilation)": 5.46,
+          "Hysteresis (no-dilation)": 3.16,
+          "Binary Image (no-dilation)": 1.15,
+          "Dilation (no-dilation)": 0,
+          "Find Contours (no-dilation)": 7.98,
+          "Corner Detection (no-dilation)": 1.39,
+          "Gaussian Blur (fixed-mid-thresholds)": 3.53,
+          "Gradients (fixed-mid-thresholds)": 2.39,
+          "Non-Max Suppression (fixed-mid-thresholds)": 6.07,
+          "Hysteresis (fixed-mid-thresholds)": 2.13,
+          "Binary Image (fixed-mid-thresholds)": 0.83,
+          "Dilation (fixed-mid-thresholds)": 1.46,
+          "Find Contours (fixed-mid-thresholds)": 4.9,
+          "Corner Detection (fixed-mid-thresholds)": 1.35
         }
       },
       "extract": {
         "success": true,
-        "outputWidth": 631,
-        "outputHeight": 454,
-        "totalMs": 86.14,
+        "outputWidth": 320,
+        "outputHeight": 284,
+        "totalMs": 108.7,
         "timings": {
-          "Image Prep + Scale + Gray": 3.47,
-          "Gaussian Blur": 20.14,
-          "Gradients": 3.01,
-          "Non-Max Suppression": 9.82,
-          "Hysteresis": 3.34,
-          "Binary Image": 1.21,
-          "Dilation": 10.32,
-          "Find Contours": 17.43,
-          "Corner Detection": 0.09,
-          "Perspective Transform": 11.04,
+          "Image Prep + Scale + Gray": 2.29,
+          "Gaussian Blur": 3.6,
+          "Gradients": 3.32,
+          "Non-Max Suppression": 5.08,
+          "Hysteresis": 2.33,
+          "Binary Image": 1.07,
+          "Dilation": 2.49,
+          "Find Contours": 9.22,
+          "Corner Detection": 1.57,
+          "Gaussian Blur (connect-edges)": 3.81,
+          "Gradients (connect-edges)": 3.07,
+          "Non-Max Suppression (connect-edges)": 4.96,
+          "Hysteresis (connect-edges)": 2.34,
+          "Binary Image (connect-edges)": 0.92,
+          "Dilation (connect-edges)": 1.98,
+          "Find Contours (connect-edges)": 4.43,
+          "Corner Detection (connect-edges)": 0.81,
+          "Gaussian Blur (no-dilation)": 2.74,
+          "Gradients (no-dilation)": 2.21,
+          "Non-Max Suppression (no-dilation)": 4.9,
+          "Hysteresis (no-dilation)": 3.09,
+          "Binary Image (no-dilation)": 0.82,
+          "Dilation (no-dilation)": 0,
+          "Find Contours (no-dilation)": 6.76,
+          "Corner Detection (no-dilation)": 0.25,
+          "Gaussian Blur (fixed-mid-thresholds)": 2.72,
+          "Gradients (fixed-mid-thresholds)": 2.15,
+          "Non-Max Suppression (fixed-mid-thresholds)": 5.21,
+          "Hysteresis (fixed-mid-thresholds)": 1.53,
+          "Binary Image (fixed-mid-thresholds)": 0.77,
+          "Dilation (fixed-mid-thresholds)": 1.39,
+          "Find Contours (fixed-mid-thresholds)": 5.52,
+          "Corner Detection (fixed-mid-thresholds)": 1.21,
+          "Perspective Transform": 3.33,
           "Output Conversion": 0
         },
         "artifact": "25_2.extracted.png"
       },
       "metrics": {
-        "documentCoverageRatio": 0.63
+        "documentCoverageRatio": 0.19,
+        "detectionConfidence": 0.74,
+        "groundTruthIou": 0.96,
+        "groundTruthCornerErrorPx": 5.22
       }
     },
     {
@@ -278,57 +486,108 @@
         "success": true,
         "corners": {
           "topLeft": {
-            "x": 987.84,
-            "y": 1360.8
+            "x": 0,
+            "y": 846.72
           },
           "topRight": {
-            "x": 2525.04,
-            "y": 1380.96
+            "x": 2736.72,
+            "y": 1184.4
           },
           "bottomRight": {
-            "x": 2247.84,
-            "y": 2998.8
+            "x": 3018.96,
+            "y": 2520
           },
           "bottomLeft": {
-            "x": 1194.48,
-            "y": 2540.16
+            "x": 1118.88,
+            "y": 2620.8
           }
         },
-        "totalMs": 286.49,
+        "totalMs": 275.07,
         "timings": {
-          "Image Prep + Scale + Gray": 135.23,
-          "Gaussian Blur": 23.84,
-          "Gradients": 3.58,
-          "Non-Max Suppression": 12.79,
-          "Hysteresis": 5.22,
-          "Binary Image": 1.52,
-          "Dilation": 12.34,
-          "Find Contours": 84.66,
-          "Corner Detection": 0.2
+          "Image Prep + Scale + Gray": 84.91,
+          "Gaussian Blur": 3.28,
+          "Gradients": 2.61,
+          "Non-Max Suppression": 6.22,
+          "Hysteresis": 3.41,
+          "Binary Image": 1.22,
+          "Dilation": 2.03,
+          "Find Contours": 63.35,
+          "Corner Detection": 1.85,
+          "Gaussian Blur (connect-edges)": 3.2,
+          "Gradients (connect-edges)": 2.53,
+          "Non-Max Suppression (connect-edges)": 6.03,
+          "Hysteresis (connect-edges)": 4.44,
+          "Binary Image (connect-edges)": 1.09,
+          "Dilation (connect-edges)": 2.74,
+          "Find Contours (connect-edges)": 10.98,
+          "Corner Detection (connect-edges)": 2.16,
+          "Gaussian Blur (no-dilation)": 3.16,
+          "Gradients (no-dilation)": 2.53,
+          "Non-Max Suppression (no-dilation)": 6.03,
+          "Hysteresis (no-dilation)": 3.43,
+          "Binary Image (no-dilation)": 1.25,
+          "Dilation (no-dilation)": 0,
+          "Find Contours (no-dilation)": 13.23,
+          "Corner Detection (no-dilation)": 0.27,
+          "Gaussian Blur (fixed-mid-thresholds)": 3.17,
+          "Gradients (fixed-mid-thresholds)": 2.54,
+          "Non-Max Suppression (fixed-mid-thresholds)": 5.88,
+          "Hysteresis (fixed-mid-thresholds)": 2.26,
+          "Binary Image (fixed-mid-thresholds)": 1.11,
+          "Dilation (fixed-mid-thresholds)": 1.74,
+          "Find Contours (fixed-mid-thresholds)": 13.83,
+          "Corner Detection (fixed-mid-thresholds)": 1.25
         }
       },
       "extract": {
         "success": true,
-        "outputWidth": 1537,
-        "outputHeight": 1641,
-        "totalMs": 410.32,
+        "outputWidth": 2757,
+        "outputHeight": 2097,
+        "totalMs": 413.58,
         "timings": {
-          "Image Prep + Scale + Gray": 133.03,
-          "Gaussian Blur": 24.92,
-          "Gradients": 4.22,
-          "Non-Max Suppression": 13.39,
-          "Hysteresis": 5.72,
-          "Binary Image": 1.36,
-          "Dilation": 12.77,
-          "Find Contours": 60.15,
-          "Corner Detection": 0.15,
-          "Perspective Transform": 146.81,
+          "Image Prep + Scale + Gray": 75.64,
+          "Gaussian Blur": 3.55,
+          "Gradients": 2.52,
+          "Non-Max Suppression": 5.93,
+          "Hysteresis": 3.09,
+          "Binary Image": 1.15,
+          "Dilation": 1.62,
+          "Find Contours": 54.65,
+          "Corner Detection": 1.94,
+          "Gaussian Blur (connect-edges)": 3.13,
+          "Gradients (connect-edges)": 2.54,
+          "Non-Max Suppression (connect-edges)": 6.73,
+          "Hysteresis (connect-edges)": 3.18,
+          "Binary Image (connect-edges)": 1.16,
+          "Dilation (connect-edges)": 2.38,
+          "Find Contours (connect-edges)": 8.5,
+          "Corner Detection (connect-edges)": 1.32,
+          "Gaussian Blur (no-dilation)": 3.17,
+          "Gradients (no-dilation)": 2.48,
+          "Non-Max Suppression (no-dilation)": 6.75,
+          "Hysteresis (no-dilation)": 4.79,
+          "Binary Image (no-dilation)": 1.08,
+          "Dilation (no-dilation)": 0,
+          "Find Contours (no-dilation)": 12.44,
+          "Corner Detection (no-dilation)": 0.24,
+          "Gaussian Blur (fixed-mid-thresholds)": 3.17,
+          "Gradients (fixed-mid-thresholds)": 2.52,
+          "Non-Max Suppression (fixed-mid-thresholds)": 5.89,
+          "Hysteresis (fixed-mid-thresholds)": 1.82,
+          "Binary Image (fixed-mid-thresholds)": 0.94,
+          "Dilation (fixed-mid-thresholds)": 1.63,
+          "Find Contours (fixed-mid-thresholds)": 11.5,
+          "Corner Detection (fixed-mid-thresholds)": 1.26,
+          "Perspective Transform": 164.96,
           "Output Conversion": 0
         },
         "artifact": "IMG_0445 2.extracted.png"
       },
       "metrics": {
-        "documentCoverageRatio": 0.15
+        "documentCoverageRatio": 0.29,
+        "detectionConfidence": 0.57,
+        "groundTruthIou": 0.57,
+        "groundTruthCornerErrorPx": 517.78
       }
     },
     {
@@ -353,45 +612,48 @@
             "y": 137
           },
           "bottomLeft": {
-            "x": 24,
-            "y": 123
+            "x": 23,
+            "y": 122
           }
         },
-        "totalMs": 8.21,
+        "totalMs": 2,
         "timings": {
-          "Image Prep + Scale + Gray": 0.4,
-          "Gaussian Blur": 1.17,
-          "Gradients": 0.18,
-          "Non-Max Suppression": 0.61,
-          "Hysteresis": 0.19,
-          "Binary Image": 0.07,
-          "Dilation": 0.64,
-          "Find Contours": 4.38,
-          "Corner Detection": 0.09
+          "Image Prep + Scale + Gray": 0.21,
+          "Gaussian Blur": 0.17,
+          "Gradients": 0.13,
+          "Non-Max Suppression": 0.29,
+          "Hysteresis": 0.12,
+          "Binary Image": 0.06,
+          "Dilation": 0.08,
+          "Find Contours": 0.52,
+          "Corner Detection": 0.19
         }
       },
       "extract": {
         "success": true,
-        "outputWidth": 90,
+        "outputWidth": 91,
         "outputHeight": 118,
-        "totalMs": 8.69,
+        "totalMs": 2.63,
         "timings": {
-          "Image Prep + Scale + Gray": 0.4,
-          "Gaussian Blur": 1.22,
-          "Gradients": 0.31,
-          "Non-Max Suppression": 0.62,
-          "Hysteresis": 0.19,
-          "Binary Image": 0.11,
-          "Dilation": 0.58,
-          "Find Contours": 3.93,
-          "Corner Detection": 0.01,
-          "Perspective Transform": 0.97,
+          "Image Prep + Scale + Gray": 0.21,
+          "Gaussian Blur": 0.16,
+          "Gradients": 0.13,
+          "Non-Max Suppression": 0.27,
+          "Hysteresis": 0.15,
+          "Binary Image": 0.05,
+          "Dilation": 0.08,
+          "Find Contours": 0.66,
+          "Corner Detection": 0.2,
+          "Perspective Transform": 0.52,
           "Output Conversion": 0
         },
         "artifact": "test-sized.extracted.png"
       },
       "metrics": {
-        "documentCoverageRatio": 0.38
+        "documentCoverageRatio": 0.38,
+        "detectionConfidence": 0.85,
+        "groundTruthIou": 0.88,
+        "groundTruthCornerErrorPx": 4.18
       }
     },
     {
@@ -412,49 +674,52 @@
             "y": 95.7
           },
           "bottomRight": {
-            "x": 652.3,
-            "y": 594
+            "x": 651.2,
+            "y": 595.1
           },
           "bottomLeft": {
             "x": 151.8,
             "y": 531.3
           }
         },
-        "totalMs": 86.04,
+        "totalMs": 28.8,
         "timings": {
-          "Image Prep + Scale + Gray": 4.92,
-          "Gaussian Blur": 22.12,
-          "Gradients": 3.61,
-          "Non-Max Suppression": 10.28,
-          "Hysteresis": 4.41,
-          "Binary Image": 1.22,
-          "Dilation": 11.88,
-          "Find Contours": 20.78,
-          "Corner Detection": 0.02
+          "Image Prep + Scale + Gray": 3.49,
+          "Gaussian Blur": 3.28,
+          "Gradients": 2.57,
+          "Non-Max Suppression": 5.02,
+          "Hysteresis": 3.08,
+          "Binary Image": 1.01,
+          "Dilation": 1.6,
+          "Find Contours": 4.86,
+          "Corner Detection": 0.67
         }
       },
       "extract": {
         "success": true,
-        "outputWidth": 504,
-        "outputHeight": 498,
-        "totalMs": 104.42,
+        "outputWidth": 503,
+        "outputHeight": 499,
+        "totalMs": 38.01,
         "timings": {
-          "Image Prep + Scale + Gray": 5.12,
-          "Gaussian Blur": 22.99,
-          "Gradients": 3.85,
-          "Non-Max Suppression": 10.02,
-          "Hysteresis": 6.78,
-          "Binary Image": 1.25,
-          "Dilation": 12.15,
-          "Find Contours": 24.3,
-          "Corner Detection": 0.05,
-          "Perspective Transform": 11.2,
+          "Image Prep + Scale + Gray": 3.65,
+          "Gaussian Blur": 3.15,
+          "Gradients": 2.49,
+          "Non-Max Suppression": 6.28,
+          "Hysteresis": 2.49,
+          "Binary Image": 1.01,
+          "Dilation": 1.63,
+          "Find Contours": 5.56,
+          "Corner Detection": 0.79,
+          "Perspective Transform": 7.79,
           "Output Conversion": 0
         },
         "artifact": "test.extracted.png"
       },
       "metrics": {
-        "documentCoverageRatio": 0.35
+        "documentCoverageRatio": 0.35,
+        "detectionConfidence": 0.84,
+        "groundTruthIou": 0.96,
+        "groundTruthCornerErrorPx": 6.27
       }
     },
     {
@@ -467,57 +732,60 @@
         "success": true,
         "corners": {
           "topLeft": {
-            "x": 25.6,
-            "y": 222.72
+            "x": 30.72,
+            "y": 230.4
           },
           "topRight": {
-            "x": 766.72,
-            "y": 2.56
+            "x": 564.48,
+            "y": 152.32
           },
           "bottomRight": {
-            "x": 730.88,
-            "y": 864
+            "x": 727.04,
+            "y": 857.6
           },
           "bottomLeft": {
-            "x": 126.72,
-            "y": 989.44
+            "x": 134.4,
+            "y": 984.32
           }
         },
-        "totalMs": 99.26,
+        "totalMs": 46.4,
         "timings": {
-          "Image Prep + Scale + Gray": 6.6,
-          "Gaussian Blur": 23.16,
-          "Gradients": 4,
-          "Non-Max Suppression": 12.43,
-          "Hysteresis": 4.6,
-          "Binary Image": 1.35,
-          "Dilation": 12.3,
-          "Find Contours": 28.05,
-          "Corner Detection": 0.07
+          "Image Prep + Scale + Gray": 3.32,
+          "Gaussian Blur": 3.16,
+          "Gradients": 2.48,
+          "Non-Max Suppression": 6.64,
+          "Hysteresis": 2.77,
+          "Binary Image": 1.07,
+          "Dilation": 1.63,
+          "Find Contours": 20.85,
+          "Corner Detection": 1.3
         }
       },
       "extract": {
         "success": true,
-        "outputWidth": 773,
-        "outputHeight": 862,
-        "totalMs": 130.83,
+        "outputWidth": 606,
+        "outputHeight": 761,
+        "totalMs": 68.6,
         "timings": {
-          "Image Prep + Scale + Gray": 6.28,
-          "Gaussian Blur": 24.11,
-          "Gradients": 3.49,
-          "Non-Max Suppression": 12.41,
-          "Hysteresis": 6.06,
-          "Binary Image": 2.49,
-          "Dilation": 12.65,
-          "Find Contours": 30.15,
-          "Corner Detection": 0.06,
-          "Perspective Transform": 26.44,
+          "Image Prep + Scale + Gray": 3.79,
+          "Gaussian Blur": 3.63,
+          "Gradients": 2.78,
+          "Non-Max Suppression": 6.59,
+          "Hysteresis": 2.9,
+          "Binary Image": 1.19,
+          "Dilation": 1.86,
+          "Find Contours": 25.25,
+          "Corner Detection": 3.15,
+          "Perspective Transform": 13.81,
           "Output Conversion": 0
         },
         "artifact": "test10.extracted.png"
       },
       "metrics": {
-        "documentCoverageRatio": 0.7
+        "documentCoverageRatio": 0.54,
+        "detectionConfidence": 0.91,
+        "groundTruthIou": 0.99,
+        "groundTruthCornerErrorPx": 2.45
       }
     },
     {
@@ -530,57 +798,108 @@
         "success": true,
         "corners": {
           "topLeft": {
-            "x": 0,
-            "y": 0
+            "x": 25,
+            "y": 19
           },
           "topRight": {
-            "x": 149,
-            "y": 26
+            "x": 121,
+            "y": 18
           },
           "bottomRight": {
-            "x": 149,
-            "y": 134
+            "x": 140,
+            "y": 127
           },
           "bottomLeft": {
-            "x": 0,
-            "y": 134
+            "x": 10,
+            "y": 129
           }
         },
-        "totalMs": 4.58,
+        "totalMs": 9.43,
         "timings": {
-          "Image Prep + Scale + Gray": 0.4,
-          "Gaussian Blur": 1.12,
-          "Gradients": 0.18,
-          "Non-Max Suppression": 0.62,
-          "Hysteresis": 0.26,
-          "Binary Image": 0.05,
-          "Dilation": 0.55,
-          "Find Contours": 0.9,
-          "Corner Detection": 0.03
+          "Image Prep + Scale + Gray": 0.22,
+          "Gaussian Blur": 0.29,
+          "Gradients": 0.13,
+          "Non-Max Suppression": 0.34,
+          "Hysteresis": 1.52,
+          "Binary Image": 0.07,
+          "Dilation": 0.12,
+          "Find Contours": 0.91,
+          "Corner Detection": 0.51,
+          "Gaussian Blur (connect-edges)": 0.32,
+          "Gradients (connect-edges)": 0.15,
+          "Non-Max Suppression (connect-edges)": 0.38,
+          "Hysteresis (connect-edges)": 0.16,
+          "Binary Image (connect-edges)": 0.06,
+          "Dilation (connect-edges)": 0.15,
+          "Find Contours (connect-edges)": 0.35,
+          "Corner Detection (connect-edges)": 0.12,
+          "Gaussian Blur (no-dilation)": 0.19,
+          "Gradients (no-dilation)": 0.16,
+          "Non-Max Suppression (no-dilation)": 0.36,
+          "Hysteresis (no-dilation)": 0.17,
+          "Binary Image (no-dilation)": 0.07,
+          "Dilation (no-dilation)": 0,
+          "Find Contours (no-dilation)": 0.64,
+          "Corner Detection (no-dilation)": 0.06,
+          "Gaussian Blur (fixed-mid-thresholds)": 0.19,
+          "Gradients (fixed-mid-thresholds)": 0.16,
+          "Non-Max Suppression (fixed-mid-thresholds)": 0.38,
+          "Hysteresis (fixed-mid-thresholds)": 0.11,
+          "Binary Image (fixed-mid-thresholds)": 0.06,
+          "Dilation (fixed-mid-thresholds)": 0.1,
+          "Find Contours (fixed-mid-thresholds)": 0.25,
+          "Corner Detection (fixed-mid-thresholds)": 0.1
         }
       },
       "extract": {
         "success": true,
-        "outputWidth": 151,
-        "outputHeight": 134,
-        "totalMs": 5.46,
+        "outputWidth": 130,
+        "outputHeight": 111,
+        "totalMs": 7.42,
         "timings": {
-          "Image Prep + Scale + Gray": 0.38,
-          "Gaussian Blur": 1.05,
-          "Gradients": 0.18,
-          "Non-Max Suppression": 0.62,
-          "Hysteresis": 0.19,
-          "Binary Image": 0.06,
-          "Dilation": 0.56,
-          "Find Contours": 0.86,
-          "Corner Detection": 0.01,
-          "Perspective Transform": 1.2,
+          "Image Prep + Scale + Gray": 0.3,
+          "Gaussian Blur": 0.19,
+          "Gradients": 0.16,
+          "Non-Max Suppression": 0.36,
+          "Hysteresis": 0.23,
+          "Binary Image": 0.11,
+          "Dilation": 0.41,
+          "Find Contours": 0.56,
+          "Corner Detection": 0.3,
+          "Gaussian Blur (connect-edges)": 0.14,
+          "Gradients (connect-edges)": 0.11,
+          "Non-Max Suppression (connect-edges)": 0.28,
+          "Hysteresis (connect-edges)": 0.12,
+          "Binary Image (connect-edges)": 0.04,
+          "Dilation (connect-edges)": 0.11,
+          "Find Contours (connect-edges)": 0.32,
+          "Corner Detection (connect-edges)": 0.09,
+          "Gaussian Blur (no-dilation)": 0.14,
+          "Gradients (no-dilation)": 0.12,
+          "Non-Max Suppression (no-dilation)": 0.3,
+          "Hysteresis (no-dilation)": 0.13,
+          "Binary Image (no-dilation)": 0.05,
+          "Dilation (no-dilation)": 0,
+          "Find Contours (no-dilation)": 0.44,
+          "Corner Detection (no-dilation)": 0.05,
+          "Gaussian Blur (fixed-mid-thresholds)": 0.15,
+          "Gradients (fixed-mid-thresholds)": 0.13,
+          "Non-Max Suppression (fixed-mid-thresholds)": 0.29,
+          "Hysteresis (fixed-mid-thresholds)": 0.08,
+          "Binary Image (fixed-mid-thresholds)": 0.05,
+          "Dilation (fixed-mid-thresholds)": 0.08,
+          "Find Contours (fixed-mid-thresholds)": 0.19,
+          "Corner Detection (fixed-mid-thresholds)": 0.04,
+          "Perspective Transform": 0.74,
           "Output Conversion": 0
         },
         "artifact": "test2-sized.extracted.png"
       },
       "metrics": {
-        "documentCoverageRatio": 0.8
+        "documentCoverageRatio": 0.55,
+        "detectionConfidence": 0.93,
+        "groundTruthIou": 0.97,
+        "groundTruthCornerErrorPx": 1.96
       }
     },
     {
@@ -593,57 +912,108 @@
         "success": true,
         "corners": {
           "topLeft": {
-            "x": 198,
-            "y": 178
+            "x": 200,
+            "y": 180
           },
           "topRight": {
-            "x": 974,
-            "y": 188
+            "x": 970,
+            "y": 190
           },
           "bottomRight": {
-            "x": 1150,
-            "y": 1360
+            "x": 1146,
+            "y": 1358
           },
           "bottomLeft": {
-            "x": 50,
-            "y": 1382
+            "x": 56,
+            "y": 1376
           }
         },
-        "totalMs": 90.38,
+        "totalMs": 142.84,
         "timings": {
-          "Image Prep + Scale + Gray": 5.01,
-          "Gaussian Blur": 22.92,
-          "Gradients": 3.73,
-          "Non-Max Suppression": 12.04,
-          "Hysteresis": 4.4,
-          "Binary Image": 0.97,
-          "Dilation": 11.48,
-          "Find Contours": 23.01,
-          "Corner Detection": 0.03
+          "Image Prep + Scale + Gray": 3.61,
+          "Gaussian Blur": 3.34,
+          "Gradients": 4.52,
+          "Non-Max Suppression": 5.83,
+          "Hysteresis": 2.89,
+          "Binary Image": 0.98,
+          "Dilation": 1.72,
+          "Find Contours": 9.69,
+          "Corner Detection": 0.4,
+          "Gaussian Blur (connect-edges)": 3.37,
+          "Gradients (connect-edges)": 4.67,
+          "Non-Max Suppression (connect-edges)": 6.47,
+          "Hysteresis (connect-edges)": 3.42,
+          "Binary Image (connect-edges)": 1.46,
+          "Dilation (connect-edges)": 4.84,
+          "Find Contours (connect-edges)": 18.5,
+          "Corner Detection (connect-edges)": 2.74,
+          "Gaussian Blur (no-dilation)": 4.43,
+          "Gradients (no-dilation)": 3.54,
+          "Non-Max Suppression (no-dilation)": 6.08,
+          "Hysteresis (no-dilation)": 2.73,
+          "Binary Image (no-dilation)": 1.43,
+          "Dilation (no-dilation)": 0,
+          "Find Contours (no-dilation)": 10.49,
+          "Corner Detection (no-dilation)": 1.47,
+          "Gaussian Blur (fixed-mid-thresholds)": 3.72,
+          "Gradients (fixed-mid-thresholds)": 3.56,
+          "Non-Max Suppression (fixed-mid-thresholds)": 6.14,
+          "Hysteresis (fixed-mid-thresholds)": 1.92,
+          "Binary Image (fixed-mid-thresholds)": 1.04,
+          "Dilation (fixed-mid-thresholds)": 1.76,
+          "Find Contours (fixed-mid-thresholds)": 3.7,
+          "Corner Detection (fixed-mid-thresholds)": 0.62
         }
       },
       "extract": {
         "success": true,
-        "outputWidth": 1100,
-        "outputHeight": 1213,
-        "totalMs": 139.26,
+        "outputWidth": 1090,
+        "outputHeight": 1205,
+        "totalMs": 196.39,
         "timings": {
-          "Image Prep + Scale + Gray": 4.79,
-          "Gaussian Blur": 23.21,
-          "Gradients": 3.69,
-          "Non-Max Suppression": 10.78,
-          "Hysteresis": 3.99,
-          "Binary Image": 1.12,
-          "Dilation": 12.21,
-          "Find Contours": 17.61,
-          "Corner Detection": 0.05,
-          "Perspective Transform": 54.61,
+          "Image Prep + Scale + Gray": 6.11,
+          "Gaussian Blur": 4.77,
+          "Gradients": 3.28,
+          "Non-Max Suppression": 6.98,
+          "Hysteresis": 3.12,
+          "Binary Image": 1.42,
+          "Dilation": 1.77,
+          "Find Contours": 10.93,
+          "Corner Detection": 0.34,
+          "Gaussian Blur (connect-edges)": 4.41,
+          "Gradients (connect-edges)": 3.09,
+          "Non-Max Suppression (connect-edges)": 5.63,
+          "Hysteresis (connect-edges)": 4.64,
+          "Binary Image (connect-edges)": 1.09,
+          "Dilation (connect-edges)": 3.68,
+          "Find Contours (connect-edges)": 20.54,
+          "Corner Detection (connect-edges)": 2.27,
+          "Gaussian Blur (no-dilation)": 3.79,
+          "Gradients (no-dilation)": 3.21,
+          "Non-Max Suppression (no-dilation)": 6.32,
+          "Hysteresis (no-dilation)": 2.76,
+          "Binary Image (no-dilation)": 1.14,
+          "Dilation (no-dilation)": 0,
+          "Find Contours (no-dilation)": 10.02,
+          "Corner Detection (no-dilation)": 0.46,
+          "Gaussian Blur (fixed-mid-thresholds)": 4.58,
+          "Gradients (fixed-mid-thresholds)": 3.6,
+          "Non-Max Suppression (fixed-mid-thresholds)": 6.77,
+          "Hysteresis (fixed-mid-thresholds)": 1.7,
+          "Binary Image (fixed-mid-thresholds)": 1.25,
+          "Dilation (fixed-mid-thresholds)": 2.33,
+          "Find Contours (fixed-mid-thresholds)": 3.8,
+          "Corner Detection (fixed-mid-thresholds)": 0.67,
+          "Perspective Transform": 46.1,
           "Output Conversion": 0
         },
         "artifact": "test2.extracted.png"
       },
       "metrics": {
-        "documentCoverageRatio": 0.58
+        "documentCoverageRatio": 0.57,
+        "detectionConfidence": 0.93,
+        "groundTruthIou": 0.98,
+        "groundTruthCornerErrorPx": 8.15
       }
     },
     {
@@ -657,56 +1027,59 @@
         "corners": {
           "topLeft": {
             "x": 278.88,
-            "y": 1168.64
+            "y": 1175.28
           },
           "topRight": {
-            "x": 2662.64,
+            "x": 2636.08,
             "y": 1155.36
           },
           "bottomRight": {
             "x": 2981.36,
-            "y": 4415.6
+            "y": 4402.32
           },
           "bottomLeft": {
             "x": 39.84,
             "y": 4455.44
           }
         },
-        "totalMs": 214.84,
+        "totalMs": 127.73,
         "timings": {
-          "Image Prep + Scale + Gray": 156.13,
-          "Gaussian Blur": 18.1,
-          "Gradients": 3.75,
-          "Non-Max Suppression": 10.7,
-          "Hysteresis": 3.56,
-          "Binary Image": 1.05,
-          "Dilation": 9.23,
-          "Find Contours": 7.2,
-          "Corner Detection": 0.04
+          "Image Prep + Scale + Gray": 100.6,
+          "Gaussian Blur": 2.66,
+          "Gradients": 2.1,
+          "Non-Max Suppression": 5.59,
+          "Hysteresis": 3.24,
+          "Binary Image": 1.16,
+          "Dilation": 1.83,
+          "Find Contours": 6.69,
+          "Corner Detection": 1.22
         }
       },
       "extract": {
         "success": true,
         "outputWidth": 2942,
-        "outputHeight": 3295,
-        "totalMs": 613.93,
+        "outputHeight": 3289,
+        "totalMs": 458.19,
         "timings": {
-          "Image Prep + Scale + Gray": 153.59,
-          "Gaussian Blur": 21.81,
-          "Gradients": 2.64,
-          "Non-Max Suppression": 10.17,
-          "Hysteresis": 3.54,
-          "Binary Image": 1.01,
-          "Dilation": 9.03,
-          "Find Contours": 7.26,
-          "Corner Detection": 0.05,
-          "Perspective Transform": 399.64,
+          "Image Prep + Scale + Gray": 102.54,
+          "Gaussian Blur": 3.3,
+          "Gradients": 2.57,
+          "Non-Max Suppression": 6.89,
+          "Hysteresis": 2.86,
+          "Binary Image": 0.91,
+          "Dilation": 1.32,
+          "Find Contours": 6.01,
+          "Corner Detection": 0.8,
+          "Perspective Transform": 328.19,
           "Output Conversion": 0
         },
         "artifact": "test3.extracted.png"
       },
       "metrics": {
-        "documentCoverageRatio": 0.55
+        "documentCoverageRatio": 0.54,
+        "detectionConfidence": 0.92,
+        "groundTruthIou": 0.98,
+        "groundTruthCornerErrorPx": 20.66
       }
     },
     {
@@ -719,57 +1092,60 @@
         "success": true,
         "corners": {
           "topLeft": {
-            "x": 293.76,
-            "y": 199.92
+            "x": 338.64,
+            "y": 232.56
           },
           "topRight": {
-            "x": 2933.52,
-            "y": 257.04
+            "x": 2741.76,
+            "y": 285.6
           },
           "bottomRight": {
-            "x": 3055.92,
-            "y": 2354.16
+            "x": 2990.64,
+            "y": 2305.2
           },
           "bottomLeft": {
-            "x": 175.44,
-            "y": 2370.48
+            "x": 208.08,
+            "y": 2346
           }
         },
-        "totalMs": 196.84,
+        "totalMs": 155.75,
         "timings": {
-          "Image Prep + Scale + Gray": 98.6,
-          "Gaussian Blur": 22.69,
-          "Gradients": 3.54,
-          "Non-Max Suppression": 12.65,
-          "Hysteresis": 6.11,
-          "Binary Image": 1.65,
-          "Dilation": 14.02,
-          "Find Contours": 30.98,
-          "Corner Detection": 0.04
+          "Image Prep + Scale + Gray": 80.43,
+          "Gaussian Blur": 6.01,
+          "Gradients": 3.35,
+          "Non-Max Suppression": 7.71,
+          "Hysteresis": 4.84,
+          "Binary Image": 2.07,
+          "Dilation": 3.75,
+          "Find Contours": 41.64,
+          "Corner Detection": 1.61
         }
       },
       "extract": {
         "success": true,
-        "outputWidth": 2881,
-        "outputHeight": 2174,
-        "totalMs": 453.09,
+        "outputWidth": 2783,
+        "outputHeight": 2117,
+        "totalMs": 366.48,
         "timings": {
-          "Image Prep + Scale + Gray": 99.48,
-          "Gaussian Blur": 22.75,
-          "Gradients": 3.52,
-          "Non-Max Suppression": 12.14,
-          "Hysteresis": 7,
-          "Binary Image": 1.31,
-          "Dilation": 12.2,
-          "Find Contours": 26.47,
-          "Corner Detection": 0.02,
-          "Perspective Transform": 260.19,
+          "Image Prep + Scale + Gray": 98.54,
+          "Gaussian Blur": 4.59,
+          "Gradients": 2.75,
+          "Non-Max Suppression": 10.41,
+          "Hysteresis": 9.72,
+          "Binary Image": 2.05,
+          "Dilation": 3.42,
+          "Find Contours": 31.06,
+          "Corner Detection": 1.58,
+          "Perspective Transform": 196.8,
           "Output Conversion": 0
         },
         "artifact": "test4.extracted.png"
       },
       "metrics": {
-        "documentCoverageRatio": 0.74
+        "documentCoverageRatio": 0.67,
+        "detectionConfidence": 0.96,
+        "groundTruthIou": 0.95,
+        "groundTruthCornerErrorPx": 57.09
       }
     },
     {
@@ -782,57 +1158,60 @@
         "success": true,
         "corners": {
           "topLeft": {
-            "x": 644.64,
-            "y": 856.8
+            "x": 660.96,
+            "y": 877.2
           },
           "topRight": {
-            "x": 3259.92,
-            "y": 762.96
+            "x": 2713.2,
+            "y": 779.28
           },
           "bottomRight": {
-            "x": 2872.32,
-            "y": 1697.28
+            "x": 2847.84,
+            "y": 1685.04
           },
           "bottomLeft": {
-            "x": 575.28,
-            "y": 1754.4
+            "x": 583.44,
+            "y": 1729.92
           }
         },
-        "totalMs": 181.31,
+        "totalMs": 136.47,
         "timings": {
-          "Image Prep + Scale + Gray": 96.26,
-          "Gaussian Blur": 23.58,
-          "Gradients": 3.53,
-          "Non-Max Suppression": 15.5,
-          "Hysteresis": 5.11,
-          "Binary Image": 1.07,
-          "Dilation": 12.76,
-          "Find Contours": 17.17,
-          "Corner Detection": 0.04
+          "Image Prep + Scale + Gray": 86.35,
+          "Gaussian Blur": 5.71,
+          "Gradients": 4.38,
+          "Non-Max Suppression": 9.17,
+          "Hysteresis": 4.72,
+          "Binary Image": 1.95,
+          "Dilation": 3.02,
+          "Find Contours": 14.92,
+          "Corner Detection": 0.86
         }
       },
       "extract": {
         "success": true,
-        "outputWidth": 2617,
-        "outputHeight": 1012,
-        "totalMs": 303.19,
+        "outputWidth": 2265,
+        "outputHeight": 916,
+        "totalMs": 216.9,
         "timings": {
-          "Image Prep + Scale + Gray": 98.42,
-          "Gaussian Blur": 28.79,
-          "Gradients": 4.01,
-          "Non-Max Suppression": 14.23,
-          "Hysteresis": 6.05,
-          "Binary Image": 1.18,
-          "Dilation": 11.49,
-          "Find Contours": 9.72,
-          "Corner Detection": 0.03,
-          "Perspective Transform": 122.94,
+          "Image Prep + Scale + Gray": 84.74,
+          "Gaussian Blur": 3.74,
+          "Gradients": 3.61,
+          "Non-Max Suppression": 9.45,
+          "Hysteresis": 4.18,
+          "Binary Image": 0.95,
+          "Dilation": 2.2,
+          "Find Contours": 14.98,
+          "Corner Detection": 0.86,
+          "Perspective Transform": 87.08,
           "Output Conversion": 0
         },
         "artifact": "test5.extracted.png"
       },
       "metrics": {
-        "documentCoverageRatio": 0.28
+        "documentCoverageRatio": 0.24,
+        "detectionConfidence": 0.78,
+        "groundTruthIou": 0.98,
+        "groundTruthCornerErrorPx": 13.91
       }
     },
     {
@@ -846,56 +1225,107 @@
         "corners": {
           "topLeft": {
             "x": 89.76,
-            "y": 644.64
+            "y": 652.8
           },
           "topRight": {
-            "x": 1521.84,
-            "y": 403.92
+            "x": 1525.92,
+            "y": 408
           },
           "bottomRight": {
             "x": 2346,
-            "y": 2105.28
+            "y": 2097.12
           },
           "bottomLeft": {
-            "x": 807.84,
-            "y": 2778.48
+            "x": 816,
+            "y": 2774.4
           }
         },
-        "totalMs": 213.8,
+        "totalMs": 353.33,
         "timings": {
-          "Image Prep + Scale + Gray": 93.84,
-          "Gaussian Blur": 25.31,
-          "Gradients": 3.98,
-          "Non-Max Suppression": 13.71,
-          "Hysteresis": 5.75,
-          "Binary Image": 1.27,
-          "Dilation": 13.62,
-          "Find Contours": 50.02,
-          "Corner Detection": 0.03
+          "Image Prep + Scale + Gray": 76.15,
+          "Gaussian Blur": 6.55,
+          "Gradients": 4.68,
+          "Non-Max Suppression": 9.17,
+          "Hysteresis": 5.11,
+          "Binary Image": 1.24,
+          "Dilation": 2.03,
+          "Find Contours": 34.68,
+          "Corner Detection": 1.52,
+          "Gaussian Blur (connect-edges)": 5.15,
+          "Gradients (connect-edges)": 3.36,
+          "Non-Max Suppression (connect-edges)": 10.69,
+          "Hysteresis (connect-edges)": 5.48,
+          "Binary Image (connect-edges)": 1.84,
+          "Dilation (connect-edges)": 3.93,
+          "Find Contours (connect-edges)": 46.14,
+          "Corner Detection (connect-edges)": 5.12,
+          "Gaussian Blur (no-dilation)": 11.48,
+          "Gradients (no-dilation)": 6.51,
+          "Non-Max Suppression (no-dilation)": 11.96,
+          "Hysteresis (no-dilation)": 7.4,
+          "Binary Image (no-dilation)": 3.64,
+          "Dilation (no-dilation)": 0,
+          "Find Contours (no-dilation)": 29.77,
+          "Corner Detection (no-dilation)": 0.45,
+          "Gaussian Blur (fixed-mid-thresholds)": 5.08,
+          "Gradients (fixed-mid-thresholds)": 5.41,
+          "Non-Max Suppression (fixed-mid-thresholds)": 9.39,
+          "Hysteresis (fixed-mid-thresholds)": 3.11,
+          "Binary Image (fixed-mid-thresholds)": 1.91,
+          "Dilation (fixed-mid-thresholds)": 3.81,
+          "Find Contours (fixed-mid-thresholds)": 6.27,
+          "Corner Detection (fixed-mid-thresholds)": 3.06
         }
       },
       "extract": {
         "success": true,
-        "outputWidth": 1679,
-        "outputHeight": 2251,
-        "totalMs": 380.15,
+        "outputWidth": 1673,
+        "outputHeight": 2242,
+        "totalMs": 428.58,
         "timings": {
-          "Image Prep + Scale + Gray": 91.35,
-          "Gaussian Blur": 25.82,
-          "Gradients": 3.61,
-          "Non-Max Suppression": 13.53,
-          "Hysteresis": 5.93,
-          "Binary Image": 1.38,
-          "Dilation": 15.84,
-          "Find Contours": 54.34,
-          "Corner Detection": 0.05,
-          "Perspective Transform": 161.42,
+          "Image Prep + Scale + Gray": 76.95,
+          "Gaussian Blur": 5.58,
+          "Gradients": 4.05,
+          "Non-Max Suppression": 11.28,
+          "Hysteresis": 5.85,
+          "Binary Image": 2.13,
+          "Dilation": 2.76,
+          "Find Contours": 23.39,
+          "Corner Detection": 3.12,
+          "Gaussian Blur (connect-edges)": 4.33,
+          "Gradients (connect-edges)": 4.57,
+          "Non-Max Suppression (connect-edges)": 9.42,
+          "Hysteresis (connect-edges)": 9.6,
+          "Binary Image (connect-edges)": 1.72,
+          "Dilation (connect-edges)": 4.27,
+          "Find Contours (connect-edges)": 24.45,
+          "Corner Detection (connect-edges)": 2.04,
+          "Gaussian Blur (no-dilation)": 5.84,
+          "Gradients (no-dilation)": 4.07,
+          "Non-Max Suppression (no-dilation)": 8.68,
+          "Hysteresis (no-dilation)": 7.83,
+          "Binary Image (no-dilation)": 2,
+          "Dilation (no-dilation)": 0,
+          "Find Contours (no-dilation)": 21.4,
+          "Corner Detection (no-dilation)": 0.24,
+          "Gaussian Blur (fixed-mid-thresholds)": 6.1,
+          "Gradients (fixed-mid-thresholds)": 4.42,
+          "Non-Max Suppression (fixed-mid-thresholds)": 8.61,
+          "Hysteresis (fixed-mid-thresholds)": 3.1,
+          "Binary Image (fixed-mid-thresholds)": 1.81,
+          "Dilation (fixed-mid-thresholds)": 2.54,
+          "Find Contours (fixed-mid-thresholds)": 6.19,
+          "Corner Detection (fixed-mid-thresholds)": 1.43,
+          "Perspective Transform": 134.6,
           "Output Conversion": 0
         },
         "artifact": "test6.extracted.png"
       },
       "metrics": {
-        "documentCoverageRatio": 0.4
+        "documentCoverageRatio": 0.4,
+        "detectionConfidence": 0.84,
+        "groundTruthIou": 0.99,
+        "groundTruthCornerErrorPx": 10.2
       }
     },
     {
@@ -908,57 +1338,108 @@
         "success": true,
         "corners": {
           "topLeft": {
-            "x": 893.52,
-            "y": 195.84
+            "x": 8.16,
+            "y": 224.4
           },
           "topRight": {
-            "x": 2023.68,
+            "x": 2064.48,
             "y": 297.84
           },
           "bottomRight": {
-            "x": 2272.56,
-            "y": 3137.52
+            "x": 2443.92,
+            "y": 3259.92
           },
           "bottomLeft": {
-            "x": 134.64,
-            "y": 3153.84
+            "x": 110.16,
+            "y": 3259.92
           }
         },
-        "totalMs": 191.86,
+        "totalMs": 296.22,
         "timings": {
-          "Image Prep + Scale + Gray": 93.51,
-          "Gaussian Blur": 22.65,
-          "Gradients": 3.59,
-          "Non-Max Suppression": 13.33,
-          "Hysteresis": 6.46,
-          "Binary Image": 1.46,
-          "Dilation": 12.22,
-          "Find Contours": 32.04,
-          "Corner Detection": 0.05
+          "Image Prep + Scale + Gray": 81.33,
+          "Gaussian Blur": 5.21,
+          "Gradients": 5.25,
+          "Non-Max Suppression": 10.05,
+          "Hysteresis": 5.68,
+          "Binary Image": 2.15,
+          "Dilation": 2.91,
+          "Find Contours": 31.79,
+          "Corner Detection": 2.11,
+          "Gaussian Blur (connect-edges)": 3.81,
+          "Gradients (connect-edges)": 2.72,
+          "Non-Max Suppression (connect-edges)": 8.47,
+          "Hysteresis (connect-edges)": 4.2,
+          "Binary Image (connect-edges)": 1.08,
+          "Dilation (connect-edges)": 3.34,
+          "Find Contours (connect-edges)": 21.86,
+          "Corner Detection (connect-edges)": 4.1,
+          "Gaussian Blur (no-dilation)": 3.47,
+          "Gradients (no-dilation)": 4.12,
+          "Non-Max Suppression (no-dilation)": 9.34,
+          "Hysteresis (no-dilation)": 4.91,
+          "Binary Image (no-dilation)": 1.66,
+          "Dilation (no-dilation)": 0,
+          "Find Contours (no-dilation)": 30.82,
+          "Corner Detection (no-dilation)": 0.37,
+          "Gaussian Blur (fixed-mid-thresholds)": 6.04,
+          "Gradients (fixed-mid-thresholds)": 3.98,
+          "Non-Max Suppression (fixed-mid-thresholds)": 9.89,
+          "Hysteresis (fixed-mid-thresholds)": 2.47,
+          "Binary Image (fixed-mid-thresholds)": 1.07,
+          "Dilation (fixed-mid-thresholds)": 2.15,
+          "Find Contours (fixed-mid-thresholds)": 5.02,
+          "Corner Detection (fixed-mid-thresholds)": 0.47
         }
       },
       "extract": {
         "success": true,
-        "outputWidth": 2138,
-        "outputHeight": 3054,
-        "totalMs": 461.85,
+        "outputWidth": 2334,
+        "outputHeight": 3037,
+        "totalMs": 522.76,
         "timings": {
-          "Image Prep + Scale + Gray": 94.91,
-          "Gaussian Blur": 25.7,
-          "Gradients": 4.31,
-          "Non-Max Suppression": 12.72,
-          "Hysteresis": 6.69,
-          "Binary Image": 1.21,
-          "Dilation": 11.4,
-          "Find Contours": 25.08,
-          "Corner Detection": 0.03,
-          "Perspective Transform": 273.48,
+          "Image Prep + Scale + Gray": 80.95,
+          "Gaussian Blur": 5.39,
+          "Gradients": 3.09,
+          "Non-Max Suppression": 9.24,
+          "Hysteresis": 7.35,
+          "Binary Image": 1.8,
+          "Dilation": 2.12,
+          "Find Contours": 31.5,
+          "Corner Detection": 1.5,
+          "Gaussian Blur (connect-edges)": 5.73,
+          "Gradients (connect-edges)": 4.04,
+          "Non-Max Suppression (connect-edges)": 10.67,
+          "Hysteresis (connect-edges)": 4.66,
+          "Binary Image (connect-edges)": 1.91,
+          "Dilation (connect-edges)": 4.04,
+          "Find Contours (connect-edges)": 19.58,
+          "Corner Detection (connect-edges)": 3.4,
+          "Gaussian Blur (no-dilation)": 4.28,
+          "Gradients (no-dilation)": 5.49,
+          "Non-Max Suppression (no-dilation)": 8.26,
+          "Hysteresis (no-dilation)": 4.31,
+          "Binary Image (no-dilation)": 1.38,
+          "Dilation (no-dilation)": 0,
+          "Find Contours (no-dilation)": 19.03,
+          "Corner Detection (no-dilation)": 0.23,
+          "Gaussian Blur (fixed-mid-thresholds)": 5.87,
+          "Gradients (fixed-mid-thresholds)": 3.6,
+          "Non-Max Suppression (fixed-mid-thresholds)": 9.74,
+          "Hysteresis (fixed-mid-thresholds)": 1.82,
+          "Binary Image (fixed-mid-thresholds)": 1.11,
+          "Dilation (fixed-mid-thresholds)": 2.29,
+          "Find Contours (fixed-mid-thresholds)": 4.46,
+          "Corner Detection (fixed-mid-thresholds)": 0.4,
+          "Perspective Transform": 238.17,
           "Output Conversion": 0
         },
         "artifact": "test7.extracted.png"
       },
       "metrics": {
-        "documentCoverageRatio": 0.59
+        "documentCoverageRatio": 0.82,
+        "detectionConfidence": 0.96,
+        "groundTruthIou": 0.78,
+        "groundTruthCornerErrorPx": 220.52
       }
     },
     {
@@ -979,49 +1460,52 @@
             "y": 103.68
           },
           "bottomRight": {
-            "x": 1934.28,
-            "y": 2569.32
+            "x": 1931.04,
+            "y": 2572.56
           },
           "bottomLeft": {
             "x": 3.24,
             "y": 2559.6
           }
         },
-        "totalMs": 159.65,
+        "totalMs": 121.18,
         "timings": {
-          "Image Prep + Scale + Gray": 72.01,
-          "Gaussian Blur": 23.93,
-          "Gradients": 3.8,
-          "Non-Max Suppression": 14.49,
-          "Hysteresis": 5.85,
-          "Binary Image": 1.37,
-          "Dilation": 13.22,
-          "Find Contours": 16.74,
-          "Corner Detection": 0.04
+          "Image Prep + Scale + Gray": 69.02,
+          "Gaussian Blur": 3.74,
+          "Gradients": 3.55,
+          "Non-Max Suppression": 10.08,
+          "Hysteresis": 5.16,
+          "Binary Image": 1.75,
+          "Dilation": 2.65,
+          "Find Contours": 18.98,
+          "Corner Detection": 1.01
         }
       },
       "extract": {
         "success": true,
-        "outputWidth": 1931,
-        "outputHeight": 2466,
-        "totalMs": 358.17,
+        "outputWidth": 1928,
+        "outputHeight": 2469,
+        "totalMs": 267.87,
         "timings": {
-          "Image Prep + Scale + Gray": 73.5,
-          "Gaussian Blur": 26.2,
-          "Gradients": 3.42,
-          "Non-Max Suppression": 16.51,
-          "Hysteresis": 8.64,
-          "Binary Image": 1.6,
-          "Dilation": 15.63,
-          "Find Contours": 16.24,
-          "Corner Detection": 0.02,
-          "Perspective Transform": 188.47,
+          "Image Prep + Scale + Gray": 60.87,
+          "Gaussian Blur": 5.35,
+          "Gradients": 3.44,
+          "Non-Max Suppression": 9.15,
+          "Hysteresis": 6.09,
+          "Binary Image": 1.72,
+          "Dilation": 1.89,
+          "Find Contours": 18.01,
+          "Corner Detection": 0.79,
+          "Perspective Transform": 155.3,
           "Output Conversion": 0
         },
         "artifact": "test8.extracted.png"
       },
       "metrics": {
-        "documentCoverageRatio": 0.94
+        "documentCoverageRatio": 0.94,
+        "detectionConfidence": 0.98,
+        "groundTruthIou": 0.98,
+        "groundTruthCornerErrorPx": 14.27
       }
     },
     {
@@ -1038,53 +1522,56 @@
             "y": 971.04
           },
           "topRight": {
-            "x": 1591.2,
-            "y": 918
+            "x": 1562.64,
+            "y": 864.96
           },
           "bottomRight": {
             "x": 1848.24,
             "y": 2550
           },
           "bottomLeft": {
-            "x": 656.88,
+            "x": 652.8,
             "y": 2717.28
           }
         },
-        "totalMs": 167.13,
+        "totalMs": 138.43,
         "timings": {
-          "Image Prep + Scale + Gray": 94.46,
-          "Gaussian Blur": 23.49,
-          "Gradients": 4.4,
-          "Non-Max Suppression": 16.44,
-          "Hysteresis": 3.81,
-          "Binary Image": 1.01,
-          "Dilation": 10.59,
-          "Find Contours": 6.83,
-          "Corner Detection": 0.06
+          "Image Prep + Scale + Gray": 84.08,
+          "Gaussian Blur": 4.3,
+          "Gradients": 6.32,
+          "Non-Max Suppression": 15.28,
+          "Hysteresis": 4.49,
+          "Binary Image": 1.18,
+          "Dilation": 2.38,
+          "Find Contours": 14.36,
+          "Corner Detection": 1.79
         }
       },
       "extract": {
         "success": true,
-        "outputWidth": 1203,
+        "outputWidth": 1207,
         "outputHeight": 1751,
-        "totalMs": 276.2,
+        "totalMs": 206.68,
         "timings": {
-          "Image Prep + Scale + Gray": 96.28,
-          "Gaussian Blur": 23,
-          "Gradients": 4.13,
-          "Non-Max Suppression": 15.62,
-          "Hysteresis": 4.76,
-          "Binary Image": 1.03,
-          "Dilation": 10.91,
-          "Find Contours": 9.86,
-          "Corner Detection": 0.04,
-          "Perspective Transform": 104.48,
+          "Image Prep + Scale + Gray": 74.24,
+          "Gaussian Blur": 4.2,
+          "Gradients": 4.26,
+          "Non-Max Suppression": 12.77,
+          "Hysteresis": 2.63,
+          "Binary Image": 1.12,
+          "Dilation": 1.94,
+          "Find Contours": 16.37,
+          "Corner Detection": 2.34,
+          "Perspective Transform": 82.03,
           "Output Conversion": 0
         },
         "artifact": "test9.extracted.png"
       },
       "metrics": {
-        "documentCoverageRatio": 0.24
+        "documentCoverageRatio": 0.24,
+        "detectionConfidence": 0.79,
+        "groundTruthIou": 0.94,
+        "groundTruthCornerErrorPx": 38.04
       }
     }
   ]

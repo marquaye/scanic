@@ -1,0 +1,976 @@
+{
+  "formatVersion": 1,
+  "generatedAt": "2026-07-07T12:14:36.884Z",
+  "detector": "ml",
+  "scannerOptions": {
+    "maxProcessingDimension": 800
+  },
+  "tolerances": {
+    "cornerTolerancePx": 3,
+    "outputSizeTolerancePx": 4
+  },
+  "summary": {
+    "totalImages": 17,
+    "detectSuccesses": 17,
+    "extractSuccesses": 17,
+    "avgDetectMs": 37.61,
+    "avgExtractMs": 101.11,
+    "groundTruthImages": 17,
+    "avgGroundTruthIou": 0.96,
+    "avgGroundTruthCornerErrorPx": 35.31
+  },
+  "cases": [
+    {
+      "image": "0123.jpg",
+      "input": {
+        "width": 640,
+        "height": 640
+      },
+      "detect": {
+        "success": true,
+        "corners": {
+          "topLeft": {
+            "x": 22.1,
+            "y": 197.17
+          },
+          "topRight": {
+            "x": 298.84,
+            "y": 58.72
+          },
+          "bottomRight": {
+            "x": 585.93,
+            "y": 441.43
+          },
+          "bottomLeft": {
+            "x": 329.06,
+            "y": 550.73
+          }
+        },
+        "totalMs": 18.38,
+        "timings": {
+          "ML Detection Total": 18.37,
+          "ML Session Load": 0.01,
+          "ML Preprocess": 3.7,
+          "ML Inference": 14.56
+        }
+      },
+      "extract": {
+        "success": true,
+        "outputWidth": 309,
+        "outputHeight": 478,
+        "totalMs": 32.91,
+        "timings": {
+          "ML Detection Total": 21.03,
+          "ML Session Load": 0.01,
+          "ML Preprocess": 3.84,
+          "ML Inference": 17.02,
+          "Perspective Transform": 11.86,
+          "Output Conversion": 0
+        },
+        "artifact": "0123.extracted.png"
+      },
+      "metrics": {
+        "documentCoverageRatio": 0.33,
+        "detectionConfidence": 1,
+        "groundTruthIou": 0.99,
+        "groundTruthCornerErrorPx": 1.45
+      }
+    },
+    {
+      "image": "0149_p-50-.jpg",
+      "input": {
+        "width": 640,
+        "height": 640
+      },
+      "detect": {
+        "success": true,
+        "corners": {
+          "topLeft": {
+            "x": 203.59,
+            "y": 131.93
+          },
+          "topRight": {
+            "x": 591.96,
+            "y": 155.87
+          },
+          "bottomRight": {
+            "x": 471.84,
+            "y": 568.9
+          },
+          "bottomLeft": {
+            "x": 120.52,
+            "y": 498.73
+          }
+        },
+        "totalMs": 19.49,
+        "timings": {
+          "ML Detection Total": 19.49,
+          "ML Session Load": 0.01,
+          "ML Preprocess": 3.59,
+          "ML Inference": 15.76
+        }
+      },
+      "extract": {
+        "success": true,
+        "outputWidth": 389,
+        "outputHeight": 430,
+        "totalMs": 26.29,
+        "timings": {
+          "ML Detection Total": 19.64,
+          "ML Session Load": 0.01,
+          "ML Preprocess": 4.53,
+          "ML Inference": 14.89,
+          "Perspective Transform": 6.62,
+          "Output Conversion": 0
+        },
+        "artifact": "0149_p-50-.extracted.png"
+      },
+      "metrics": {
+        "documentCoverageRatio": 0.36,
+        "detectionConfidence": 1,
+        "groundTruthIou": 0.98,
+        "groundTruthCornerErrorPx": 3.76
+      }
+    },
+    {
+      "image": "1023-receipt.jpg",
+      "input": {
+        "width": 750,
+        "height": 1000
+      },
+      "detect": {
+        "success": true,
+        "corners": {
+          "topLeft": {
+            "x": 160.6,
+            "y": 11.32
+          },
+          "topRight": {
+            "x": 563.16,
+            "y": 12.51
+          },
+          "bottomRight": {
+            "x": 645.41,
+            "y": 990
+          },
+          "bottomLeft": {
+            "x": 135.06,
+            "y": 990.13
+          }
+        },
+        "totalMs": 19.95,
+        "timings": {
+          "ML Detection Total": 19.94,
+          "ML Session Load": 0.01,
+          "ML Preprocess": 6.91,
+          "ML Inference": 12.88
+        }
+      },
+      "extract": {
+        "success": true,
+        "outputWidth": 510,
+        "outputHeight": 981,
+        "totalMs": 42.47,
+        "timings": {
+          "ML Detection Total": 26.08,
+          "ML Session Load": 0.01,
+          "ML Preprocess": 8.25,
+          "ML Inference": 17.64,
+          "Perspective Transform": 16.37,
+          "Output Conversion": 0
+        },
+        "artifact": "1023-receipt.extracted.png"
+      },
+      "metrics": {
+        "documentCoverageRatio": 0.6,
+        "detectionConfidence": 1,
+        "groundTruthIou": 0.99,
+        "groundTruthCornerErrorPx": 1.47
+      }
+    },
+    {
+      "image": "25_2.jpg",
+      "input": {
+        "width": 640,
+        "height": 640
+      },
+      "detect": {
+        "success": true,
+        "corners": {
+          "topLeft": {
+            "x": 204.38,
+            "y": 193.05
+          },
+          "topRight": {
+            "x": 458.33,
+            "y": 188.1
+          },
+          "bottomRight": {
+            "x": 462.62,
+            "y": 463.95
+          },
+          "bottomLeft": {
+            "x": 156.91,
+            "y": 453.39
+          }
+        },
+        "totalMs": 16,
+        "timings": {
+          "ML Detection Total": 16,
+          "ML Session Load": 0.01,
+          "ML Preprocess": 3.52,
+          "ML Inference": 12.35
+        }
+      },
+      "extract": {
+        "success": true,
+        "outputWidth": 306,
+        "outputHeight": 276,
+        "totalMs": 18.81,
+        "timings": {
+          "ML Detection Total": 15.53,
+          "ML Session Load": 0.01,
+          "ML Preprocess": 3.77,
+          "ML Inference": 11.51,
+          "Perspective Transform": 3.26,
+          "Output Conversion": 0
+        },
+        "artifact": "25_2.extracted.png"
+      },
+      "metrics": {
+        "documentCoverageRatio": 0.18,
+        "detectionConfidence": 1,
+        "groundTruthIou": 0.99,
+        "groundTruthCornerErrorPx": 1.83
+      }
+    },
+    {
+      "image": "IMG_0445 2.jpg",
+      "input": {
+        "width": 3024,
+        "height": 4032
+      },
+      "detect": {
+        "success": true,
+        "corners": {
+          "topLeft": {
+            "x": 1002.77,
+            "y": 1020.5
+          },
+          "topRight": {
+            "x": 2174.53,
+            "y": 1318.13
+          },
+          "bottomRight": {
+            "x": 2383.84,
+            "y": 3190.57
+          },
+          "bottomLeft": {
+            "x": 1302.21,
+            "y": 3137.41
+          }
+        },
+        "totalMs": 71.25,
+        "timings": {
+          "ML Detection Total": 71.24,
+          "ML Session Load": 0.02,
+          "ML Preprocess": 57.42,
+          "ML Inference": 13.61
+        }
+      },
+      "extract": {
+        "success": true,
+        "outputWidth": 1209,
+        "outputHeight": 2138,
+        "totalMs": 193.14,
+        "timings": {
+          "ML Detection Total": 74.23,
+          "ML Session Load": 0.01,
+          "ML Preprocess": 58.92,
+          "ML Inference": 15.12,
+          "Perspective Transform": 118.88,
+          "Output Conversion": 0
+        },
+        "artifact": "IMG_0445 2.extracted.png"
+      },
+      "metrics": {
+        "documentCoverageRatio": 0.18,
+        "detectionConfidence": 1,
+        "groundTruthIou": 0.66,
+        "groundTruthCornerErrorPx": 345.01
+      }
+    },
+    {
+      "image": "test-sized.png",
+      "input": {
+        "width": 150,
+        "height": 150
+      },
+      "detect": {
+        "success": true,
+        "corners": {
+          "topLeft": {
+            "x": 53.76,
+            "y": 19
+          },
+          "topRight": {
+            "x": 109.96,
+            "y": 22.7
+          },
+          "bottomRight": {
+            "x": 110.53,
+            "y": 134.42
+          },
+          "bottomLeft": {
+            "x": 26.56,
+            "y": 120.24
+          }
+        },
+        "totalMs": 12.61,
+        "timings": {
+          "ML Detection Total": 12.61,
+          "ML Session Load": 0.01,
+          "ML Preprocess": 1.15,
+          "ML Inference": 11.37
+        }
+      },
+      "extract": {
+        "success": true,
+        "outputWidth": 85,
+        "outputHeight": 112,
+        "totalMs": 14.11,
+        "timings": {
+          "ML Detection Total": 13.55,
+          "ML Session Load": 0.01,
+          "ML Preprocess": 1.11,
+          "ML Inference": 12.31,
+          "Perspective Transform": 0.55,
+          "Output Conversion": 0
+        },
+        "artifact": "test-sized.extracted.png"
+      },
+      "metrics": {
+        "documentCoverageRatio": 0.34,
+        "detectionConfidence": 1,
+        "groundTruthIou": 1,
+        "groundTruthCornerErrorPx": 0.08
+      }
+    },
+    {
+      "image": "test.png",
+      "input": {
+        "width": 880,
+        "height": 660
+      },
+      "detect": {
+        "success": true,
+        "corners": {
+          "topLeft": {
+            "x": 316.09,
+            "y": 83.77
+          },
+          "topRight": {
+            "x": 645.82,
+            "y": 100.48
+          },
+          "bottomRight": {
+            "x": 646.73,
+            "y": 590.7
+          },
+          "bottomLeft": {
+            "x": 156.33,
+            "y": 528.85
+          }
+        },
+        "totalMs": 17.13,
+        "timings": {
+          "ML Detection Total": 17.13,
+          "ML Session Load": 0.01,
+          "ML Preprocess": 4.61,
+          "ML Inference": 12.42
+        }
+      },
+      "extract": {
+        "success": true,
+        "outputWidth": 494,
+        "outputHeight": 490,
+        "totalMs": 25.19,
+        "timings": {
+          "ML Detection Total": 18.62,
+          "ML Session Load": 0.01,
+          "ML Preprocess": 5.09,
+          "ML Inference": 13.43,
+          "Perspective Transform": 6.57,
+          "Output Conversion": 0
+        },
+        "artifact": "test.extracted.png"
+      },
+      "metrics": {
+        "documentCoverageRatio": 0.34,
+        "detectionConfidence": 1,
+        "groundTruthIou": 0.99,
+        "groundTruthCornerErrorPx": 1.15
+      }
+    },
+    {
+      "image": "test10.jpg",
+      "input": {
+        "width": 768,
+        "height": 1024
+      },
+      "detect": {
+        "success": true,
+        "corners": {
+          "topLeft": {
+            "x": 29.79,
+            "y": 227.53
+          },
+          "topRight": {
+            "x": 570.99,
+            "y": 150.8
+          },
+          "bottomRight": {
+            "x": 727.19,
+            "y": 857.42
+          },
+          "bottomLeft": {
+            "x": 134.16,
+            "y": 982.03
+          }
+        },
+        "totalMs": 20,
+        "timings": {
+          "ML Detection Total": 20,
+          "ML Session Load": 0.03,
+          "ML Preprocess": 6.72,
+          "ML Inference": 13.14
+        }
+      },
+      "extract": {
+        "success": true,
+        "outputWidth": 606,
+        "outputHeight": 762,
+        "totalMs": 32.23,
+        "timings": {
+          "ML Detection Total": 18.47,
+          "ML Session Load": 0.01,
+          "ML Preprocess": 5.85,
+          "ML Inference": 12.5,
+          "Perspective Transform": 13.74,
+          "Output Conversion": 0
+        },
+        "artifact": "test10.extracted.png"
+      },
+      "metrics": {
+        "documentCoverageRatio": 0.54,
+        "detectionConfidence": 1,
+        "groundTruthIou": 0.99,
+        "groundTruthCornerErrorPx": 2.14
+      }
+    },
+    {
+      "image": "test2-sized.png",
+      "input": {
+        "width": 150,
+        "height": 150
+      },
+      "detect": {
+        "success": true,
+        "corners": {
+          "topLeft": {
+            "x": 25.9,
+            "y": 17.27
+          },
+          "topRight": {
+            "x": 120.26,
+            "y": 18.34
+          },
+          "bottomRight": {
+            "x": 142.77,
+            "y": 126.73
+          },
+          "bottomLeft": {
+            "x": 7.68,
+            "y": 128.81
+          }
+        },
+        "totalMs": 14.67,
+        "timings": {
+          "ML Detection Total": 14.67,
+          "ML Session Load": 0.01,
+          "ML Preprocess": 0.96,
+          "ML Inference": 13.63
+        }
+      },
+      "extract": {
+        "success": true,
+        "outputWidth": 135,
+        "outputHeight": 113,
+        "totalMs": 17.11,
+        "timings": {
+          "ML Detection Total": 16.17,
+          "ML Session Load": 0.01,
+          "ML Preprocess": 1.16,
+          "ML Inference": 14.91,
+          "Perspective Transform": 0.94,
+          "Output Conversion": 0
+        },
+        "artifact": "test2-sized.extracted.png"
+      },
+      "metrics": {
+        "documentCoverageRatio": 0.56,
+        "detectionConfidence": 1,
+        "groundTruthIou": 1,
+        "groundTruthCornerErrorPx": 0.05
+      }
+    },
+    {
+      "image": "test2.png",
+      "input": {
+        "width": 1200,
+        "height": 1600
+      },
+      "detect": {
+        "success": true,
+        "corners": {
+          "topLeft": {
+            "x": 207.77,
+            "y": 186.93
+          },
+          "topRight": {
+            "x": 960.54,
+            "y": 195.54
+          },
+          "bottomRight": {
+            "x": 1143.18,
+            "y": 1351.35
+          },
+          "bottomLeft": {
+            "x": 61.23,
+            "y": 1374.78
+          }
+        },
+        "totalMs": 29.25,
+        "timings": {
+          "ML Detection Total": 29.24,
+          "ML Session Load": 0.01,
+          "ML Preprocess": 12.2,
+          "ML Inference": 16.93
+        }
+      },
+      "extract": {
+        "success": true,
+        "outputWidth": 1082,
+        "outputHeight": 1197,
+        "totalMs": 65.97,
+        "timings": {
+          "ML Detection Total": 30.06,
+          "ML Session Load": 0.01,
+          "ML Preprocess": 13.37,
+          "ML Inference": 16.59,
+          "Perspective Transform": 35.89,
+          "Output Conversion": 0
+        },
+        "artifact": "test2.extracted.png"
+      },
+      "metrics": {
+        "documentCoverageRatio": 0.56,
+        "detectionConfidence": 1,
+        "groundTruthIou": 1,
+        "groundTruthCornerErrorPx": 0.88
+      }
+    },
+    {
+      "image": "test3.jpg",
+      "input": {
+        "width": 2988,
+        "height": 5312
+      },
+      "detect": {
+        "success": true,
+        "corners": {
+          "topLeft": {
+            "x": 304.79,
+            "y": 1200.42
+          },
+          "topRight": {
+            "x": 2635.66,
+            "y": 1187.84
+          },
+          "bottomRight": {
+            "x": 2942.06,
+            "y": 4340.63
+          },
+          "bottomLeft": {
+            "x": 69.77,
+            "y": 4427.94
+          }
+        },
+        "totalMs": 72.45,
+        "timings": {
+          "ML Detection Total": 72.45,
+          "ML Session Load": 0.04,
+          "ML Preprocess": 59.37,
+          "ML Inference": 12.89
+        }
+      },
+      "extract": {
+        "success": true,
+        "outputWidth": 2874,
+        "outputHeight": 3236,
+        "totalMs": 315.44,
+        "timings": {
+          "ML Detection Total": 62.73,
+          "ML Session Load": 0.01,
+          "ML Preprocess": 50.36,
+          "ML Inference": 12.28,
+          "Perspective Transform": 252.68,
+          "Output Conversion": 0
+        },
+        "artifact": "test3.extracted.png"
+      },
+      "metrics": {
+        "documentCoverageRatio": 0.52,
+        "detectionConfidence": 1,
+        "groundTruthIou": 0.98,
+        "groundTruthCornerErrorPx": 25.95
+      }
+    },
+    {
+      "image": "test4.JPG",
+      "input": {
+        "width": 3264,
+        "height": 2448
+      },
+      "detect": {
+        "success": true,
+        "corners": {
+          "topLeft": {
+            "x": 344.49,
+            "y": 238.9
+          },
+          "topRight": {
+            "x": 2896.89,
+            "y": 263.87
+          },
+          "bottomRight": {
+            "x": 2830.65,
+            "y": 2168.41
+          },
+          "bottomLeft": {
+            "x": 221.4,
+            "y": 2337.14
+          }
+        },
+        "totalMs": 84.01,
+        "timings": {
+          "ML Detection Total": 84.01,
+          "ML Session Load": 0.01,
+          "ML Preprocess": 56.27,
+          "ML Inference": 27.59
+        }
+      },
+      "extract": {
+        "success": true,
+        "outputWidth": 2615,
+        "outputHeight": 2102,
+        "totalMs": 260.71,
+        "timings": {
+          "ML Detection Total": 88,
+          "ML Session Load": 0.01,
+          "ML Preprocess": 59.54,
+          "ML Inference": 28.35,
+          "Perspective Transform": 172.69,
+          "Output Conversion": 0
+        },
+        "artifact": "test4.extracted.png"
+      },
+      "metrics": {
+        "documentCoverageRatio": 0.65,
+        "detectionConfidence": 1,
+        "groundTruthIou": 0.92,
+        "groundTruthCornerErrorPx": 75.28
+      }
+    },
+    {
+      "image": "test5.JPG",
+      "input": {
+        "width": 3264,
+        "height": 2448
+      },
+      "detect": {
+        "success": true,
+        "corners": {
+          "topLeft": {
+            "x": 658.66,
+            "y": 878.64
+          },
+          "topRight": {
+            "x": 2732.18,
+            "y": 772.24
+          },
+          "bottomRight": {
+            "x": 2852.37,
+            "y": 1674.1
+          },
+          "bottomLeft": {
+            "x": 586.27,
+            "y": 1743.26
+          }
+        },
+        "totalMs": 51.51,
+        "timings": {
+          "ML Detection Total": 51.5,
+          "ML Session Load": 0.01,
+          "ML Preprocess": 39,
+          "ML Inference": 12.39
+        }
+      },
+      "extract": {
+        "success": true,
+        "outputWidth": 2267,
+        "outputHeight": 910,
+        "totalMs": 111.66,
+        "timings": {
+          "ML Detection Total": 49.84,
+          "ML Session Load": 0,
+          "ML Preprocess": 37.69,
+          "ML Inference": 12.07,
+          "Perspective Transform": 61.79,
+          "Output Conversion": 0
+        },
+        "artifact": "test5.extracted.png"
+      },
+      "metrics": {
+        "documentCoverageRatio": 0.24,
+        "detectionConfidence": 1,
+        "groundTruthIou": 0.99,
+        "groundTruthCornerErrorPx": 5.83
+      }
+    },
+    {
+      "image": "test6.JPG",
+      "input": {
+        "width": 2448,
+        "height": 3264
+      },
+      "detect": {
+        "success": true,
+        "corners": {
+          "topLeft": {
+            "x": 83.72,
+            "y": 644.75
+          },
+          "topRight": {
+            "x": 1539.74,
+            "y": 400.13
+          },
+          "bottomRight": {
+            "x": 2365.78,
+            "y": 2105.36
+          },
+          "bottomLeft": {
+            "x": 816.89,
+            "y": 2783.45
+          }
+        },
+        "totalMs": 50.23,
+        "timings": {
+          "ML Detection Total": 50.23,
+          "ML Session Load": 0.01,
+          "ML Preprocess": 37.78,
+          "ML Inference": 12.34
+        }
+      },
+      "extract": {
+        "success": true,
+        "outputWidth": 1691,
+        "outputHeight": 2261,
+        "totalMs": 152.81,
+        "timings": {
+          "ML Detection Total": 58.82,
+          "ML Session Load": 0,
+          "ML Preprocess": 38.61,
+          "ML Inference": 20.12,
+          "Perspective Transform": 93.97,
+          "Output Conversion": 0
+        },
+        "artifact": "test6.extracted.png"
+      },
+      "metrics": {
+        "documentCoverageRatio": 0.41,
+        "detectionConfidence": 1,
+        "groundTruthIou": 0.99,
+        "groundTruthCornerErrorPx": 5.18
+      }
+    },
+    {
+      "image": "test7.JPG",
+      "input": {
+        "width": 2448,
+        "height": 3264
+      },
+      "detect": {
+        "success": true,
+        "corners": {
+          "topLeft": {
+            "x": 350.63,
+            "y": 339.97
+          },
+          "topRight": {
+            "x": 1977.03,
+            "y": 320.84
+          },
+          "bottomRight": {
+            "x": 2160.83,
+            "y": 3147.4
+          },
+          "bottomLeft": {
+            "x": 582.84,
+            "y": 3133.75
+          }
+        },
+        "totalMs": 55.74,
+        "timings": {
+          "ML Detection Total": 55.73,
+          "ML Session Load": 0.01,
+          "ML Preprocess": 38.61,
+          "ML Inference": 17
+        }
+      },
+      "extract": {
+        "success": true,
+        "outputWidth": 1627,
+        "outputHeight": 2833,
+        "totalMs": 162.45,
+        "timings": {
+          "ML Detection Total": 51.11,
+          "ML Session Load": 0,
+          "ML Preprocess": 37.89,
+          "ML Inference": 13.14,
+          "Perspective Transform": 111.33,
+          "Output Conversion": 0
+        },
+        "artifact": "test7.extracted.png"
+      },
+      "metrics": {
+        "documentCoverageRatio": 0.56,
+        "detectionConfidence": 1,
+        "groundTruthIou": 0.88,
+        "groundTruthCornerErrorPx": 112.84
+      }
+    },
+    {
+      "image": "test8.JPG",
+      "input": {
+        "width": 1944,
+        "height": 2592
+      },
+      "detect": {
+        "success": true,
+        "corners": {
+          "topLeft": {
+            "x": 38.24,
+            "y": 110.92
+          },
+          "topRight": {
+            "x": 1917.33,
+            "y": 117.49
+          },
+          "bottomRight": {
+            "x": 1909.41,
+            "y": 2547.65
+          },
+          "bottomLeft": {
+            "x": 24.8,
+            "y": 2543.49
+          }
+        },
+        "totalMs": 36.97,
+        "timings": {
+          "ML Detection Total": 36.97,
+          "ML Session Load": 0.01,
+          "ML Preprocess": 25.16,
+          "ML Inference": 11.69
+        }
+      },
+      "extract": {
+        "success": true,
+        "outputWidth": 1885,
+        "outputHeight": 2433,
+        "totalMs": 139.71,
+        "timings": {
+          "ML Detection Total": 37.47,
+          "ML Session Load": 0.01,
+          "ML Preprocess": 25.22,
+          "ML Inference": 12.16,
+          "Perspective Transform": 102.23,
+          "Output Conversion": 0
+        },
+        "artifact": "test8.extracted.png"
+      },
+      "metrics": {
+        "documentCoverageRatio": 0.91,
+        "detectionConfidence": 1,
+        "groundTruthIou": 0.98,
+        "groundTruthCornerErrorPx": 13.8
+      }
+    },
+    {
+      "image": "test9.jpg",
+      "input": {
+        "width": 2448,
+        "height": 3264
+      },
+      "detect": {
+        "success": true,
+        "corners": {
+          "topLeft": {
+            "x": 538.13,
+            "y": 1000.84
+          },
+          "topRight": {
+            "x": 1581.34,
+            "y": 934.14
+          },
+          "bottomRight": {
+            "x": 1837.56,
+            "y": 2534.02
+          },
+          "bottomLeft": {
+            "x": 672.17,
+            "y": 2700.81
+          }
+        },
+        "totalMs": 49.81,
+        "timings": {
+          "ML Detection Total": 49.81,
+          "ML Session Load": 0.01,
+          "ML Preprocess": 37.69,
+          "ML Inference": 12.01
+        }
+      },
+      "extract": {
+        "success": true,
+        "outputWidth": 1177,
+        "outputHeight": 1705,
+        "totalMs": 107.8,
+        "timings": {
+          "ML Detection Total": 49.68,
+          "ML Session Load": 0.01,
+          "ML Preprocess": 37.31,
+          "ML Inference": 12.27,
+          "Perspective Transform": 58.11,
+          "Output Conversion": 0
+        },
+        "artifact": "test9.extracted.png"
+      },
+      "metrics": {
+        "documentCoverageRatio": 0.23,
+        "detectionConfidence": 1,
+        "groundTruthIou": 0.99,
+        "groundTruthCornerErrorPx": 3.52
+      }
+    }
+  ]
+}
