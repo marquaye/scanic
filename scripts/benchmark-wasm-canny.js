@@ -15,7 +15,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const rootDir = path.resolve(__dirname, '..');
 
-// ── DOM shims ──────────────────────────────────────────────────
+// DOM shims
 if (typeof globalThis.ImageData === 'undefined') {
   globalThis.ImageData = ImageData;
 }
@@ -28,7 +28,7 @@ if (typeof globalThis.document === 'undefined') {
   };
 }
 
-// ── Load WASM from disk into the module ────────────────────────
+// Load WASM from disk into the module
 const wasmPath = path.join(rootDir, 'wasm_blur', 'pkg', 'wasm_blur_bg.wasm');
 const wasmBytes = fs.readFileSync(wasmPath);
 
@@ -45,7 +45,7 @@ const {
 initSync(wasmBytes);
 console.log('WASM loaded from disk.\n');
 
-// ── Helpers ────────────────────────────────────────────────────
+// Helpers
 function toGrayscale(imageData) {
   const { width, height, data } = imageData;
   const gray = new Uint8ClampedArray(width * height);
@@ -64,7 +64,7 @@ function edgesMatch(a, b) {
   return { match: diff === 0, diffPixels: diff, total: a.length, pct: ((diff / a.length) * 100).toFixed(4) };
 }
 
-// ── Step-by-step WASM path (current production code) ───────────
+// Step-by-step WASM path (current production code)
 function cannyStepByStep(gray, w, h, lowT, highT, kernelSize, sigma, l2, dilation, dilKernel) {
   const blurred = blur(gray, w, h, kernelSize, sigma);
 
@@ -89,14 +89,14 @@ function cannyStepByStep(gray, w, h, lowT, highT, kernelSize, sigma, l2, dilatio
   return new Uint8ClampedArray(finalEdges);
 }
 
-// ── Single WASM call path (new optimisation) ───────────────────
+// Single WASM call path (new optimisation)
 function cannySingleCall(gray, w, h, lowT, highT, kernelSize, sigma, l2, dilation, dilKernel) {
   return new Uint8ClampedArray(
     canny_edge_detector_full(gray, w, h, lowT, highT, kernelSize, sigma, l2, dilation, dilKernel)
   );
 }
 
-// ── Benchmark runner ───────────────────────────────────────────
+// Benchmark runner
 async function benchmarkImage(imagePath) {
   const image = await loadImage(imagePath);
   const maxDim = 800;
@@ -145,7 +145,7 @@ async function benchmarkImage(imagePath) {
   return { w, h, stepAvg, singleAvg, comparison };
 }
 
-// ── Main ───────────────────────────────────────────────────────
+// Main
 const imagesDir = path.join(rootDir, 'testImages');
 const supported = new Set(['.png', '.jpg', '.jpeg']);
 const imageFiles = fs.readdirSync(imagesDir)

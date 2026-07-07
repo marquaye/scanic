@@ -1,15 +1,15 @@
-# ML detection spike — DocCornerNet (SimCC) in the browser runtime
+# ML detection spike: DocCornerNet (SimCC) in the browser runtime
 
 Throwaway spike (step 1 of the ML-detection investigation) to answer two
 questions *in the web runtime path*, before committing to any architecture:
 
-1. **Latency** — what does ML corner detection cost via onnxruntime-web (WASM)?
-2. **Accuracy** — how well do the ML corners agree with Scanic's classical
+1. **Latency**: what does ML corner detection cost via onnxruntime-web (WASM)?
+2. **Accuracy**: how well do the ML corners agree with Scanic's classical
    detector, and how do they behave where the classical detector fails?
 
 ## Model
 
-`model/doccornernet.onnx` — DocCornerNet V2 (coordinate-classification / SimCC),
+`model/doccornernet.onnx`: DocCornerNet V2 (coordinate-classification / SimCC),
 exported from [mapo80/DocCornerNet-CoordClass-V2](https://github.com/mapo80/DocCornerNet-CoordClass-V2)
 (**MIT licensed**). 600,963 params, ~2.4 MB float32 ONNX.
 
@@ -34,7 +34,7 @@ tf2onnx.convert.from_keras(model, input_signature=spec, opset=17, output_path=..
 node scripts/ml-spike/run-spike.mjs scripts/ml-spike/model/doccornernet.onnx
 ```
 
-Runs onnxruntime-web's **WASM** backend (single-thread + SIMD) under Node — the
+Runs onnxruntime-web's **WASM** backend (single-thread + SIMD) under Node, the
 same kernels a browser ships, so latency is representative of desktop browser
 CPU. Writes overlay PNGs (green = classical, red = ML) to `overlays/`.
 
@@ -46,7 +46,7 @@ CPU. Writes overlay PNGs (green = classical, red = ML) to `overlays/`.
 - **Agreement** with the classical detector: median IoU ≈ 0.87, with most images
   0.77–0.99.
 - The low-IoU images (`0123`, `1023-receipt`, `25_2`) are cases where the
-  **classical detector degenerates** (collapsed/sliver quads) — precisely the
+  **classical detector degenerates** (collapsed/sliver quads), precisely the
   robustness gap ML is meant to close. `test6` (steep perspective) shows ML and
   classical overlapping almost exactly (IoU 0.99).
 

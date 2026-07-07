@@ -1,5 +1,5 @@
 /**
- * WebGPU benchmark for DocCornerNet — runs in a real browser (Playwright).
+ * WebGPU benchmark for DocCornerNet, runs in a real browser (Playwright).
  * Mirrors the Node WASM spike (preprocess / decode / IoU) so numbers compare
  * directly. Exposes window.__run() which the Playwright driver awaits.
  */

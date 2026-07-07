@@ -1,6 +1,6 @@
-# DocCornerNet LEAN — model card
+# DocCornerNet LEAN: model card
 
-**File:** `doccornernet_lean.onnx` (1.82 MB, fp32) — the current best document-corner
+**File:** `doccornernet_lean.onnx` (1.82 MB, fp32), the current best document-corner
 detector for scanic's ORT-Web / WASM target. A channel-slimmed SimCC model that
 beats the original DocCornerNet V2 baseline on accuracy **and** latency **and** size.
 
@@ -24,7 +24,7 @@ On `dcd_test` (200 GT images, `training/06_compare_three.py`) and ORT-Web WASM:
 Trained val split (8,645 imgs): mean corner err **0.86 px**, mean IoU **0.986**,
 recall@IoU-0.95 = 98.5%.
 
-**Do NOT INT8/fp16 quantize this** — PTQ slowed it ~2× in WASM (QDQ overhead on the
+**Do NOT INT8/fp16 quantize this.** PTQ slowed it ~2× in WASM (QDQ overhead on the
 SimCC head) for only a size drop; fp32 is the right deployment format here.
 
 ## Reproduce

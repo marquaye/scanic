@@ -422,7 +422,7 @@
     <div class="detector-bar">
       <div class="detector-bar-info">
         <strong>🧠 Detection Backend</strong>
-        <p class="detector-bar-help" id="detectorHelp">Classical geometry detector — fast, no download.</p>
+        <p class="detector-bar-help" id="detectorHelp">Classical geometry detector: fast, no download.</p>
         <a href="https://marquaye.github.io/scanic/guide/ml-detection" target="_blank" rel="noopener">What's the ML detector?</a>
       </div>
       <div class="mode-switch detector-switch" id="detectorSwitch" role="tablist" aria-label="Detection backend">
@@ -537,8 +537,8 @@
     const detectorSwitch = document.getElementById('detectorSwitch');
     const detectorHelp = document.getElementById('detectorHelp');
     const detectorProgress = document.getElementById('detectorProgress');
-    const ML_READY_TEXT = 'ML detector (DocCornerNet) — better on cluttered backgrounds & low contrast.';
-    const CLASSICAL_TEXT = 'Classical geometry detector — fast, no download.';
+    const ML_READY_TEXT = 'ML detector (DocCornerNet): better on cluttered backgrounds & low contrast.';
+    const CLASSICAL_TEXT = 'Classical geometry detector: fast, no download.';
 
     function setDetectorHelp(text, state) {
       detectorHelp.textContent = text;
@@ -560,7 +560,7 @@
           mlModelReady = true;
           detectorProgress.classList.remove('active');
           if (detectorBackend === 'ml') {
-            setDetectorHelp('✓ Model ready — instant neural detection.', 'is-ready');
+            setDetectorHelp('✓ Model ready. Instant neural detection.', 'is-ready');
             setTimeout(() => {
               if (detectorBackend === 'ml') setDetectorHelp(ML_READY_TEXT);
             }, 2200);
@@ -570,7 +570,7 @@
           console.error(err);
           detectorProgress.classList.remove('active');
           if (detectorBackend === 'ml') {
-            setDetectorHelp('⚠️ Could not preload the model — it will retry on your next scan.', 'is-error');
+            setDetectorHelp('⚠️ Could not preload the model. It will retry on your next scan.', 'is-error');
           }
         })
         .finally(() => {
@@ -653,7 +653,7 @@
 
       targetCtx.save();
 
-      // ── 1. Near-invisible interior fill ───────────────────────────────────
+      // 1. Near-invisible interior fill
       targetCtx.beginPath();
       targetCtx.moveTo(pts[0].x, pts[0].y);
       pts.slice(1).forEach(p => targetCtx.lineTo(p.x, p.y));
@@ -661,13 +661,13 @@
       targetCtx.fillStyle = 'rgba(255, 255, 255, 0.06)';
       targetCtx.fill();
 
-      // ── 2. Hairline full border ────────────────────────────────────────────
+      // 2. Hairline full border
       targetCtx.lineWidth = 1.25;
       targetCtx.strokeStyle = 'rgba(255, 255, 255, 0.45)';
       targetCtx.shadowBlur = 0;
       targetCtx.stroke();
 
-      // ── 3. Corner bracket L-marks ─────────────────────────────────────────
+      // 3. Corner bracket L-marks
       // For each corner: draw two arms pointing along the two adjacent edges
       const cornerDefs = [
         [pts[0], pts[1], pts[3]],   // TL → along top, along left

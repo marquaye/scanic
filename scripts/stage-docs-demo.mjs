@@ -6,7 +6,7 @@ import path from 'path';
  * site. The demo lives at the repo root (`demo.html`) and imports `./scanic.js`
  * as a sibling module, so we copy the built library next to it.
  *
- * Output lands in `docs/public/demo/`, which VitePress serves verbatim — so the
+ * Output lands in `docs/public/demo/`, which VitePress serves verbatim, so the
  * demo is published at `/scanic/demo/`. This directory is generated (gitignored);
  * `demo.html` remains the source of truth.
  */
@@ -39,7 +39,7 @@ try {
   console.log('📦 Staging demo into docs/public/demo ...');
 
   if (!fs.existsSync(path.join(root, 'dist', 'scanic.js'))) {
-    throw new Error('dist/scanic.js not found — run "npm run build" first.');
+    throw new Error('dist/scanic.js not found. Run "npm run build" first.');
   }
 
   fs.mkdirSync(target, { recursive: true });

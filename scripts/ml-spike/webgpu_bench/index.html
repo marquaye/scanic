@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta charset="utf-8" />
-<title>DocCornerNet LEAN — WASM vs WebGPU benchmark</title>
+<title>DocCornerNet LEAN: WASM vs WebGPU benchmark</title>
 <script src="https://cdn.jsdelivr.net/npm/onnxruntime-web@1.27.0/dist/ort.webgpu.min.js"></script>
 <style>
   body { font-family: -apple-system, Segoe UI, Roboto, sans-serif; margin: 24px; color: #1a1a1a; background: #fafafa; }
@@ -23,7 +23,7 @@
 </style>
 </head>
 <body>
-<h1>DocCornerNet LEAN — WASM vs WebGPU latency</h1>
+<h1>DocCornerNet LEAN: WASM vs WebGPU latency</h1>
 <p class="muted">Runs the lean SimCC model (1.82 MB) on this browser's onnxruntime-web backends and overlays the predicted document quad. WebGPU needs Chrome/Edge with WebGPU enabled (chrome://gpu shows "WebGPU: Hardware accelerated").</p>
 
 <div class="controls">
@@ -144,7 +144,7 @@ document.getElementById('go').onclick = async () => {
     results[ep] = r;
     const tr = document.createElement('tr');
     if (r.err) {
-      tr.innerHTML = `<td>${ep}</td><td>—</td><td>—</td><td style="color:#b91c1c">${r.err}</td>`;
+      tr.innerHTML = `<td>${ep}</td><td>-</td><td>-</td><td style="color:#b91c1c">${r.err}</td>`;
     } else {
       tr.innerHTML = `<td>${ep}</td><td>${r.median.toFixed(2)}</td><td>${r.p95.toFixed(2)}</td><td>ok</td>`;
     }

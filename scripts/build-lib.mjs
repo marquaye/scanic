@@ -2,17 +2,17 @@
 //
 // scanic's classical core must stay tiny and dependency-free, while the optional
 // ML detector (lazy `import('./mlDetector.js')`, which imports onnxruntime-web)
-// should "just work" after a plain `npm install scanic` — no separate
+// should "just work" after a plain `npm install scanic`. No separate
 // onnxruntime-web install, and nothing extra in the classical bundle.
 //
 // We can't express that with a single Vite config because the two output
 // formats need opposite treatment of onnxruntime-web:
 //
-//   ES  — bundle the wasm-only ORT JS API (~50 KB, ort.wasm.min.mjs) into a
+//   ES  - bundle the wasm-only ORT JS API (~50 KB, ort.wasm.min.mjs) into a
 //         SEPARATE lazy chunk via code-splitting, so classical ES consumers
 //         never download it. The custom wasm + loader still stream from the CDN
 //         at runtime via `ort.env.wasm.wasmPaths` (set in mlDetector.js).
-//   UMD — can't code-split, so keep onnxruntime-web external; script-tag ML
+//   UMD - can't code-split, so keep onnxruntime-web external; script-tag ML
 //         users self-provide it (unchanged behaviour).
 //
 // We resolve the bare `onnxruntime-web` specifier to its `./wasm` subpath under
@@ -31,7 +31,7 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const entry = path.resolve(root, 'src/index.js');
 const terserOptions = { compress: { drop_console: true, drop_debugger: true } };
 
-// Pass 1 — ES build with onnxruntime-web bundled into a lazy chunk.
+// Pass 1 - ES build with onnxruntime-web bundled into a lazy chunk.
 await build({
   configFile: false,
   root,
@@ -69,7 +69,7 @@ await build({
   },
 });
 
-// Pass 2 — UMD build with onnxruntime-web kept external.
+// Pass 2 - UMD build with onnxruntime-web kept external.
 await build({
   configFile: false,
   root,

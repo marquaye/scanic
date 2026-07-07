@@ -1,5 +1,5 @@
 /**
- * ML detection spike — DocCornerNet (SimCC) via onnxruntime-web (WASM backend).
+ * ML detection spike: DocCornerNet (SimCC) via onnxruntime-web (WASM backend).
  *
  * Goal of step 1: answer two questions cheaply, in the *web* runtime path:
  *   1. What is the real in-browser-class inference latency (ORT-Web WASM CPU)?
@@ -34,7 +34,7 @@ const SIZE = 224;
 const TIMED_RUNS = 30;
 const WARMUP_RUNS = 5;
 
-// Default to min(cpuCount, 4) with a floor of 2 — single-thread WASM is the
+// Default to min(cpuCount, 4) with a floor of 2; single-thread WASM is the
 // worst-case browser baseline; multi-thread is the production target.
 // Override with THREADS=N env var. Needs COOP/COEP headers in a real browser;
 // in Node it uses worker_threads automatically.
@@ -71,7 +71,7 @@ function baselineQuad(c) {
   return [k.topLeft, k.topRight, k.bottomRight, k.bottomLeft];
 }
 
-/** Rasterized polygon IoU — order/winding independent. */
+/** Rasterized polygon IoU, order/winding independent. */
 function rasterIoU(a, b, w, h) {
   const R = 256;
   const sx = R / w, sy = R / h;
