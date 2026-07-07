@@ -3,8 +3,11 @@
  * Latency benchmark comparing the three detector execution paths:
  *
  *   classical   the pure-wasm classical pipeline (detector: 'classical')
- *   ml-st       ML detector, single-thread wasm (scanic-ml/dist/)
- *   ml-mt       ML detector, multi-thread wasm  (scanic-ml/dist/threaded/, 4 threads)
+ *   ml-st       ML detector, default thread count (1)
+ *   ml-mt       ML detector, threaded: true (4 threads)
+ *
+ * There is a single wasm build (pthread-capable, scanic-ml/dist/); ml-st and
+ * ml-mt differ only in numThreads, not in which assets they load.
  *
  * IMPORTANT — why each config runs in its own child process:
  * onnxruntime-web initializes its wasm heap + thread pool exactly ONCE per
@@ -54,7 +57,7 @@ function mlOptionsFor(config) {
       numThreads: 1,
     };
   }
-  // ml-mt: same shared model, threaded wasm loaded from dist/threaded/
+  // ml-mt: same wasm/model, just numThreads: 4
   return {
     modelBytes: new Uint8Array(fs.readFileSync(path.join(distDir, 'doccornernet_lean.ort'))),
     assetBaseUrl: `${pathToFileURL(distDir).href}/`,
@@ -138,8 +141,7 @@ function runChild(config) {
 
 async function orchestrate() {
   // Fail early with a clear message if the ML assets aren't built/fetched.
-  // The model is shared; the threaded flavor only adds its own wasm.
-  for (const p of [path.join(distDir, 'doccornernet_lean.ort'), path.join(distDir, 'threaded', 'ort-wasm-simd-threaded.wasm')]) {
+  for (const p of [path.join(distDir, 'doccornernet_lean.ort'), path.join(distDir, 'ort-wasm-simd-threaded.wasm')]) {
     if (!fs.existsSync(p)) {
       console.error(`ML assets missing at ${p}. Build/fetch scanic-ml first (see scanic-ml/README.md).`);
       process.exit(1);

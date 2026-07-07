@@ -1,12 +1,13 @@
 // @vitest-environment node
 //
-// Integration test for the optional ML detector on the default SINGLE-THREAD
-// wasm build. Runs in the Node environment (onnxruntime-web's wasm backend
-// works cleanly there). Skips automatically when the optional runtime or the
-// companion `scanic-ml` assets aren't present, so it never breaks a
+// Integration test for the optional ML detector running on its DEFAULT thread
+// count (1). There is a single wasm build (pthread-capable); this just never
+// raises numThreads. Runs in the Node environment (onnxruntime-web's wasm
+// backend works cleanly there). Skips automatically when the optional runtime
+// or the companion `scanic-ml` assets aren't present, so it never breaks a
 // classical-only CI checkout.
 //
-// The multi-thread build is exercised in a SEPARATE file
+// The multi-thread case is exercised in a SEPARATE file
 // (mlDetector.threaded.test.js) on purpose: onnxruntime-web initializes its
 // wasm thread pool once per process, so a 1-thread session created here would
 // lock the pool and make a `threaded: true` session in the same process run

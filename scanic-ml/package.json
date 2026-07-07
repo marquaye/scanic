@@ -20,9 +20,7 @@
   "files": [
     "dist/doccornernet_lean.ort",
     "dist/ort-wasm-simd-threaded.mjs",
-    "dist/ort-wasm-simd.wasm",
-    "dist/threaded/ort-wasm-simd-threaded.mjs",
-    "dist/threaded/ort-wasm-simd-threaded.wasm",
+    "dist/ort-wasm-simd-threaded.wasm",
     "MODEL_CARD.md",
     "README.md"
   ],

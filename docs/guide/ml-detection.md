@@ -75,7 +75,7 @@ All ML options live under `options.ml`:
 | `modelUrl` | `string` | `${assetBaseUrl}doccornernet_lean.ort` | Explicit model URL. |
 | `wasmPaths` | `string` | `assetBaseUrl` | Directory for the ORT wasm and loader. |
 | `modelBytes` | `Uint8Array` | (none) | Pre fetched model bytes, which skips the network request. |
-| `threaded` | `boolean` | `false` | Use the multi thread wasm build (`assetBaseUrl + 'threaded/'`). See [Threads](#threads-advanced). |
+| `threaded` | `boolean` | `false` | Shorthand for `numThreads: 4`. See [Threads](#threads-advanced). |
 | `numThreads` | `number` | `1`, or `4` when `threaded: true` | ORT thread count. Values above 1 need COOP and COEP headers (see below). |
 | `minScore` | `number` | `0.5` | Minimum P(document) for `success` to be `true`. |
 
@@ -83,8 +83,7 @@ All ML options live under `options.ml`:
 
 If you cannot rely on the CDN, install the companion
 [`scanic-ml`](https://www.npmjs.com/package/scanic-ml) package, serve its `dist/`
-folder (which contains both the single-thread files and a `threaded/`
-subfolder) from your own origin, and point scanic at it:
+folder from your own origin, and point scanic at it:
 
 ```js
 await scanDocument(image, {
@@ -95,20 +94,21 @@ await scanDocument(image, {
 
 ## Threads (advanced)
 
-scanic ships **both** wasm flavors, so you can opt into whichever fits your host:
+scanic ships one wasm build, compiled with pthread support, so it works
+everywhere and can also run on more than 1 thread when the host allows it:
 
-- **Single threaded** (default, `threaded` unset or `false`): about 13 ms of
-  model inference per scan, works on any page with no special headers.
-- **Multi threaded** (`ml: { threaded: true }`): about 2x faster inference
-  (roughly 6 to 7 ms at 4 threads in a cross-origin-isolated browser), served
-  from `assetBaseUrl + 'threaded/'`. Needs the host page to be
+- **Default** (`threaded` unset or `false`): 1 thread, about 13 ms of model
+  inference per scan, works on any page with no special headers.
+- **`ml: { threaded: true }`**: about 2x faster inference (roughly 6 to 7 ms
+  at 4 threads in a cross-origin-isolated browser), same assets. Needs the
+  host page to be
   [cross origin isolated](https://developer.mozilla.org/en-US/docs/Web/API/Window/crossOriginIsolated)
   (`COOP: same-origin` and `COEP: require-corp` response headers) for
   `SharedArrayBuffer` to be available; without that it falls back to running
-  on a single thread, so it's safe to request speculatively. Defaults to 4
-  threads, override with `numThreads`. The speedup is on the model inference
-  step. A full scan also includes single-threaded image preprocessing, so the
-  end-to-end gain is smaller for a one-off scan.
+  on 1 thread automatically, so it's safe to request speculatively. Defaults
+  to 4 threads, override with `numThreads`. The speedup is on the model
+  inference step. A full scan also includes single-threaded image
+  preprocessing, so the end-to-end gain is smaller for a one-off scan.
 
 ```js
 await scanDocument(image, {

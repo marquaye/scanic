@@ -155,12 +155,12 @@ function saveExtractedOutput(canvasOutput, outPath) {
  * so the wasm loader never hits the network. Mirrors the pattern used by
  * src/mlDetector.test.js.
  *
- * Uses the DEFAULT single-thread build, because this regression suite validates
- * the configuration `detector: 'ml'` ships out of the box (identical corners to
- * the threaded build, just slower). Keeping the generator and the checker
- * (src/baseline.ml.test.js, also single-thread) on the same config keeps the
- * per-phase timing budgets self-consistent. The multi-thread path has its own
- * coverage: src/mlDetector.threaded.test.js (correctness) and
+ * Uses the DEFAULT thread count (1), because this regression suite validates
+ * the configuration `detector: 'ml'` ships out of the box (identical corners
+ * to running with more threads, just slower). Keeping the generator and the
+ * checker (src/baseline.ml.test.js, also default thread count) on the same
+ * config keeps the per-phase timing budgets self-consistent. The multi-thread
+ * path has its own coverage: src/mlDetector.threaded.test.js (correctness) and
  * `npm run bench:detectors` (the ~1.8x inference speedup; see
  * scanic-ml/MODEL_CARD.md).
  */

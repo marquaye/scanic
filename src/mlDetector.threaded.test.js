@@ -1,15 +1,16 @@
 // @vitest-environment node
 //
-// Integration test for the optional ML detector on the MULTI-THREAD wasm build
-// (scanic-ml/dist/threaded/, `threaded: true`, 4 threads). Deliberately its own
-// file: onnxruntime-web initializes its wasm thread pool once per process, so
-// the only way to genuinely exercise the 4-thread path is to run it in a fresh
+// Integration test for the optional ML detector running MULTI-THREADED
+// (`threaded: true`, 4 threads). There is a single wasm build (pthread-
+// capable); this just requests more than 1 thread. Deliberately its own file:
+// onnxruntime-web initializes its wasm thread pool once per process, so the
+// only way to genuinely exercise the 4-thread path is to run it in a fresh
 // process with no prior single-thread session. Vitest's default `pool: 'forks'`
 // + `isolate: true` gives each test file its own process, so this file's first
 // (and only) session initializes the pool at numThreads: 4.
 //
-// Skips automatically when the optional runtime or the companion threaded
-// scanic-ml assets aren't present, so it never breaks a classical-only checkout.
+// Skips automatically when the optional runtime or the companion scanic-ml
+// assets aren't present, so it never breaks a classical-only checkout.
 import { describe, it, expect, beforeAll } from 'vitest';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -17,10 +18,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const distDir = path.resolve(__dirname, '../scanic-ml/dist');
-// The model is shared; only the wasm differs between flavors, so the threaded
-// build reuses the single model at dist/ (dist/threaded/ ships only wasm).
 const modelPath = path.join(distDir, 'doccornernet_lean.ort');
-const threadedWasmPath = path.join(distDir, 'threaded', 'ort-wasm-simd-threaded.wasm');
 
 let available = false;
 let detectDocumentMl;
@@ -29,7 +27,7 @@ let modelBytes;
 beforeAll(async () => {
   try {
     await import('onnxruntime-web');
-    if (!fs.existsSync(modelPath) || !fs.existsSync(threadedWasmPath)) return;
+    if (!fs.existsSync(modelPath)) return;
     modelBytes = new Uint8Array(fs.readFileSync(modelPath));
     ({ detectDocumentMl } = await import('./mlDetector.js'));
     available = true;
@@ -39,9 +37,9 @@ beforeAll(async () => {
 });
 
 describe('mlDetector (multi-thread)', () => {
-  it('runs inference on the multi-thread (threaded:true) wasm build with 4 threads', async () => {
+  it('runs inference with threaded:true (4 threads)', async () => {
     if (!available) {
-      console.warn('[mlDetector.threaded.test] skipped: threaded scanic-ml/dist assets unavailable');
+      console.warn('[mlDetector.threaded.test] skipped: scanic-ml/dist assets unavailable');
       return;
     }
 
@@ -52,7 +50,7 @@ describe('mlDetector (multi-thread)', () => {
       inputData,
       modelBytes,
       assetBaseUrl: pathToFileURL(distDir).href + '/',
-      threaded: true, // -> wasm from assetBaseUrl + 'threaded/', numThreads defaults to 4
+      threaded: true, // -> numThreads defaults to 4
     });
 
     expect(res).toBeTruthy();

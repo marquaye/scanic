@@ -7,9 +7,12 @@
  *
  * It runs a channel-slimmed SimCC model (DocCornerNet) on a custom *minimal*
  * ONNX Runtime Web build (~1.5 MB wasm, ~88% smaller than stock ort-web, same
- * MLAS SIMD kernels → same speed and accuracy). The runtime (`onnxruntime-web`)
- * is an optional dependency, and the model + wasm assets ship in the companion
- * `scanic-ml` package, served from a CDN by default.
+ * MLAS SIMD kernels → same speed and accuracy). The wasm is pthread-capable
+ * and runs on 1 thread by default; a cross-origin isolated host page can opt
+ * into more threads for roughly 2x faster inference (see `threaded` below).
+ * The runtime (`onnxruntime-web`) is an optional dependency, and the model +
+ * wasm assets ship in the companion `scanic-ml` package, served from a CDN by
+ * default.
  *
  * I/O contract (see scanic-ml/MODEL_CARD.md):
  *   input  `image`        [1,224,224,3] float32 NHWC, RGB, x/255 then ImageNet norm
@@ -50,26 +53,20 @@ async function loadOrt() {
 }
 
 async function getSession(options) {
-  // `threaded: true` opts into the multi-thread wasm build shipped alongside
-  // the default single-thread one (scanic-ml/dist/threaded/), for hosts that
-  // are cross-origin isolated (COOP: same-origin + COEP: require-corp) and
-  // want the roughly 2x faster inference (see scanic-ml/MODEL_CARD.md). Falls
-  // back to running on 1 thread if SharedArrayBuffer isn't available, so it's
-  // safe to request speculatively.
-  const explicitBase = options.assetBaseUrl ? normalizeBaseUrl(options.assetBaseUrl) : DEFAULT_ASSET_BASE_URL;
-  // Only the wasm runtime differs between the two flavors; the .ort model is
-  // byte-identical, so it lives once at the base URL and both flavors share it.
-  // The threaded/ directory ships only its wasm + loader (no duplicate model).
-  const wasmBaseUrl = options.threaded ? `${explicitBase}threaded/` : explicitBase;
-  const modelUrl = options.modelUrl || `${explicitBase}doccornernet_lean.ort`;
-  const wasmPaths = options.wasmPaths || wasmBaseUrl;
-  // Single-threaded by default (no SharedArrayBuffer / cross-origin-isolation
-  // requirement on the host); `threaded: true` defaults to 4 threads (the
-  // build's thread count), overridable via `numThreads`.
+  // There is a single wasm build (pthread-capable). It runs on 1 thread when
+  // the host page isn't cross-origin isolated or `numThreads` isn't raised,
+  // and on more threads (roughly 2x faster inference, see
+  // scanic-ml/MODEL_CARD.md) when it is COOP/COEP-isolated. `threaded: true`
+  // is sugar that defaults `numThreads` to 4; it no longer switches assets.
+  // Requesting >1 threads is safe to do speculatively: ORT detects a missing
+  // SharedArrayBuffer and falls back to running on 1 thread with a warning.
+  const baseUrl = options.assetBaseUrl ? normalizeBaseUrl(options.assetBaseUrl) : DEFAULT_ASSET_BASE_URL;
+  const modelUrl = options.modelUrl || `${baseUrl}doccornernet_lean.ort`;
+  const wasmPaths = options.wasmPaths || baseUrl;
   const numThreads = options.numThreads !== undefined ? options.numThreads : (options.threaded ? 4 : 1);
 
-  // The same model can be run against the single- or multi-thread wasm, so the
-  // cache key must include the wasm choice and thread count, not just the model.
+  // The same wasm can run at different thread counts, so the cache key must
+  // include numThreads, not just the model/wasm URLs.
   const cacheKey = `${modelUrl}|${wasmPaths}|${numThreads}`;
   if (sessionCache.has(cacheKey)) return sessionCache.get(cacheKey);
 
@@ -188,9 +185,9 @@ function decodeOutputs(outputs, width, height) {
  *   - modelUrl      Explicit model URL (overrides assetBaseUrl for the model).
  *   - wasmPaths     Explicit wasm directory (overrides assetBaseUrl for the wasm).
  *   - modelBytes    Pre-fetched model bytes (skips the network fetch).
- *   - threaded      Use the multi-thread wasm build (assetBaseUrl + 'threaded/'),
- *                    default false. Needs a cross-origin isolated host page
- *                    (COOP/COEP) to actually run on >1 thread.
+ *   - threaded      Shorthand for numThreads: 4, default false. Needs a cross-
+ *                    origin isolated host page (COOP/COEP) to actually run on
+ *                    more than 1 thread; falls back to 1 otherwise.
  *   - numThreads    ORT thread count (default 1, or 4 when `threaded: true`).
  *                    Values above 1 need COOP/COEP headers.
  *   - minScore      Minimum P(document) to report success (default 0.5).

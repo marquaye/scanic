@@ -258,7 +258,7 @@ The primary function for detecting and extracting documents.
 | `modelUrl` | `string` | `${assetBaseUrl}doccornernet_lean.ort` | Explicit model URL. |
 | `wasmPaths` | `string` | `assetBaseUrl` | Directory for the ORT wasm/loader. |
 | `modelBytes` | `Uint8Array` | (none) | Pre fetched model bytes (skips the network). |
-| `threaded` | `boolean` | `false` | Use the multi thread wasm build (`assetBaseUrl + 'threaded/'`). Roughly 2x faster inference on a cross-origin isolated page. See the [ML detection guide](https://marquaye.github.io/scanic/guide/ml-detection). |
+| `threaded` | `boolean` | `false` | Shorthand for `numThreads: 4`. Roughly 2x faster inference on a cross-origin isolated page. See the [ML detection guide](https://marquaye.github.io/scanic/guide/ml-detection). |
 | `numThreads` | `number` | `1`, or `4` when `threaded` | ORT threads. `>1` needs COOP/COEP headers. |
 | `minScore` | `number` | `0.5` | Minimum P(document) for `success: true`. |
 

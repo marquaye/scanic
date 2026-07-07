@@ -139,8 +139,7 @@ export interface MlDetectorOptions {
   /** Pre-fetched `.ort` model bytes (skips the network fetch). */
   modelBytes?: Uint8Array;
   /**
-   * Use the multi-thread wasm build (`assetBaseUrl + 'threaded/'`) instead of
-   * the default single-thread one. Roughly 2x faster inference, but needs the
+   * Shorthand for `numThreads: 4`. Roughly 2x faster inference, but needs the
    * host page to be cross-origin isolated (COOP/COEP); falls back to a single
    * thread otherwise, so it's safe to request speculatively. Default false.
    */

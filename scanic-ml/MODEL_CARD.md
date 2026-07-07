@@ -28,34 +28,42 @@ Measured on 200 ground-truth `dcd_test` images (err in px @224):
 | DocCornerNet V2 baseline | 2.9 px | 0.854 | 2.46 MB | 600K |
 | **LEAN (this)** | **2.3 px** | **0.892** | 1.82 MB onnx / 1.9 MB ort | 456K |
 
-Runtime (custom minimal ORT-Web build). Two numbers matter: the ML Inference
-step, which is the only part multi-threading touches, and the end-to-end
-`detectDocumentMl` call, which also includes single-threaded canvas
-preprocessing. Measured via `npm run bench:detectors` (Node) and a
-cross-origin-isolated Chromium page, averaged after a warm-up call:
+Runtime: a single custom minimal ORT-Web build (~1.5 MB, 527 KB gzip),
+compiled with pthread support. It works on any page and runs on 1 thread by
+default; a cross-origin isolated host page (COOP and COEP) can request more
+with `ml: { threaded: true }`, without that it falls back to 1 thread
+automatically, no separate build needed either way.
+
+Two numbers matter: the ML Inference step, which is the only part thread count
+touches, and the end-to-end `detectDocumentMl` call, which also includes
+single-threaded canvas preprocessing. Measured via `npm run bench:detectors`
+(Node) and a cross-origin-isolated Chromium page, averaged after a warm-up
+call:
 
 | ML Inference step | Node | Browser (Chromium, COI) |
 |---|---|---|
-| single-thread (`dist/`, default) | ~13.4 ms | ~13.3 ms |
-| multi-thread, 2 threads (`dist/threaded/`) | ~10.3 ms | ~10.8 ms |
-| multi-thread, 4 threads (`dist/threaded/`) | ~7.5 ms | ~6.4 ms |
+| 1 thread (default) | ~13.4 ms | ~13.3 ms |
+| 2 threads | ~10.3 ms | ~10.8 ms |
+| 4 threads (`threaded: true`) | ~7.5 ms | ~6.4 ms |
 | speedup at 4 threads | 1.8x | 2.1x |
 
-The wasm is ~1.5 MB (527 KB gzip) for both flavors, shipped side by side (see
-`dist/` vs `dist/threaded/`). The single-thread build is the default and works
-on any page with no special headers. The multi-thread build needs a
-cross-origin isolated host page (COOP and COEP); opt in with `ml: { threaded: true }`.
-
-Multi-threading roughly halves inference time: about 1.8x in Node and 2.1x in a
-cross-origin-isolated browser at 4 threads. A `cpu/wall` ratio near 3.5x
-confirms the work really is running in parallel. The end-to-end
+Requesting more threads roughly halves inference time: about 1.8x in Node and
+2.1x in a cross-origin-isolated browser at 4 threads. A `cpu/wall` ratio near
+3.5x confirms the work really is running in parallel. The end-to-end
 `detectDocumentMl` gain is smaller, about 1.1x in Node, because canvas
 preprocessing runs single-threaded and, for a model this fast, is a large share
-of the full call. So threading is a clear win when inference dominates (repeated
-scans, larger inputs, worker offload) and a modest one when preprocessing
-dominates a single call. Absolute numbers vary by machine and load, so treat the
-relative single-thread vs multi-thread comparison as the signal, not the
-absolute ms.
+of the full call. So more threads is a clear win when inference dominates
+(repeated scans, larger inputs, worker offload) and a modest one when
+preprocessing dominates a single call. Absolute numbers vary by machine and
+load, so treat the relative comparison as the signal, not the absolute ms.
+
+Running this pthread-capable build on 1 thread costs about 4% versus a
+hypothetical dedicated single-thread build (compared directly in both
+Chromium and WebKit), noise-level against the roughly 1.5 MB it saves by not
+shipping that second build. There used to be two separate wasm builds
+(single-thread and multi-thread); they were consolidated into one because the
+compiled size difference between them was only about 1%, so shipping both
+cost nearly a full extra copy of the wasm for no real benefit.
 
 An earlier revision of this card claimed "no measurable speedup." That was a
 benchmarking artifact, not a property of the model: ORT-Web initializes its
