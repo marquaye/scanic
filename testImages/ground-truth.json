@@ -1,0 +1,415 @@
+{
+  "formatVersion": 1,
+  "generatedAt": "2026-07-07T10:29:45.061Z",
+  "note": "Manually verified document corners for testImages/*, in original image pixel space. Pre-filled by the ML detector (src/mlDetector.js) via dev/annotate.html, then hand-corrected.",
+  "images": {
+    "0123.jpg": {
+      "width": 640,
+      "height": 640,
+      "corners": {
+        "topLeft": {
+          "x": 21.6,
+          "y": 195.3
+        },
+        "topRight": {
+          "x": 299.9,
+          "y": 56.6
+        },
+        "bottomRight": {
+          "x": 586.5,
+          "y": 442.4
+        },
+        "bottomLeft": {
+          "x": 329.4,
+          "y": 550.6
+        }
+      },
+      "source": "ml",
+      "reviewed": true
+    },
+    "0149_p-50-.jpg": {
+      "width": 640,
+      "height": 640,
+      "corners": {
+        "topLeft": {
+          "x": 202,
+          "y": 125.5
+        },
+        "topRight": {
+          "x": 591.5,
+          "y": 156.5
+        },
+        "bottomRight": {
+          "x": 469.6,
+          "y": 574.3
+        },
+        "bottomLeft": {
+          "x": 118.9,
+          "y": 499.5
+        }
+      },
+      "source": "ml",
+      "reviewed": true
+    },
+    "1023-receipt.jpg": {
+      "width": 750,
+      "height": 1000,
+      "corners": {
+        "topLeft": {
+          "x": 160.2,
+          "y": 11.9
+        },
+        "topRight": {
+          "x": 564.3,
+          "y": 12.4
+        },
+        "bottomRight": {
+          "x": 646.8,
+          "y": 988.3
+        },
+        "bottomLeft": {
+          "x": 135.1,
+          "y": 988.3
+        }
+      },
+      "source": "ml",
+      "reviewed": true
+    },
+    "25_2.jpg": {
+      "width": 640,
+      "height": 640,
+      "corners": {
+        "topLeft": {
+          "x": 203.6,
+          "y": 194.5
+        },
+        "topRight": {
+          "x": 458,
+          "y": 187
+        },
+        "bottomRight": {
+          "x": 463.8,
+          "y": 467.9
+        },
+        "bottomLeft": {
+          "x": 156.9,
+          "y": 453
+        }
+      },
+      "source": "ml",
+      "reviewed": true
+    },
+    "IMG_0445 2.jpg": {
+      "width": 3024,
+      "height": 4032,
+      "corners": {
+        "topLeft": {
+          "x": 858.8,
+          "y": 900.7
+        },
+        "topRight": {
+          "x": 2633.9,
+          "y": 1303.9
+        },
+        "bottomRight": {
+          "x": 2277.8,
+          "y": 3136.6
+        },
+        "bottomLeft": {
+          "x": 1157.2,
+          "y": 2540.6
+        }
+      },
+      "source": "ml",
+      "reviewed": true
+    },
+    "test-sized.png": {
+      "width": 150,
+      "height": 150,
+      "corners": {
+        "topLeft": {
+          "x": 53.8,
+          "y": 19
+        },
+        "topRight": {
+          "x": 109.9,
+          "y": 22.8
+        },
+        "bottomRight": {
+          "x": 110.6,
+          "y": 134.4
+        },
+        "bottomLeft": {
+          "x": 26.6,
+          "y": 120.3
+        }
+      },
+      "source": "ml",
+      "reviewed": true
+    },
+    "test.png": {
+      "width": 880,
+      "height": 660,
+      "corners": {
+        "topLeft": {
+          "x": 314.5,
+          "y": 83.3
+        },
+        "topRight": {
+          "x": 645.9,
+          "y": 101.1
+        },
+        "bottomRight": {
+          "x": 647.2,
+          "y": 590.7
+        },
+        "bottomLeft": {
+          "x": 156.2,
+          "y": 527
+        }
+      },
+      "source": "ml",
+      "reviewed": true
+    },
+    "test10.jpg": {
+      "width": 768,
+      "height": 1024,
+      "corners": {
+        "topLeft": {
+          "x": 30.9,
+          "y": 229.4
+        },
+        "topRight": {
+          "x": 570.4,
+          "y": 152.6
+        },
+        "bottomRight": {
+          "x": 727.2,
+          "y": 858.6
+        },
+        "bottomLeft": {
+          "x": 132.7,
+          "y": 985
+        }
+      },
+      "source": "ml",
+      "reviewed": true
+    },
+    "test2-sized.png": {
+      "width": 150,
+      "height": 150,
+      "corners": {
+        "topLeft": {
+          "x": 25.9,
+          "y": 17.3
+        },
+        "topRight": {
+          "x": 120.3,
+          "y": 18.4
+        },
+        "bottomRight": {
+          "x": 142.8,
+          "y": 126.8
+        },
+        "bottomLeft": {
+          "x": 7.7,
+          "y": 128.8
+        }
+      },
+      "source": "ml",
+      "reviewed": true
+    },
+    "test2.png": {
+      "width": 1200,
+      "height": 1600,
+      "corners": {
+        "topLeft": {
+          "x": 207.3,
+          "y": 187.4
+        },
+        "topRight": {
+          "x": 961.9,
+          "y": 196.4
+        },
+        "bottomRight": {
+          "x": 1143.5,
+          "y": 1351.6
+        },
+        "bottomLeft": {
+          "x": 61,
+          "y": 1375.6
+        }
+      },
+      "source": "ml",
+      "reviewed": true
+    },
+    "test3.jpg": {
+      "width": 2988,
+      "height": 5312,
+      "corners": {
+        "topLeft": {
+          "x": 299.8,
+          "y": 1195.3
+        },
+        "topRight": {
+          "x": 2641.2,
+          "y": 1174.1
+        },
+        "bottomRight": {
+          "x": 2979.8,
+          "y": 4390.4
+        },
+        "bottomLeft": {
+          "x": 58.9,
+          "y": 4444
+        }
+      },
+      "source": "ml",
+      "reviewed": true
+    },
+    "test4.JPG": {
+      "width": 3264,
+      "height": 2448,
+      "corners": {
+        "topLeft": {
+          "x": 334.5,
+          "y": 233.8
+        },
+        "topRight": {
+          "x": 2914.6,
+          "y": 264.5
+        },
+        "bottomRight": {
+          "x": 3032.8,
+          "y": 2316.7
+        },
+        "bottomLeft": {
+          "x": 205.6,
+          "y": 2351.7
+        }
+      },
+      "source": "ml",
+      "reviewed": true
+    },
+    "test5.JPG": {
+      "width": 3264,
+      "height": 2448,
+      "corners": {
+        "topLeft": {
+          "x": 657,
+          "y": 876.6
+        },
+        "topRight": {
+          "x": 2736.8,
+          "y": 772.8
+        },
+        "bottomRight": {
+          "x": 2861.7,
+          "y": 1685.4
+        },
+        "bottomLeft": {
+          "x": 587.5,
+          "y": 1742.6
+        }
+      },
+      "source": "ml",
+      "reviewed": true
+    },
+    "test6.JPG": {
+      "width": 2448,
+      "height": 3264,
+      "corners": {
+        "topLeft": {
+          "x": 87.8,
+          "y": 644.3
+        },
+        "topRight": {
+          "x": 1534.7,
+          "y": 407
+        },
+        "bottomRight": {
+          "x": 2363.3,
+          "y": 2102.9
+        },
+        "bottomLeft": {
+          "x": 818,
+          "y": 2779
+        }
+      },
+      "source": "ml",
+      "reviewed": true
+    },
+    "test7.JPG": {
+      "width": 2448,
+      "height": 3264,
+      "corners": {
+        "topLeft": {
+          "x": 352.2,
+          "y": 339.2
+        },
+        "topRight": {
+          "x": 1974.4,
+          "y": 321.2
+        },
+        "bottomRight": {
+          "x": 2164.7,
+          "y": 3144.8
+        },
+        "bottomLeft": {
+          "x": 140.6,
+          "y": 3139.4
+        }
+      },
+      "source": "ml",
+      "reviewed": true
+    },
+    "test8.JPG": {
+      "width": 1944,
+      "height": 2592,
+      "corners": {
+        "topLeft": {
+          "x": 48.1,
+          "y": 105.3
+        },
+        "topRight": {
+          "x": 1923,
+          "y": 116
+        },
+        "bottomRight": {
+          "x": 1930.1,
+          "y": 2560.6
+        },
+        "bottomLeft": {
+          "x": 15,
+          "y": 2552.9
+        }
+      },
+      "source": "ml",
+      "reviewed": true
+    },
+    "test9.jpg": {
+      "width": 2448,
+      "height": 3264,
+      "corners": {
+        "topLeft": {
+          "x": 541,
+          "y": 1000.1
+        },
+        "topRight": {
+          "x": 1582,
+          "y": 936.6
+        },
+        "bottomRight": {
+          "x": 1835.7,
+          "y": 2538.9
+        },
+        "bottomLeft": {
+          "x": 675.2,
+          "y": 2699.4
+        }
+      },
+      "source": "ml",
+      "reviewed": true
+    }
+  }
+}

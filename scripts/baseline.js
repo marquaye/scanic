@@ -2,19 +2,34 @@
 
 import fs from 'fs';
 import path from 'path';
-import { fileURLToPath } from 'url';
+import { fileURLToPath, pathToFileURL } from 'url';
 import { createCanvas, loadImage, ImageData } from 'canvas';
 import { scanDocument } from '../src/index.js';
+import { computeIoU, cornerErrors } from './lib/polygonMetrics.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const rootDir = path.resolve(__dirname, '..');
 
 const imagesDir = path.join(rootDir, 'testImages');
-const baselineFile = path.join(imagesDir, 'baseline-results.json');
 const outputRoot = path.join(rootDir, 'test', 'output', 'baseline');
 
 const isUpdateMode = process.argv.includes('--update');
+const detectorArg = process.argv.find((arg) => arg.startsWith('--detector='));
+const detector = detectorArg ? detectorArg.split('=')[1] : 'classical';
+if (detector !== 'classical' && detector !== 'ml') {
+  console.error(`Unknown --detector value "${detector}". Expected "classical" or "ml".`);
+  process.exit(1);
+}
+
+// Classical and ML results diverge (different pipelines, different confidence
+// scales) so each detector gets its own baseline file + artifact directory
+// rather than overwriting one another.
+const baselineFile = path.join(
+  imagesDir,
+  detector === 'ml' ? 'baseline-results.ml.json' : 'baseline-results.json'
+);
+const artifactDirName = detector === 'ml' ? 'ml' : 'classical';
 const maxProcessingDimension = 800;
 const cornerTolerancePx = 3;
 const outputSizeTolerancePx = 4;
@@ -23,6 +38,19 @@ const minCoverageRatioForSuccess = 0.01;
 // A phase may be at most this many times slower than the stored baseline before
 // the baseline:check command (and the Vitest baseline tests) report a regression.
 const timingBudgetMultiplier = 4;
+// An image's IoU may drop at most this fraction below the stored baseline's
+// IoU before it's flagged as a regression. This (not an absolute floor) is
+// the primary accuracy gate: some images are known-hard for the classical
+// detector (e.g. 1023-receipt.jpg, 0123.jpg — see repo notes on preferring
+// fail-safe behavior over low-confidence false positives there), so their
+// recorded baseline IoU is itself low. We only want to catch it getting
+// *worse*, not permanently fail the suite on an already-known limitation.
+const iouRegressionTolerance = 0.85;
+
+const groundTruthFile = path.join(imagesDir, 'ground-truth.json');
+const groundTruth = fs.existsSync(groundTruthFile)
+  ? JSON.parse(fs.readFileSync(groundTruthFile, 'utf8')).images ?? {}
+  : {};
 
 function installCanvasDomShim() {
   if (typeof globalThis.ImageData === 'undefined') {
@@ -121,19 +149,56 @@ function saveExtractedOutput(canvasOutput, outPath) {
   fs.writeFileSync(outPath, pngBuffer);
 }
 
+/**
+ * Load the ML detector options needed to run fully offline: model bytes read
+ * straight from the local scanic-ml/dist build, plus a file:// asset base URL
+ * so the wasm loader never hits the network. Mirrors the pattern used by
+ * src/mlDetector.test.js.
+ *
+ * Uses the DEFAULT single-thread build, because this regression suite validates
+ * the configuration `detector: 'ml'` ships out of the box (identical corners to
+ * the threaded build, just slower). Keeping the generator and the checker
+ * (src/baseline.ml.test.js, also single-thread) on the same config keeps the
+ * per-phase timing budgets self-consistent. The multi-thread path has its own
+ * coverage: src/mlDetector.threaded.test.js (correctness) and
+ * `npm run bench:detectors` (the ~1.8x inference speedup; see
+ * scanic-ml/MODEL_CARD.md).
+ */
+function loadMlOptions() {
+  const distDir = path.join(rootDir, 'scanic-ml', 'dist');
+  const modelPath = path.join(distDir, 'doccornernet_lean.ort');
+  if (!fs.existsSync(modelPath)) {
+    console.error(
+      `ML model not found at ${modelPath}.\n` +
+      'Build/fetch the scanic-ml assets first (see scanic-ml/README.md).'
+    );
+    process.exit(1);
+  }
+  return {
+    modelBytes: new Uint8Array(fs.readFileSync(modelPath)),
+    assetBaseUrl: `${pathToFileURL(distDir).href}/`
+  };
+}
+
+const mlOptions = detector === 'ml' ? loadMlOptions() : null;
+
 async function runCase(imageName, artifactsDir) {
   const imagePath = path.join(imagesDir, imageName);
   const image = await loadImage(imagePath);
 
   const detectResult = await scanDocument(image, {
     mode: 'detect',
-    maxProcessingDimension
+    maxProcessingDimension,
+    detector,
+    ml: mlOptions
   });
 
   const extractResult = await scanDocument(image, {
     mode: 'extract',
     output: 'canvas',
-    maxProcessingDimension
+    maxProcessingDimension,
+    detector,
+    ml: mlOptions
   });
 
   let extractedFile = null;
@@ -150,6 +215,14 @@ async function runCase(imageName, artifactsDir) {
   const corners = normalizeCorners(detectResult.corners);
   const docArea = polygonAreaFromCorners(corners);
   const imageArea = image.width * image.height;
+
+  let groundTruthIou = null;
+  let groundTruthCornerErrorPx = null;
+  const gtEntry = groundTruth[imageName];
+  if (gtEntry?.corners && corners) {
+    groundTruthIou = round2(computeIoU(corners, gtEntry.corners));
+    groundTruthCornerErrorPx = round2(cornerErrors(corners, gtEntry.corners).mean);
+  }
 
   return {
     image: imageName,
@@ -173,7 +246,9 @@ async function runCase(imageName, artifactsDir) {
     },
     metrics: {
       documentCoverageRatio: imageArea > 0 ? round2(docArea / imageArea) : 0,
-      detectionConfidence: round2(detectResult.confidence ?? 0)
+      detectionConfidence: round2(detectResult.confidence ?? 0),
+      groundTruthIou,
+      groundTruthCornerErrorPx
     }
   };
 }
@@ -189,12 +264,23 @@ function buildSummary(cases) {
     cases.reduce((sum, entry) => sum + entry.extract.totalMs, 0) / (total || 1)
   );
 
+  const withGroundTruth = cases.filter((entry) => entry.metrics?.groundTruthIou != null);
+  const avgGroundTruthIou = withGroundTruth.length > 0
+    ? round2(withGroundTruth.reduce((sum, entry) => sum + entry.metrics.groundTruthIou, 0) / withGroundTruth.length)
+    : null;
+  const avgGroundTruthCornerErrorPx = withGroundTruth.length > 0
+    ? round2(withGroundTruth.reduce((sum, entry) => sum + entry.metrics.groundTruthCornerErrorPx, 0) / withGroundTruth.length)
+    : null;
+
   return {
     totalImages: total,
     detectSuccesses,
     extractSuccesses,
     avgDetectMs,
-    avgExtractMs
+    avgExtractMs,
+    groundTruthImages: withGroundTruth.length,
+    avgGroundTruthIou,
+    avgGroundTruthCornerErrorPx
   };
 }
 
@@ -232,6 +318,20 @@ function compareAgainstBaseline(currentCases, baselineCases) {
       failures.push(
         `${current.image}: document coverage too low (${currentCoverage} < ${round2(minCoverage)})`
       );
+    }
+
+    // Accuracy against hand-verified ground truth (testImages/ground-truth.json),
+    // when available for this image. Gated relative to the stored baseline's
+    // own IoU (like the timing checks below) rather than an absolute floor,
+    // since some images are known-hard for the classical detector.
+    const currentIou = current.metrics?.groundTruthIou;
+    if (currentIou != null) {
+      const expectedIou = expected.metrics?.groundTruthIou;
+      if (expectedIou != null && currentIou < expectedIou * iouRegressionTolerance) {
+        failures.push(
+          `${current.image}: IoU vs ground truth regressed (${currentIou} vs baseline ${expectedIou})`
+        );
+      }
     }
 
     // Timing regressions – flag if any phase is slower than budget.
@@ -310,6 +410,7 @@ function writeBaseline(cases) {
   const baseline = {
     formatVersion: 1,
     generatedAt: new Date().toISOString(),
+    detector,
     scannerOptions: {
       maxProcessingDimension
     },
@@ -332,12 +433,22 @@ async function run() {
   console.table = () => {};
 
   const artifactsDir = isUpdateMode
-    ? path.join(outputRoot, 'reference')
-    : path.join(outputRoot, 'current');
+    ? path.join(outputRoot, artifactDirName, 'reference')
+    : path.join(outputRoot, artifactDirName, 'current');
 
   ensureCleanDir(artifactsDir);
 
+  // Warm up before any timed runs: for the ML detector this pays the ORT
+  // session load / wasm compile cost once up front (otherwise it lands on
+  // whichever image happens to run first, wildly skewing that image's
+  // numbers and the average). For classical this also warms the WASM Canny
+  // module. Uses the first test image; result is discarded.
   const imageNames = listTestImages();
+  if (imageNames.length > 0) {
+    const warmupImage = await loadImage(path.join(imagesDir, imageNames[0]));
+    await scanDocument(warmupImage, { mode: 'detect', maxProcessingDimension, detector, ml: mlOptions });
+  }
+
   const cases = [];
 
   for (const imageName of imageNames) {
@@ -351,10 +462,14 @@ async function run() {
 
   if (isUpdateMode) {
     const baseline = writeBaseline(cases);
-    console.log('Baseline updated successfully.');
+    console.log(`Baseline updated successfully [detector=${detector}].`);
     console.log(`Images processed: ${baseline.summary.totalImages}`);
     console.log(`Detection successes: ${baseline.summary.detectSuccesses}`);
     console.log(`Extraction successes: ${baseline.summary.extractSuccesses}`);
+    if (baseline.summary.avgGroundTruthIou != null) {
+      console.log(`Average IoU vs ground truth: ${baseline.summary.avgGroundTruthIou} (${baseline.summary.groundTruthImages} images)`);
+      console.log(`Average corner error vs ground truth: ${baseline.summary.avgGroundTruthCornerErrorPx} px`);
+    }
     if (contactSheetPath) {
       console.log(`Contact sheet: ${contactSheetPath}`);
     }
@@ -362,7 +477,8 @@ async function run() {
   }
 
   if (!fs.existsSync(baselineFile)) {
-    console.error('Baseline file not found. Run `npm run baseline:update` first.');
+    const updateCmd = detector === 'ml' ? 'npm run baseline:update:ml' : 'npm run baseline:update';
+    console.error(`Baseline file not found. Run \`${updateCmd}\` first.`);
     process.exit(1);
   }
 
@@ -381,12 +497,16 @@ async function run() {
   }
 
   const summary = buildSummary(cases);
-  console.log('Baseline check passed.');
+  console.log(`Baseline check passed [detector=${detector}].`);
   console.log(`Images processed: ${summary.totalImages}`);
   console.log(`Detection successes: ${summary.detectSuccesses}`);
   console.log(`Extraction successes: ${summary.extractSuccesses}`);
   console.log(`Average detect time: ${summary.avgDetectMs} ms`);
   console.log(`Average extract time: ${summary.avgExtractMs} ms`);
+  if (summary.avgGroundTruthIou != null) {
+    console.log(`Average IoU vs ground truth: ${summary.avgGroundTruthIou} (${summary.groundTruthImages} images)`);
+    console.log(`Average corner error vs ground truth: ${summary.avgGroundTruthCornerErrorPx} px`);
+  }
   if (contactSheetPath) {
     console.log(`Current contact sheet: ${contactSheetPath}`);
   }

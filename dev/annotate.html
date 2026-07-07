@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Scanic - Ground Truth Annotator</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      margin: 0;
+      background-color: #f5f5f5;
+      color: #222;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+    header {
+      padding: 10px 16px;
+      background: #1f2937;
+      color: #f1f5f9;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      flex-wrap: wrap;
+    }
+    header h1 {
+      font-size: 15px;
+      margin: 0;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+    header .spacer { flex: 1; }
+    button {
+      padding: 7px 12px;
+      border-radius: 6px;
+      border: 1px solid #475569;
+      background-color: #334155;
+      color: #f1f5f9;
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 13px;
+    }
+    button:hover { background-color: #475569; }
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
+    button.primary { background-color: #4CAF50; border-color: #3f9c44; }
+    button.primary:hover { background-color: #45a049; }
+    #status {
+      font-size: 12px;
+      color: #cbd5e1;
+      min-width: 200px;
+    }
+    #status.error { color: #fca5a5; }
+    #status.ok { color: #86efac; }
+    .layout {
+      flex: 1;
+      display: flex;
+      min-height: 0;
+      overflow-x: auto;
+    }
+    #sidebar {
+      width: 210px;
+      flex-shrink: 0;
+      overflow-y: auto;
+      background: #fff;
+      border-right: 1px solid #e2e8f0;
+      padding: 8px;
+    }
+    .thumb {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px;
+      border-radius: 6px;
+      cursor: pointer;
+      margin-bottom: 4px;
+      border: 1px solid transparent;
+    }
+    .thumb:hover { background: #f1f5f9; }
+    .thumb.active { background: #e0e7ff; border-color: #6366f1; }
+    .thumb img {
+      width: 40px;
+      height: 40px;
+      object-fit: cover;
+      border-radius: 4px;
+      border: 1px solid #ddd;
+      flex-shrink: 0;
+    }
+    .thumb .name {
+      font-size: 11px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      flex: 1;
+    }
+    .thumb .dot {
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      background: #cbd5e1;
+      flex-shrink: 0;
+    }
+    .thumb .dot.reviewed { background: #22c55e; }
+    .thumb .dot.prefilled { background: #f59e0b; }
+    main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      padding: 14px;
+      min-width: 560px;
+    }
+    #topBar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 10px;
+      flex-wrap: wrap;
+    }
+    #fileLabel {
+      font-weight: 600;
+      font-size: 14px;
+    }
+    #editorWrap {
+      flex: 1;
+      display: flex;
+      gap: 14px;
+      min-height: 0;
+    }
+    #editorHost {
+      flex: 1 1 320px;
+      min-width: 320px;
+      background: #111;
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    #cornerPanel {
+      width: 190px;
+      flex-shrink: 0;
+      background: #fff;
+      border-radius: 8px;
+      padding: 10px;
+      font-size: 12px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      height: fit-content;
+    }
+    #cornerPanel h3 { margin: 0 0 8px; font-size: 12px; color: #475569; }
+    #cornerPanel table { width: 100%; border-collapse: collapse; }
+    #cornerPanel td { padding: 3px 0; font-family: monospace; }
+    #cornerPanel td.label { color: #64748b; padding-right: 6px; }
+    #bottomBar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 10px;
+      gap: 10px;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>📐 Scanic Ground Truth Annotator</h1>
+    <span id="progress">0 / 0 reviewed</span>
+    <div class="spacer"></div>
+    <span id="status">Loading…</span>
+    <button id="btnRerunMl">Re-run ML</button>
+    <button id="btnRerunClassical">Re-run Classical</button>
+    <button id="btnReset">Reset to default</button>
+    <button id="btnSave" class="primary">💾 Save to disk</button>
+    <button id="btnDownload">⬇ Download JSON</button>
+  </header>
+
+  <div class="layout">
+    <div id="sidebar"></div>
+    <main>
+      <div id="topBar">
+        <span id="fileLabel">–</span>
+      </div>
+      <div id="editorWrap">
+        <div id="editorHost"></div>
+        <div id="cornerPanel">
+          <h3>Corners (px, original image)</h3>
+          <table>
+            <tr><td class="label">topLeft</td><td id="cTopLeft">–</td></tr>
+            <tr><td class="label">topRight</td><td id="cTopRight">–</td></tr>
+            <tr><td class="label">bottomRight</td><td id="cBottomRight">–</td></tr>
+            <tr><td class="label">bottomLeft</td><td id="cBottomLeft">–</td></tr>
+          </table>
+          <h3 style="margin-top:12px">Source</h3>
+          <div id="cSource">–</div>
+        </div>
+      </div>
+      <div id="bottomBar">
+        <button id="btnPrev">◀ Prev</button>
+        <button id="btnConfirmNext" class="primary">✓ Confirm &amp; Next ▶</button>
+      </div>
+    </main>
+  </div>
+
+  <script type="module">
+    import { scanDocument, createCornerEditor } from '../src/index.js';
+
+    // Same file list as dev/debug.html's sample gallery.
+    const files = [
+      '0123.jpg',
+      '0149_p-50-.jpg',
+      '1023-receipt.jpg',
+      '25_2.jpg',
+      'IMG_0445 2.jpg',
+      'test-sized.png',
+      'test.png',
+      'test10.jpg',
+      'test2-sized.png',
+      'test2.png',
+      'test3.jpg',
+      'test4.JPG',
+      'test5.JPG',
+      'test6.JPG',
+      'test7.JPG',
+      'test8.JPG',
+      'test9.jpg'
+    ];
+
+    const mlAssetBaseUrl = new URL('../scanic-ml/dist/', location.href).href;
+
+    const statusEl = document.getElementById('status');
+    const progressEl = document.getElementById('progress');
+    const sidebarEl = document.getElementById('sidebar');
+    const fileLabelEl = document.getElementById('fileLabel');
+    const editorHost = document.getElementById('editorHost');
+
+    const annotations = {}; // fileName -> { width, height, corners, source, reviewed }
+    let currentIndex = 0;
+    let currentImage = null;
+    let editor = null;
+    let thumbEls = {};
+
+    function setStatus(text, kind) {
+      statusEl.textContent = text;
+      statusEl.className = kind || '';
+    }
+
+    function imgPath(fileName) {
+      return `../testImages/${encodeURIComponent(fileName)}`;
+    }
+
+    function loadImageEl(src) {
+      return new Promise((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => resolve(img);
+        img.onerror = () => reject(new Error(`Failed to load ${src}`));
+        img.src = src;
+      });
+    }
+
+    async function loadExistingGroundTruth() {
+      try {
+        const res = await fetch('../testImages/ground-truth.json', { cache: 'no-store' });
+        if (!res.ok) return;
+        const data = await res.json();
+        if (data && data.images) {
+          for (const [name, entry] of Object.entries(data.images)) {
+            annotations[name] = entry;
+          }
+        }
+      } catch {
+        // No existing file yet — start fresh.
+      }
+    }
+
+    function buildSidebar() {
+      sidebarEl.innerHTML = '';
+      thumbEls = {};
+      files.forEach((fileName, index) => {
+        const row = document.createElement('div');
+        row.className = 'thumb';
+        row.title = fileName;
+
+        const dot = document.createElement('div');
+        dot.className = 'dot';
+
+        const thumb = document.createElement('img');
+        thumb.src = imgPath(fileName);
+        thumb.loading = 'lazy';
+
+        const name = document.createElement('div');
+        name.className = 'name';
+        name.textContent = fileName;
+
+        row.append(dot, thumb, name);
+        row.onclick = () => selectImage(index);
+        sidebarEl.appendChild(row);
+        thumbEls[fileName] = { row, dot };
+      });
+    }
+
+    function updateSidebarStatus() {
+      let reviewed = 0;
+      for (const fileName of files) {
+        const entry = annotations[fileName];
+        const { row, dot } = thumbEls[fileName];
+        row.classList.toggle('active', files[currentIndex] === fileName);
+        dot.className = 'dot';
+        if (entry?.reviewed) {
+          dot.classList.add('reviewed');
+          reviewed++;
+        } else if (entry?.corners) {
+          dot.classList.add('prefilled');
+        }
+      }
+      progressEl.textContent = `${reviewed} / ${files.length} reviewed`;
+    }
+
+    function updateCornerPanel(corners, source) {
+      const round = (v) => Math.round(v * 10) / 10;
+      document.getElementById('cTopLeft').textContent = corners ? `${round(corners.topLeft.x)}, ${round(corners.topLeft.y)}` : '–';
+      document.getElementById('cTopRight').textContent = corners ? `${round(corners.topRight.x)}, ${round(corners.topRight.y)}` : '–';
+      document.getElementById('cBottomRight').textContent = corners ? `${round(corners.bottomRight.x)}, ${round(corners.bottomRight.y)}` : '–';
+      document.getElementById('cBottomLeft').textContent = corners ? `${round(corners.bottomLeft.x)}, ${round(corners.bottomLeft.y)}` : '–';
+      document.getElementById('cSource').textContent = source || '–';
+    }
+
+    function commitCurrentEditor() {
+      if (!editor || !currentImage) return;
+      const fileName = files[currentIndex];
+      const existing = annotations[fileName] || {};
+      const round = (v) => Math.round(v * 10) / 10;
+      const raw = editor.getCorners();
+      const rounded = {};
+      for (const key of ['topLeft', 'topRight', 'bottomRight', 'bottomLeft']) {
+        rounded[key] = { x: round(raw[key].x), y: round(raw[key].y) };
+      }
+      annotations[fileName] = {
+        ...existing,
+        width: currentImage.width,
+        height: currentImage.height,
+        corners: rounded
+      };
+    }
+
+    async function runDetector(kind, img) {
+      const options = { mode: 'detect', detector: kind };
+      if (kind === 'ml') options.ml = { assetBaseUrl: mlAssetBaseUrl };
+      const result = await scanDocument(img, options);
+      return result && result.success && result.corners ? result.corners : null;
+    }
+
+    async function preAnnotate(fileName, img) {
+      setStatus(`Running ML detector on ${fileName}…`);
+      let corners = await runDetector('ml', img);
+      let source = 'ml';
+      if (!corners) {
+        setStatus(`ML failed on ${fileName}, trying classical…`);
+        corners = await runDetector('classical', img);
+        source = corners ? 'classical' : 'default';
+      }
+      if (!corners) {
+        const inset = Math.max(8, Math.min(img.width, img.height) * 0.08);
+        corners = {
+          topLeft: { x: inset, y: inset },
+          topRight: { x: img.width - inset, y: inset },
+          bottomRight: { x: img.width - inset, y: img.height - inset },
+          bottomLeft: { x: inset, y: img.height - inset }
+        };
+      }
+      return { corners, source };
+    }
+
+    async function selectImage(index) {
+      commitCurrentEditor();
+      currentIndex = index;
+      const fileName = files[index];
+      fileLabelEl.textContent = `Image ${index + 1} / ${files.length} — ${fileName}`;
+
+      setStatus(`Loading ${fileName}…`);
+      const img = await loadImageEl(imgPath(fileName));
+      currentImage = img;
+
+      let entry = annotations[fileName];
+      if (!entry || !entry.corners) {
+        const { corners, source } = await preAnnotate(fileName, img);
+        entry = { width: img.width, height: img.height, corners, source, reviewed: false };
+        annotations[fileName] = entry;
+      }
+
+      if (editor) {
+        editor.destroy();
+        editor = null;
+      }
+      editorHost.innerHTML = '';
+
+      editor = createCornerEditor({
+        container: editorHost,
+        image: img,
+        corners: entry.corners,
+        toolbar: { enabled: false },
+        nudges: { enabled: true },
+        onChange: (corners) => {
+          annotations[fileName].corners = corners;
+          updateCornerPanel(corners, annotations[fileName].source);
+        }
+      });
+
+      updateCornerPanel(entry.corners, entry.source);
+      updateSidebarStatus();
+      setStatus(`Ready — ${fileName} (${entry.source})`, 'ok');
+    }
+
+    async function rerun(kind) {
+      const fileName = files[currentIndex];
+      setStatus(`Running ${kind} detector on ${fileName}…`);
+      const corners = await runDetector(kind, currentImage);
+      if (!corners) {
+        setStatus(`${kind} detector failed on this image.`, 'error');
+        return;
+      }
+      editor.setCorners(corners);
+      annotations[fileName].source = kind;
+      updateCornerPanel(corners, kind);
+      setStatus(`Re-filled from ${kind} detector.`, 'ok');
+    }
+
+    function resetToDefault() {
+      editor.reset();
+    }
+
+    function goNext() {
+      selectImage(Math.min(currentIndex + 1, files.length - 1));
+    }
+
+    function goPrev() {
+      selectImage(Math.max(currentIndex - 1, 0));
+    }
+
+    function confirmAndNext() {
+      commitCurrentEditor();
+      const fileName = files[currentIndex];
+      annotations[fileName].reviewed = true;
+      updateSidebarStatus();
+      saveToServer();
+      if (currentIndex < files.length - 1) {
+        goNext();
+      } else {
+        setStatus('Last image confirmed. All done!', 'ok');
+      }
+    }
+
+    function buildPayload() {
+      return {
+        formatVersion: 1,
+        generatedAt: new Date().toISOString(),
+        note: 'Manually verified document corners for testImages/*, in original image pixel space. Pre-filled by the ML detector (src/mlDetector.js) via dev/annotate.html, then hand-corrected.',
+        images: annotations
+      };
+    }
+
+    async function saveToServer() {
+      commitCurrentEditor();
+      const payload = buildPayload();
+      try {
+        const res = await fetch('/__save-ground-truth', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        setStatus('Saved to testImages/ground-truth.json ✓', 'ok');
+      } catch (error) {
+        setStatus(`Auto-save unavailable (${error.message}). Use "Download JSON" and move it to testImages/ground-truth.json.`, 'error');
+      }
+    }
+
+    function downloadJson() {
+      commitCurrentEditor();
+      const payload = buildPayload();
+      const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'ground-truth.json';
+      a.click();
+      URL.revokeObjectURL(a.href);
+    }
+
+    document.getElementById('btnRerunMl').onclick = () => rerun('ml');
+    document.getElementById('btnRerunClassical').onclick = () => rerun('classical');
+    document.getElementById('btnReset').onclick = resetToDefault;
+    document.getElementById('btnSave').onclick = saveToServer;
+    document.getElementById('btnDownload').onclick = downloadJson;
+    document.getElementById('btnPrev').onclick = goPrev;
+    document.getElementById('btnConfirmNext').onclick = confirmAndNext;
+
+    (async function init() {
+      await loadExistingGroundTruth();
+      buildSidebar();
+      updateSidebarStatus();
+      await selectImage(0);
+    })();
+  </script>
+</body>
+</html>

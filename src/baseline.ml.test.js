@@ -1,25 +1,32 @@
 /**
  * @vitest-environment jsdom
  *
- * Baseline regression tests for all images in testImages/.
- * Validates detection accuracy, output dimensions, AND per-phase timing.
+ * Baseline regression tests for the optional ML detector, run against every
+ * image in testImages/. Mirrors baseline.test.js but exercises
+ * `scanDocument(image, { detector: 'ml' })` instead of the classical pipeline.
  *
- * Run `npm run baseline:update` to regenerate the golden baseline file.
- * Run `npm test`              to validate the current scanner against it.
+ * Skips automatically (like src/mlDetector.test.js) when onnxruntime-web or the
+ * companion scanic-ml/dist model assets aren't present, so it never breaks a
+ * classical-only checkout.
+ *
+ * Run `npm run baseline:update:ml` to regenerate the golden baseline file.
+ * Run `npm test`                  to validate the current ML detector against it.
  */
 import { describe, it, expect, beforeAll } from 'vitest';
 import { scanDocument } from './index.js';
 import { loadImage, ImageData as CanvasImageData, createCanvas } from 'canvas';
 import fs from 'fs';
 import path from 'path';
-import { fileURLToPath } from 'url';
+import { fileURLToPath, pathToFileURL } from 'url';
 import { computeIoU, cornerErrors } from '../scripts/lib/polygonMetrics.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const rootDir = path.resolve(__dirname, '..');
-const baselineFile = path.join(rootDir, 'testImages', 'baseline-results.json');
+const baselineFile = path.join(rootDir, 'testImages', 'baseline-results.ml.json');
 const groundTruthFile = path.join(rootDir, 'testImages', 'ground-truth.json');
+const distDir = path.join(rootDir, 'scanic-ml', 'dist');
+const modelPath = path.join(distDir, 'doccornernet_lean.ort');
 
 // DOM shims required for node-canvas + jsdom
 if (typeof globalThis.ImageData === 'undefined') {
@@ -37,21 +44,8 @@ globalThis.document.createElement = function createElement(tagName, ...args) {
 // Constants
 const MIN_CONFIDENCE_FOR_SUCCESS = 0.1;
 const MIN_COVERAGE_RATIO_FOR_SUCCESS = 0.01;
-// An image's IoU vs hand-verified ground truth (testImages/ground-truth.json)
-// may drop at most this fraction below the stored baseline's own IoU before
-// it's flagged as a regression. Relative, not an absolute floor: some images
-// are known-hard for the classical detector (e.g. 1023-receipt.jpg, 0123.jpg),
-// so their recorded baseline IoU is itself low — we only want to catch it
-// getting *worse*.
 const IOU_REGRESSION_TOLERANCE = 0.85;
-/**
- * Maximum ratio (actual / baseline) before a timing assertion fails.
- * Set generously (5×) to absorb normal CI variance while still catching
- * regressions like an accidental O(n²) loop.
- */
-const TIMING_BUDGET_MULTIPLIER  = 5;
-// Coverage instrumentation adds large, uneven overhead that makes per-phase
-// timing budgets meaningless, so skip those assertions under `npm run test:coverage`.
+const TIMING_BUDGET_MULTIPLIER = 5;
 const SKIP_TIMING_BUDGETS = process.env.npm_lifecycle_event === 'test:coverage';
 
 // Helpers
@@ -70,10 +64,6 @@ function polygonAreaFromCorners(corners) {
   return Math.abs(area) / 2;
 }
 
-/**
- * Extract per-phase timing breakdown from a scan result.
- * Returns a map of phase name → ms (number), excluding the 'Total' entry.
- */
 function parseTimings(result) {
   const timings = {};
   if (!result?.timings) return timings;
@@ -90,10 +80,6 @@ function getTotalMs(result) {
   return round2(Number.parseFloat(t?.ms ?? '0') || 0);
 }
 
-/**
- * Print a formatted timing comparison table to stdout (visible in vitest output).
- * Rows with ratio > TIMING_BUDGET_MULTIPLIER are flagged with ⚠.
- */
 function printTimingTable(imageName, mode, actualTimings, baselineTimings, actualTotal, baselineTotal) {
   const COL = { phase: 38, actual: 10, baseline: 10, ratio: 7 };
   const sep = '─'.repeat(COL.phase + COL.actual + COL.baseline + COL.ratio + 6);
@@ -106,15 +92,15 @@ function printTimingTable(imageName, mode, actualTimings, baselineTimings, actua
   );
 
   const rows = allSteps.map((step) => {
-    const actual  = actualTimings[step];
-    const base    = baselineTimings[step];
-    const actualStr   = actual  != null ? `${actual}ms`  : '-';
-    const baseStr     = base    != null ? `${base}ms`    : '-';
-    const ratio       = (actual != null && base != null && base > 0)
+    const actual = actualTimings[step];
+    const base = baselineTimings[step];
+    const actualStr = actual != null ? `${actual}ms` : '-';
+    const baseStr = base != null ? `${base}ms` : '-';
+    const ratio = (actual != null && base != null && base > 0)
       ? actual / base
       : null;
-    const ratioStr    = ratio != null ? `${ratio.toFixed(2)}x` : '-';
-    const flag        = (ratio != null && ratio > TIMING_BUDGET_MULTIPLIER) ? ' ⚠' : '';
+    const ratioStr = ratio != null ? `${ratio.toFixed(2)}x` : '-';
+    const flag = (ratio != null && ratio > TIMING_BUDGET_MULTIPLIER) ? ' ⚠' : '';
     return `    ${step.padEnd(COL.phase)} ${actualStr.padStart(COL.actual)}  ${baseStr.padStart(COL.baseline)}  ${ratioStr.padStart(COL.ratio)}${flag}`;
   });
 
@@ -125,7 +111,7 @@ function printTimingTable(imageName, mode, actualTimings, baselineTimings, actua
     `    ${'TOTAL'.padEnd(COL.phase)} ${`${actualTotal}ms`.padStart(COL.actual)}  ${`${baselineTotal}ms`.padStart(COL.baseline)}  ${totalRatio.padStart(COL.ratio)}`;
 
   console.log([
-    `\n  Timings: ${imageName}  [${mode}]`,
+    `\n  Timings: ${imageName}  [ml/${mode}]`,
     `  ${sep}`,
     header,
     `  ${sep}`,
@@ -135,14 +121,31 @@ function printTimingTable(imageName, mode, actualTimings, baselineTimings, actua
   ].join('\n'));
 }
 
-// Load baseline + warm up WASM before any test runs
+// Feature-detect the optional ML runtime + model assets before defining tests.
+let available = false;
+let mlOptions = null;
+try {
+  await import('onnxruntime-web');
+  if (fs.existsSync(modelPath)) {
+    mlOptions = {
+      modelBytes: new Uint8Array(fs.readFileSync(modelPath)),
+      assetBaseUrl: `${pathToFileURL(distDir).href}/`
+    };
+    available = true;
+  }
+} catch {
+  available = false;
+}
+
 let baselineData;
 let groundTruthData = null;
 beforeAll(async () => {
+  if (!available) return;
+
   if (!fs.existsSync(baselineFile)) {
     throw new Error(
-      `Baseline file not found at ${baselineFile}. ` +
-      'Run `npm run baseline:update` to generate it first.'
+      `ML baseline file not found at ${baselineFile}. ` +
+      'Run `npm run baseline:update:ml` to generate it first.'
     );
   }
   baselineData = JSON.parse(fs.readFileSync(baselineFile, 'utf8'));
@@ -151,8 +154,7 @@ beforeAll(async () => {
     groundTruthData = JSON.parse(fs.readFileSync(groundTruthFile, 'utf8')).images ?? {};
   }
 
-  // Warm up scanner pipeline (WASM + prep + detect/extract paths) before
-  // timed assertions begin so first-case cold start doesn't skew budgets.
+  // Warm up the ORT session (model load + wasm init) before timed assertions.
   const maxProcessingDimension = baselineData.scannerOptions?.maxProcessingDimension ?? 800;
   const warmupImagePath = path.join(rootDir, 'testImages', 'test.png');
   if (fs.existsSync(warmupImagePath)) {
@@ -160,16 +162,14 @@ beforeAll(async () => {
     const originalTable = console.table;
     console.table = () => {};
     try {
-      await scanDocument(warmupImage, { mode: 'detect', maxProcessingDimension });
-      await scanDocument(warmupImage, { mode: 'extract', output: 'canvas', maxProcessingDimension });
+      await scanDocument(warmupImage, { mode: 'detect', maxProcessingDimension, detector: 'ml', ml: mlOptions });
     } finally {
       console.table = originalTable;
     }
   }
 }, 30_000);
 
-// Dynamic per-image tests
-describe('Baseline regression (all test images)', () => {
+describe('Baseline regression (ML detector, all test images)', () => {
   const imagesDir = path.join(rootDir, 'testImages');
 
   const supportedExtensions = new Set(['.png', '.jpg', '.jpeg']);
@@ -179,39 +179,40 @@ describe('Baseline regression (all test images)', () => {
 
   for (const imageName of imageFiles) {
     it(`${imageName}`, async () => {
+      if (!available) {
+        console.warn('[baseline.ml.test] skipped: onnxruntime-web or scanic-ml/dist assets unavailable');
+        return;
+      }
+
       const expected = baselineData.cases.find((c) => c.image === imageName);
       if (!expected) {
-        throw new Error(`No baseline entry for "${imageName}". Re-run baseline:update.`);
+        throw new Error(`No ML baseline entry for "${imageName}". Re-run baseline:update:ml.`);
       }
 
       const maxProcessingDimension = baselineData.scannerOptions?.maxProcessingDimension ?? 800;
       const imgPath = path.join(imagesDir, imageName);
       const image = await loadImage(imgPath);
 
-      // Suppress the console.table timings output emitted by scanDocument.
       const originalTable = console.table;
       console.table = () => {};
 
       let detectResult, extractResult;
       try {
-        // Run detect and extract sequentially so timings are not skewed by
-        // parallelism sharing the same JS thread.
-        detectResult = await scanDocument(image, { mode: 'detect', maxProcessingDimension });
-        extractResult = await scanDocument(image, { mode: 'extract', output: 'canvas', maxProcessingDimension });
+        detectResult = await scanDocument(image, { mode: 'detect', maxProcessingDimension, detector: 'ml', ml: mlOptions });
+        extractResult = await scanDocument(image, { mode: 'extract', output: 'canvas', maxProcessingDimension, detector: 'ml', ml: mlOptions });
       } finally {
         console.table = originalTable;
       }
 
-      // Timing tables (always printed, even on failed detections)
-      const actualDetectTimings  = parseTimings(detectResult);
+      const actualDetectTimings = parseTimings(detectResult);
       const actualExtractTimings = parseTimings(extractResult);
-      const baselineDetectTimings  = expected.detect.timings  ?? {};
+      const baselineDetectTimings = expected.detect.timings ?? {};
       const baselineExtractTimings = expected.extract.timings ?? {};
 
       printTimingTable(
         imageName, 'detect',
-        actualDetectTimings,  baselineDetectTimings,
-        getTotalMs(detectResult),  expected.detect.totalMs
+        actualDetectTimings, baselineDetectTimings,
+        getTotalMs(detectResult), expected.detect.totalMs
       );
       printTimingTable(
         imageName, 'extract',
@@ -223,7 +224,6 @@ describe('Baseline regression (all test images)', () => {
         ? polygonAreaFromCorners(detectResult.corners) / Math.max(1, image.width * image.height)
         : 0;
 
-      // All baseline images are expected to be detected and extracted.
       expect(detectResult.success, `detect should succeed`).toBe(true);
       expect(extractResult.success, `extract should succeed`).toBe(true);
 
@@ -242,7 +242,6 @@ describe('Baseline regression (all test images)', () => {
         }
       }
 
-      // Quality gates for successful detections 
       expect(
         detectResult.confidence ?? 0,
         `detection confidence too low`
@@ -260,10 +259,6 @@ describe('Baseline regression (all test images)', () => {
       expect(actualWidth, 'extract output width must be positive').toBeGreaterThan(0);
       expect(actualHeight, 'extract output height must be positive').toBeGreaterThan(0);
 
-      // Per-phase timing budget assertions 
-      // Only phases present in the stored baseline are checked.
-      // Phases with a baseline of ≤1 ms are skipped to avoid noise on
-      // near-instant operations where jitter dominates.
       const MIN_ASSERTABLE_MS = 2;
 
       if (!SKIP_TIMING_BUDGETS) {
@@ -289,6 +284,6 @@ describe('Baseline regression (all test images)', () => {
           ).toBeLessThanOrEqual(baselineMs * TIMING_BUDGET_MULTIPLIER);
         }
       }
-    });
+    }, 30_000);
   }
 });
