@@ -9,12 +9,12 @@ dependency on this package.
 
 | file | size | what |
 |---|---|---|
-| `dist/doccornernet_lean.ort` | ~1.9 MB | The corner-detection model — a channel-slimmed SimCC ([DocCornerNet](https://github.com/mapo80/DocCornerNet-CoordClass)), in ORT format. |
-| `dist/ort-wasm-simd.wasm` | ~1.5 MB | A **custom minimal** ONNX Runtime Web build (SIMD, single-thread) compiled with only the ~18 operators this model uses — ~88% smaller than stock ort-web (13 MB), same MLAS kernels → same speed. |
+| `dist/doccornernet_lean.ort` | ~1.9 MB | The corner-detection model, a channel-slimmed SimCC ([DocCornerNet](https://github.com/mapo80/DocCornerNet-CoordClass)), in ORT format. |
+| `dist/ort-wasm-simd.wasm` | ~1.5 MB | A **custom minimal** ONNX Runtime Web build (SIMD, single-thread) compiled with only the ~18 operators this model uses, ~88% smaller than stock ort-web (13 MB), same MLAS kernels, same speed. |
 | `dist/ort-wasm-simd-threaded.mjs` | ~12 KB | The emscripten loader (named for what `onnxruntime-web`'s JS expects). |
 
 These are served from a CDN by default (jsDelivr mirrors npm), so most users never
-install this package directly — scanic fetches the assets at runtime:
+install this package directly. Scanic fetches the assets at runtime:
 
 ```
 https://cdn.jsdelivr.net/npm/scanic-ml@<version>/dist/
@@ -26,7 +26,7 @@ You generally don't import this package. You point scanic's ML detector at it:
 
 ```js
 import { scanDocument } from 'scanic';
-// ESM build bundles the ONNX Runtime JS — no extra install needed.
+// ESM build bundles the ONNX Runtime JS. No extra install needed.
 
 const result = await scanDocument(image, { detector: 'ml' });
 // result.corners, result.score (P(document present))
@@ -45,12 +45,12 @@ await scanDocument(image, {
 ## Version pinning
 
 The wasm is built from ONNX Runtime **v1.23.2**. The `onnxruntime-web` JS peer
-dependency must be **1.23.x** — the JS↔wasm ABI is version-locked. The `.ort`
+dependency must be **1.23.x**, the JS/wasm ABI is version-locked. The `.ort`
 model format is likewise tied to that runtime.
 
 ## Reproducing the assets
 
-The build is fully scripted and pinned — see [`build/`](./build). It converts the
+The build is fully scripted and pinned, see [`build/`](./build). It converts the
 source `.onnx` to `.ort`, clones ORT v1.23.2, and compiles the minimal wasm:
 
 ```bash

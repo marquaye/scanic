@@ -1,4 +1,4 @@
-# Model card — DocCornerNet LEAN (scanic ML detector)
+# Model card: DocCornerNet LEAN (scanic ML detector)
 
 A channel-slimmed **SimCC** document-corner detector (MobileNetV2 backbone +
 mini-FPN + 1D coordinate-classification head), deployed for scanic on a custom
@@ -39,20 +39,20 @@ Runtime (custom minimal ORT-Web build, measured in Node, single image repeated):
 \* Threads need a 4-thread build **and** cross-origin isolation (COOP/COEP) on the
 host page. The shipped artifact is single-thread for universal, header-free use.
 
-**Do not INT8/fp16-quantize this model** — post-training quantization *slowed* it
+**Do not INT8/fp16-quantize this model.** Post-training quantization *slowed* it
 ~2× in WASM (QDQ overhead on the SimCC head) for only a size drop. fp32 is the
 right deployment format here. The size/latency wins came from architecture
 slimming, not quantization.
 
 ## Why a custom ONNX Runtime build
 
-Stock `onnxruntime-web` is ~13 MB of wasm — at odds with scanic's small-library
+Stock `onnxruntime-web` is ~13 MB of wasm, at odds with scanic's small-library
 goal. Alternatives were measured and rejected:
 
-- **tract** (pure-Rust ONNX): 4.1 MB wasm but **~10× slower** (104 ms) — no
+- **tract** (pure-Rust ONNX): 4.1 MB wasm but **~10× slower** (104 ms), no
   XNNPACK/MLAS-class kernels.
 - **Hand-written WASM kernels**: smallest, but the tract result shows the realistic
-  floor is ~100 ms without reimplementing XNNPACK-grade SIMD — weeks of work for
+  floor is ~100 ms without reimplementing XNNPACK-grade SIMD, weeks of work for
   worse latency.
 - **WebGPU**: ~35× slower than WASM for this small op-heavy graph.
 

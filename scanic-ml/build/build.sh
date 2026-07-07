@@ -8,7 +8,7 @@
 #     -v "$PWD/scripts/ml-spike/model:/model:ro" scanic-ml-build
 #
 # Outputs into /work/dist:
-#   doccornernet_lean.ort          (the model, ORT format — minimal builds need this)
+#   doccornernet_lean.ort          (the model, ORT format; minimal builds need this)
 #   ort-wasm-simd.wasm             (~1.5 MB custom minimal runtime, SIMD)
 #   ort-wasm-simd-threaded.mjs     (emscripten loader, copied to the name ort-web requests)
 #

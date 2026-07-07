@@ -10,7 +10,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # ORT v1.23.2 requires CMake >= 3.28; the pip wheel ships a recent binary.
 # A dedicated venv keeps the build interpreter free of a host's (possibly broken)
-# global packages — notably torch, which ORT's tools import opportunistically.
+# global packages, notably torch, which ORT's tools import opportunistically.
 RUN python -m venv /opt/ortbuild && \
     /opt/ortbuild/bin/pip install --no-cache-dir "cmake>=3.28" onnxruntime onnx flatbuffers packaging numpy
 
