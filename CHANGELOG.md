@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.5.0] - 2026-07-07
+
+### Added
+- **`ml.threaded` option**: shorthand for `numThreads: 4`. On a cross-origin isolated
+  host page (`COOP: same-origin` + `COEP: require-corp`), this gives roughly
+  2x faster ML inference. Without isolation it falls back to running on 1
+  thread automatically, so it is safe to request speculatively.
+
+### Changed
+- **`scanic-ml` now ships a single wasm build** (0.2.0), down from 6.9 MB to
+  3.5 MB unpacked, roughly half. There used to be two nearly identical wasm
+  builds (a dedicated single-thread one and a pthread-capable one); running
+  the pthread build on 1 thread costs about 4% versus the dedicated build,
+  noise-level, so shipping both cost close to a full extra copy of the wasm
+  for no real benefit. If you self-host the `scanic-ml` assets, update to
+  `scanic-ml@0.2.0`; the file layout changed (`dist/ort-wasm-simd.wasm` and
+  `dist/threaded/` are gone).
+
 ## [1.4.1] - 2026-06-30
 
 ### Changed

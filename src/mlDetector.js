@@ -26,7 +26,7 @@ const STD = [0.229, 0.224, 0.225];
 const ORDER = ['topLeft', 'topRight', 'bottomRight', 'bottomLeft'];
 
 // scanic-ml version whose CDN-mirrored assets this build is validated against.
-const ML_ASSETS_VERSION = '0.1.0';
+const ML_ASSETS_VERSION = '0.2.0';
 const DEFAULT_ASSET_BASE_URL = `https://cdn.jsdelivr.net/npm/scanic-ml@${ML_ASSETS_VERSION}/dist/`;
 
 // Cache the ORT module and per-model sessions so repeated scans reuse them.

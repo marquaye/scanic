@@ -1,6 +1,6 @@
 {
   "name": "scanic-ml",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Optional ML document-corner detector assets for scanic, a channel-slimmed SimCC model (DocCornerNet) and a custom minimal ONNX Runtime Web WASM build (1.5 MB, ~88% smaller than stock ort-web).",
   "license": "MIT",
   "repository": {
