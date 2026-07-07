@@ -443,7 +443,7 @@ Contributions are welcome! Whether it's reporting a bug, suggesting a feature, o
 
 - Inspired by [jscanify](https://github.com/puffinsoft/jscanify).
 - WASM Blur module powered by Rust.
-- The optional ML corner detector's architecture is [DocCornerNet](https://github.com/mapo80/DocCornerNet-CoordClass) (MIT licensed) by [mapo80](https://github.com/mapo80), based on [SimCC](https://arxiv.org/abs/2107.03332) (Li et al., ECCV 2022) — see the [ML detection guide](https://marquaye.github.io/scanic/guide/ml-detection) for how it's trained, slimmed, and deployed in scanic.
+- The optional ML corner detector's architecture is [DocCornerNet](https://github.com/mapo80/DocCornerNet-CoordClass) (MIT licensed) by [mapo80](https://github.com/mapo80), based on [SimCC](https://arxiv.org/abs/2107.03332) (Li et al., ECCV 2022). See the [ML detection guide](https://marquaye.github.io/scanic/guide/ml-detection) for how it's trained, slimmed, and deployed in scanic.
 
 ---
 
@@ -485,6 +485,14 @@ Contributions are welcome! Whether it's reporting a bug, suggesting a feature, o
     </td>
     <td align="center" width="250">
       <a href="https://mein-kreativbuch.de/" target="_blank">
+        <br/>
+        <strong>mein-kreativbuch.de</strong>
+      </a>
+      <br/>
+       <em>Unique and personalized children's books</em>
+    </td>
+    <td align="center" width="250">
+      <a href="https://ausschreibungszentrale.de/" target="_blank">
         <br/>
         <strong>mein-kreativbuch.de</strong>
       </a>

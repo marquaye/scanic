@@ -61,6 +61,6 @@ jobs:
           npm install scanic-ml@${{ steps.version.outputs.version }}
           ```
 
-          Most users don't install this directly — scanic fetches the assets from jsDelivr at runtime. See the [ML detection guide](https://marquaye.github.io/scanic/guide/ml-detection) for details.
+          Most users don't install this directly. Scanic fetches the assets from jsDelivr at runtime. See the [ML detection guide](https://marquaye.github.io/scanic/guide/ml-detection) for details.
         draft: false
         prerelease: false

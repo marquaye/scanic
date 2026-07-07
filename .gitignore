@@ -5,7 +5,7 @@ docs/private
 node_modules/
 test/output/
 wasm_blur/target/
-# scanic's own build output (root only) — not the committed scanic-ml/dist assets.
+# scanic's own build output (root only). Not the committed scanic-ml/dist assets.
 /dist/
 .DS_Store
 *.log
@@ -45,7 +45,7 @@ scripts/ml-spike/model/*_history.json
 # Downloaded SimCC training code + HF dataset (external, multi-GB; reproduce per MODEL_CARD)
 training/simcc_train/
 
-# Throwaway tract benchmark experiments (rejected — see docs/guide/ml-detection.md).
+# Throwaway tract benchmark experiments (rejected, see docs/guide/ml-detection.md).
 # Root-owned target/ from Docker; delete with: sudo rm -rf tract_bench tract_bench_wasm
 tract_bench/
 tract_bench_wasm/

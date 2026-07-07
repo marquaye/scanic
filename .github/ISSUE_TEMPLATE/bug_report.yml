@@ -5,8 +5,8 @@ body:
   - type: markdown
     attributes:
       value: |
-        Thanks for taking the time to file a bug! Please fill in as much as you can —
-        for detection issues, a **sample image** is by far the most useful thing.
+        Thanks for taking the time to file a bug! Please fill in as much as you can.
+        For detection issues, a **sample image** is by far the most useful thing.
   - type: textarea
     id: description
     attributes:
