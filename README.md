@@ -129,9 +129,6 @@ percent smaller than the stock 13 MB runtime while running at the same speed. Se
 the [ML detection guide](https://marquaye.github.io/scanic/guide/ml-detection)
 for options, self hosting, and threading.
 
-> Using the UMD or `<script>` build? The bundled runtime applies to the ESM build.
-> For ML there, add `onnxruntime-web@1.23.x` to your page yourself, since the UMD
-> format cannot split code into separate chunks.
 
 ### Manual corner adjustment UI
 
@@ -181,112 +178,6 @@ async function onFrame(img) {
 }
 ```
 
-### Complete Example
-
-```js
-import { scanDocument } from 'scanic';
-
-async function processDocument() {
-  // Get image from file input or any source
-  const imageFile = document.getElementById('fileInput').files[0];
-  const img = new Image();
-  
-  img.onload = async () => {
-    try {  
-      // Extract and display the scanned document
-      const result = await scanDocument(img, { 
-        mode: 'extract',
-        output: 'canvas'
-      });
-      
-      if (result.success) {
-        // Add the extracted document to the page
-        document.getElementById('output').appendChild(result.output);
-        
-        // Or get as data URL for download/display
-        const dataUrl = result.output.toDataURL('image/png');
-        console.log('Extracted document as data URL:', dataUrl);
-      }    
-    } catch (error) {
-      console.error('Error processing document:', error);
-    }
-  };
-  
-  img.src = URL.createObjectURL(imageFile);
-}
-
-// HTML setup
-// <input type="file" id="fileInput" accept="image/*" onchange="processDocument()">
-// <div id="output"></div>
-```
-
-## ⚙️ API Reference
-
-### `scanDocument(image, options?)`
-The primary function for detecting and extracting documents.
-
-| Parameter | Type | Description |
-| :--- | :--- | :--- |
-| `image` | `HTMLImage\|Canvas\|ImageData` | The source image to scan. |
-| `options` | `Object` | Configuration options (see below). |
-
-#### `options` Properties
-| Option | Type | Default | Description |
-| :--- | :--- | :--- | :--- |
-| `detector` | `'classical' \| 'ml'` | `'classical'` | Corner detection method. `'ml'` uses the optional neural detector (lazy-loaded; no extra install). See the [ML Detection guide](https://marquaye.github.io/scanic/guide/ml-detection). |
-| `mode` | `'detect' \| 'extract'` | `'detect'` | `'detect'` returns coordinates; `'extract'` returns the warped image. |
-| `output` | `'canvas' \| 'imagedata' \| 'dataurl'` | `'canvas'` | The format of the returned processed image. |
-| `maxProcessingDimension` | `number` | `800` | Downscales image to this size for detection (faster). |
-| `lowThreshold` | `number` | `adaptive` | Optional lower threshold for Canny edge detection. If omitted together with `highThreshold`, adaptive thresholds are used. |
-| `highThreshold` | `number` | `adaptive` | Optional upper threshold for Canny edge detection. |
-| `applyDilation` | `boolean` | `true` | Enables dilation in the primary pass. |
-| `dilationKernelSize` | `number` | `3` | Morphological dilation kernel size for edge connection. |
-| `dilationIterations` | `number` | `1` | Number of dilation passes. |
-| `minArea` | `number` | `1000` | Minimum pixel area to consider a contour a "document". |
-| `enableDetectionCascade` | `boolean` | `true` | Enables fallback pass profiles for hard images. |
-| `minCascadeTriggerConfidence` | `number` | `0.68` | Confidence threshold before trying additional pass profiles. |
-| `maxCandidateContours` | `number` | `12` | Number of largest contours to score per pass. |
-| `minDocumentCoverageRatio` | `number` | `0.04` | Minimum image coverage required for a valid candidate. |
-| `minDocumentFillRatio` | `number` | `0.07` | Minimum contour fill ratio within its bounding box. |
-| `maxDocumentAspectRatio` | `number` | `8` | Maximum accepted aspect ratio for candidates. |
-| `debug` | `boolean` | `false` | If true, returns intermediate processing steps. |
-
-##### `options.ml` (only when `detector: 'ml'`)
-| Option | Type | Default | Description |
-| :--- | :--- | :--- | :--- |
-| `assetBaseUrl` | `string` | jsDelivr `scanic-ml` | Base URL serving the `.wasm` + `.ort` assets. Set to self-host. |
-| `modelUrl` | `string` | `${assetBaseUrl}doccornernet_lean.ort` | Explicit model URL. |
-| `wasmPaths` | `string` | `assetBaseUrl` | Directory for the ORT wasm/loader. |
-| `modelBytes` | `Uint8Array` | (none) | Pre fetched model bytes (skips the network). |
-| `threaded` | `boolean` | `false` | Shorthand for `numThreads: 4`. Roughly 2x faster inference on a cross-origin isolated page. See the [ML detection guide](https://marquaye.github.io/scanic/guide/ml-detection). |
-| `numThreads` | `number` | `1`, or `4` when `threaded` | ORT threads. `>1` needs COOP/COEP headers. |
-| `minScore` | `number` | `0.5` | Minimum P(document) for `success: true`. |
-
-#### Return Value
-Returns a `Promise<ScannerResult>`:
-```ts
-{
-  success: boolean;       // Did we find a document?
-  corners: CornerPoints;  // { topLeft, topRight, bottomRight, bottomLeft }
-  output: any;            // The warped image (if mode is 'extract')
-  contour: Array<Point>;  // Raw detection points
-  score?: number;         // P(document present), 0–1 (ML detector only)
-  timings: Array<Object>; // Performance breakdown
-  message: string;        // Status or error message
-}
-```
-
----
-
-### `new Scanner()`
-The recommended class for high-performance applications (Webcam, Batch processing).
-
-```js
-const scanner = new Scanner();
-await scanner.initialize(); // Pre-loads WASM
-const result = await scanner.scan(image, options);
-```
-
 ## Examples
 
 ```js
@@ -329,16 +220,6 @@ const rawData = await scanDocument(imageElement, {
 
 ```
 
-## 💻 Framework Examples
-
-Scanic is framework-agnostic but works great with modern UI libraries:
-
-| Framework | Link |
-| :--- | :--- |
-| **Vue 3** | [Vue & React Guide](https://marquaye.github.io/scanic/guide/frameworks) |
-| **React** | [Vue & React Guide](https://marquaye.github.io/scanic/guide/frameworks) |
-
----
 
 ## 🛠️ Development
 
@@ -398,26 +279,6 @@ The ML baseline test skips automatically when `onnxruntime-web` or the `scanic-m
 model assets aren't available locally.
 
 
-## 🖥️ Node.js Support
-
-Scanic can run on the server! Since it relies on the Canvas API, you need to provide a canvas implementation (like `node-canvas`) and a DOM environment (`jsdom`).
-
-```js
-import { scanDocument } from 'scanic';
-import { loadImage } from 'canvas';
-import { JSDOM } from 'jsdom';
-
-// Setup global environment
-const dom = new JSDOM();
-global.document = dom.window.document;
-global.ImageData = dom.window.ImageData;
-
-const img = await loadImage('document.jpg');
-const result = await scanDocument(img, { mode: 'extract' });
-```
-
----
-
 ## 📊 Comparison
 
 | Feature | Scanic | jscanify | OpenCV.js |
@@ -428,19 +289,6 @@ const result = await scanDocument(img, { mode: 'extract' });
 | **GPU Acceleration** | ✅ Yes | ❌ No | ❌ No |
 | **TypeScript** | ✅ Yes | ❌ No | ✅ Yes |
 
----
-
-## 🏗️ Performance Architecture
-
-Scanic uses a **hybrid JavaScript + WebAssembly approach**:
-
-- **JavaScript Layer**: High-level API, DOM manipulation, and workflow coordination
-- **WebAssembly Layer**: CPU-intensive operations like:
-  - Gaussian blur with SIMD optimizations
-  - Canny edge detection with hysteresis thresholding  
-  - Gradient calculations using Sobel operators
-  - Non-maximum suppression for edge thinning
-  - Morphological operations (dilation/erosion)
 
 ## 🤝 Contributing
 
