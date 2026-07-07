@@ -11,6 +11,12 @@ function pointDistance(a, b) {
   return Math.hypot(a.x - b.x, a.y - b.y);
 }
 
+// Drag sensitivity shaping (see onHandlePointerMove): below this pointer
+// speed (canvas px/ms), movement is scaled down towards DRAG_MIN_SENSITIVITY
+// for precision; at/above it, dragging tracks the pointer at full 1:1 speed.
+const DRAG_FULL_SENSITIVITY_SPEED = 0.8;
+const DRAG_MIN_SENSITIVITY = 0.35;
+
 function cornersAreFiniteAndDistinct(corners, minDistance = 4) {
   const points = [corners?.topLeft, corners?.topRight, corners?.bottomRight, corners?.bottomLeft];
   if (points.some((p) => !p || !Number.isFinite(p.x) || !Number.isFinite(p.y))) {
@@ -298,6 +304,9 @@ export function createCornerEditor(options = {}) {
 
   const doc = container.ownerDocument || (typeof document !== 'undefined' ? document : null);
   const runtimeGlobal = typeof window !== 'undefined' ? window : globalThis;
+  const now = () => (runtimeGlobal.performance && typeof runtimeGlobal.performance.now === 'function'
+    ? runtimeGlobal.performance.now()
+    : Date.now());
 
   if (options.injectStyles !== false) {
     injectStyles(doc);
@@ -383,6 +392,15 @@ export function createCornerEditor(options = {}) {
   let focusedCornerKey = 'topLeft'; // last focused/active → target for nudges & keyboard
   let dragPointerId = null;
   let lastPointerPosition = null;
+  // Updated every pointermove during a drag (not just at pointerdown) so we
+  // can measure each step's pointer velocity and shape sensitivity from it:
+  // slow/small movements are dampened for precision, fast/large ones track
+  // at full 1:1 speed. Re-deriving each step from the corner's actual
+  // (already-clamped) current value — rather than accumulating from a fixed
+  // drag-start reference — also means there's no jump/offset the first time
+  // you move, regardless of where within the handle's hit area you grabbed.
+  let dragLastPointer = null;
+  let dragLastTime = null;
 
   const handleHit = Math.max(24, options.handleHitArea || 44);
   // Only override the stylesheet/theme default when an explicit size was passed.
@@ -528,15 +546,6 @@ export function createCornerEditor(options = {}) {
     };
   }
 
-  function viewToImage(x, y) {
-    const px = (x - view.offsetX) / view.scale;
-    const py = (y - view.offsetY) / view.scale;
-    return {
-      x: Math.max(0, Math.min(imageWidth, px)),
-      y: Math.max(0, Math.min(imageHeight, py))
-    };
-  }
-
   function cornersValid(nextCorners) {
     return cornersAreFiniteAndDistinct(nextCorners) && isConvexQuadrilateral(nextCorners);
   }
@@ -587,37 +596,67 @@ export function createCornerEditor(options = {}) {
     const radius = size / 2;
     const zoom = Math.max(1.1, magnifier.zoom);
 
-    let lensX = lastPointerPosition.x + radius + magnifier.margin;
-    let lensY = lastPointerPosition.y - radius - magnifier.margin;
+    // Anchor the lens to the corner's actual (already-clamped) screen position,
+    // not the raw pointer position. The pointer can travel far outside the
+    // canvas while dragging (pointer capture keeps the drag alive there), but
+    // the corner itself is always clamped to the image bounds — anchoring to
+    // it keeps the magnifier tracking smoothly along whichever axis isn't
+    // pinned at an edge, instead of snapping to a fixed spot once the raw
+    // pointer position falls outside the viewport clamp range.
+    const anchor = imageToView(active);
+
+    let lensX = anchor.x + radius + magnifier.margin;
+    let lensY = anchor.y - radius - magnifier.margin;
 
     if (lensX + radius > view.width) {
-      lensX = lastPointerPosition.x - radius - magnifier.margin;
+      lensX = anchor.x - radius - magnifier.margin;
     }
     if (lensY - radius < 0) {
-      lensY = lastPointerPosition.y + radius + magnifier.margin;
+      lensY = anchor.y + radius + magnifier.margin;
     }
 
     lensX = Math.max(radius + 2, Math.min(view.width - radius - 2, lensX));
     lensY = Math.max(radius + 2, Math.min(view.height - radius - 2, lensY));
 
+    // The sample window is always centered on `active`, even when that pushes
+    // it partly outside the source image (dragging a corner right up to an
+    // edge/corner of the image — exactly when precise placement matters
+    // most). We used to clamp the window to stay fully inside the image,
+    // which re-centered it away from `active` and made the crosshair drift
+    // from the real corner position. Instead: keep the window centered, draw
+    // only the portion that overlaps the image at its correct offset inside
+    // the lens, and leave the rest of the lens as background — there's
+    // nothing to show past the edge, but the crosshair stays exactly where
+    // the corner actually is.
     const sampleSize = size / zoom;
-    const sx = Math.max(0, Math.min(imageWidth - sampleSize, active.x - sampleSize / 2));
-    const sy = Math.max(0, Math.min(imageHeight - sampleSize, active.y - sampleSize / 2));
+    const idealSx = active.x - sampleSize / 2;
+    const idealSy = active.y - sampleSize / 2;
+    const clippedSx = Math.max(0, idealSx);
+    const clippedSy = Math.max(0, idealSy);
+    const clippedW = Math.max(0, Math.min(imageWidth, idealSx + sampleSize) - clippedSx);
+    const clippedH = Math.max(0, Math.min(imageHeight, idealSy + sampleSize) - clippedSy);
 
     ctx.save();
     ctx.beginPath();
     ctx.arc(lensX, lensY, radius, 0, Math.PI * 2);
     ctx.clip();
-    ctx.drawImage(sourceCanvas, sx, sy, sampleSize, sampleSize, lensX - radius, lensY - radius, size, size);
-    ctx.restore();
 
-    ctx.save();
-    ctx.beginPath();
-    ctx.arc(lensX, lensY, radius, 0, Math.PI * 2);
-    ctx.lineWidth = magnifier.borderWidth;
-    ctx.strokeStyle = magnifier.borderColor;
-    ctx.stroke();
+    // Background for the sliver of the lens that falls outside the image.
+    ctx.fillStyle = resolved.mask;
+    ctx.fillRect(lensX - radius, lensY - radius, size, size);
 
+    if (clippedW > 0 && clippedH > 0) {
+      const destX = (lensX - radius) + (clippedSx - idealSx) * zoom;
+      const destY = (lensY - radius) + (clippedSy - idealSy) * zoom;
+      ctx.drawImage(
+        sourceCanvas,
+        clippedSx, clippedSy, clippedW, clippedH,
+        destX, destY, clippedW * zoom, clippedH * zoom
+      );
+    }
+
+    // The window is always centered on `active`, so the crosshair is always
+    // exactly at the lens center.
     const ch = magnifier.crosshairSize / 2;
     ctx.strokeStyle = magnifier.crosshairColor;
     ctx.lineWidth = 1.5;
@@ -626,6 +665,14 @@ export function createCornerEditor(options = {}) {
     ctx.lineTo(lensX + ch, lensY);
     ctx.moveTo(lensX, lensY - ch);
     ctx.lineTo(lensX, lensY + ch);
+    ctx.stroke();
+    ctx.restore();
+
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(lensX, lensY, radius, 0, Math.PI * 2);
+    ctx.lineWidth = magnifier.borderWidth;
+    ctx.strokeStyle = magnifier.borderColor;
     ctx.stroke();
     ctx.restore();
   }
@@ -717,6 +764,8 @@ export function createCornerEditor(options = {}) {
     updateSelected();
     dragPointerId = event.pointerId;
     lastPointerPosition = getEventCanvasPoint(event);
+    dragLastPointer = lastPointerPosition;
+    dragLastTime = now();
     handleEls[key].classList.add('is-active');
 
     if (keyboardEnabled && typeof handleEls[key].focus === 'function') {
@@ -731,8 +780,32 @@ export function createCornerEditor(options = {}) {
   function onHandlePointerMove(key, event) {
     if (isDestroyed || activeCornerKey !== key) return;
     if (dragPointerId !== null && event.pointerId !== dragPointerId) return;
-    lastPointerPosition = getEventCanvasPoint(event);
-    setCorner(key, viewToImage(lastPointerPosition.x, lastPointerPosition.y));
+    const point = getEventCanvasPoint(event);
+
+    // Shape sensitivity by this step's pointer speed (canvas px/ms): slow,
+    // deliberate movements are scaled down so tiny adjustments don't
+    // overshoot, while fast/large movements ramp back up to full 1:1
+    // tracking. Using the step since the *last* move (not the drag start)
+    // means the correction re-syncs every frame from the corner's real
+    // (already-clamped) position, so there's no drift or stuck offset when
+    // dragging past an edge and back.
+    const stepDx = point.x - dragLastPointer.x;
+    const stepDy = point.y - dragLastPointer.y;
+    const dt = Math.max(1, now() - dragLastTime);
+    const speed = Math.hypot(stepDx, stepDy) / dt;
+    const t = Math.min(1, speed / DRAG_FULL_SENSITIVITY_SPEED);
+    const eased = t * t * (3 - 2 * t); // smoothstep: gentle ramp, not a hard cutoff
+    const sensitivity = DRAG_MIN_SENSITIVITY + (1 - DRAG_MIN_SENSITIVITY) * eased;
+
+    const current = corners[key];
+    setCorner(key, {
+      x: current.x + (stepDx * sensitivity) / view.scale,
+      y: current.y + (stepDy * sensitivity) / view.scale
+    });
+
+    dragLastPointer = point;
+    dragLastTime = now();
+    lastPointerPosition = point;
   }
 
   function onHandlePointerUp(key, event) {
@@ -745,6 +818,8 @@ export function createCornerEditor(options = {}) {
     activeCornerKey = null;
     dragPointerId = null;
     lastPointerPosition = null;
+    dragLastPointer = null;
+    dragLastTime = null;
     scheduleRender();
   }
 
