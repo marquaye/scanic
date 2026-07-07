@@ -50,7 +50,14 @@ async function loadOrt() {
 }
 
 async function getSession(options) {
-  const baseUrl = normalizeBaseUrl(options.assetBaseUrl || DEFAULT_ASSET_BASE_URL);
+  // `threaded: true` opts into the multi-thread wasm build shipped alongside
+  // the default single-thread one (scanic-ml/dist/threaded/), for hosts that
+  // are cross-origin isolated (COOP: same-origin + COEP: require-corp) and
+  // want the roughly 2x faster inference (see scanic-ml/MODEL_CARD.md). Falls
+  // back to running on 1 thread if SharedArrayBuffer isn't available, so it's
+  // safe to request speculatively.
+  const explicitBase = options.assetBaseUrl ? normalizeBaseUrl(options.assetBaseUrl) : DEFAULT_ASSET_BASE_URL;
+  const baseUrl = options.threaded ? `${explicitBase}threaded/` : explicitBase;
   const modelUrl = options.modelUrl || `${baseUrl}doccornernet_lean.ort`;
 
   if (sessionCache.has(modelUrl)) return sessionCache.get(modelUrl);
@@ -58,13 +65,15 @@ async function getSession(options) {
   const sessionPromise = (async () => {
     const ort = await loadOrt();
 
-    // Point ORT at our custom minimal wasm assets and keep it single-threaded
-    // (no SharedArrayBuffer / cross-origin-isolation requirement on the host).
+    // Point ORT at our custom minimal wasm assets. Single-threaded by default
+    // (no SharedArrayBuffer / cross-origin-isolation requirement on the host);
+    // `threaded: true` defaults to 4 threads (the build's thread count),
+    // overridable via `numThreads`.
     ort.env.wasm.wasmPaths = options.wasmPaths || baseUrl;
     if (options.numThreads !== undefined) {
       ort.env.wasm.numThreads = options.numThreads;
     } else {
-      ort.env.wasm.numThreads = 1;
+      ort.env.wasm.numThreads = options.threaded ? 4 : 1;
     }
     ort.env.wasm.proxy = false;
 
@@ -175,7 +184,11 @@ function decodeOutputs(outputs, width, height) {
  *   - modelUrl      Explicit model URL (overrides assetBaseUrl for the model).
  *   - wasmPaths     Explicit wasm directory (overrides assetBaseUrl for the wasm).
  *   - modelBytes    Pre-fetched model bytes (skips the network fetch).
- *   - numThreads    ORT thread count (default 1; >1 needs COOP/COEP headers).
+ *   - threaded      Use the multi-thread wasm build (assetBaseUrl + 'threaded/'),
+ *                    default false. Needs a cross-origin isolated host page
+ *                    (COOP/COEP) to actually run on >1 thread.
+ *   - numThreads    ORT thread count (default 1, or 4 when `threaded: true`).
+ *                    Values above 1 need COOP/COEP headers.
  *   - minScore      Minimum P(document) to report success (default 0.5).
  * @returns {Promise<{success, corners, confidence, score, timings, message}>}
  */

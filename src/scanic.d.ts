@@ -138,7 +138,14 @@ export interface MlDetectorOptions {
   wasmPaths?: string;
   /** Pre-fetched `.ort` model bytes (skips the network fetch). */
   modelBytes?: Uint8Array;
-  /** ORT thread count. Default 1; values >1 require COOP/COEP headers on the host. */
+  /**
+   * Use the multi-thread wasm build (`assetBaseUrl + 'threaded/'`) instead of
+   * the default single-thread one. Roughly 2x faster inference, but needs the
+   * host page to be cross-origin isolated (COOP/COEP); falls back to a single
+   * thread otherwise, so it's safe to request speculatively. Default false.
+   */
+  threaded?: boolean;
+  /** ORT thread count. Default 1, or 4 when `threaded: true`. Values >1 require COOP/COEP headers on the host. */
   numThreads?: number;
   /** Minimum P(document) to report success. Default 0.5. */
   minScore?: number;
