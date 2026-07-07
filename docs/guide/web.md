@@ -31,25 +31,25 @@ document.querySelector('#file').addEventListener('change', (e) => {
 Choose what `extract` returns with the [`output`](/api/reference#options) option:
 
 ```js
-// Canvas element (default) — easiest to display
+// Canvas element (default), easiest to display
 const a = await scanDocument(img, { mode: 'extract', output: 'canvas' })
 document.body.appendChild(a.output)
 
-// Data URL — easy to download or set as <img src>
+// Data URL, easy to download or set as <img src>
 const b = await scanDocument(img, { mode: 'extract', output: 'dataurl' })
 const link = Object.assign(document.createElement('a'), {
   href: b.output, download: 'scan.png'
 })
 link.click()
 
-// Raw ImageData — for further pixel processing
+// Raw ImageData, for further pixel processing
 const c = await scanDocument(img, { mode: 'extract', output: 'imagedata' })
 ```
 
 ## Detect only
 
 If you just want the corners (for example, to draw an overlay), use `detect`
-mode — it skips the warp and is faster:
+mode. It skips the warp and is faster:
 
 ```js
 const result = await scanDocument(img, { mode: 'detect' })

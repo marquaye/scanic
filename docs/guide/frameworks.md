@@ -1,6 +1,6 @@
 # React & Vue
 
-Scanic is framework-agnostic — it works with plain DOM, so it drops into any UI
+Scanic is framework-agnostic. It works with plain DOM, so it drops into any UI
 library. Below are idiomatic starting points for React and Vue. The pattern is
 always the same: turn a file into an `HTMLImageElement`, pass it to
 `scanDocument`, and render `result.output`.
@@ -239,5 +239,5 @@ onUnmounted(stop)
 
 ::: tip
 Want users to fine-tune detected corners before capture? Drop in the
-[Corner Editor](/guide/corner-editor) — it works in any framework.
+[Corner Editor](/guide/corner-editor), it works in any framework.
 :::

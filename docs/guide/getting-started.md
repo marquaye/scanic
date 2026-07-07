@@ -37,7 +37,7 @@ Drop it straight into a page via an import map or a module script:
 
 ::: tip No extra files to host
 Scanic's WebAssembly module is **inlined as base64** inside the bundle. There is
-no separate `.wasm` file to copy, configure, or serve — it just works with any
+no separate `.wasm` file to copy, configure, or serve. It just works with any
 bundler (Vite, webpack, Rollup, esbuild) and on CDNs.
 :::
 
@@ -86,7 +86,7 @@ document.querySelector('#file').addEventListener('change', (e) => {
 
 ## Try it live {#playground}
 
-Upload a photo of a document (or pick a sample) below — Scanic runs entirely in
+Upload a photo of a document (or pick a sample) below. Scanic runs entirely in
 your browser and shows the detected corners plus the extracted result. Not happy
 with the detection? Click **Adjust corners** to open the built-in
 [corner editor](/guide/corner-editor) and drag them into place.
@@ -95,7 +95,7 @@ with the detection? Click **Adjust corners** to open the built-in
 
 ## Where to next?
 
-- [How It Works](/guide/how-it-works) — understand the pipeline.
-- [Browser / Web guide](/guide/web) — real-time webcam scanning with the `Scanner` class.
-- [Node.js guide](/guide/nodejs) — run Scanic on the server.
-- [API Reference](/api/reference) — all options and return values.
+- [How It Works](/guide/how-it-works): understand the pipeline.
+- [Browser / Web guide](/guide/web): real-time webcam scanning with the `Scanner` class.
+- [Node.js guide](/guide/nodejs): run Scanic on the server.
+- [API Reference](/api/reference): all options and return values.

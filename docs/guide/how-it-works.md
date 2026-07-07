@@ -2,7 +2,7 @@
 
 Scanic turns a casual photo of a document into a clean, flat scan in two phases:
 **detection** (find the four corners) and **extraction** (warp the quad into a
-rectangle). Here's the journey of a single image, kept conceptual — you don't
+rectangle). Here's the journey of a single image, kept conceptual. You don't
 need to understand any of it to use the library.
 
 ## The pipeline
@@ -47,7 +47,7 @@ Tunable via [`dilationKernelSize`](/api/reference#options) and
 ### 5. Contour detection & corner selection
 
 Scanic traces the closed contours in the edge map and scores the largest
-candidates to find the one that best looks like a document — checking area
+candidates to find the one that best looks like a document, checking area
 coverage, fill ratio, aspect ratio, and how close its corners are to right
 angles. The winning contour is approximated to a four-point polygon, and its
 points are ordered into `topLeft`, `topRight`, `bottomRight`, `bottomLeft`.
@@ -65,13 +65,13 @@ In `extract` mode, the four corners define a quadrilateral that gets mapped onto
 a clean rectangle. Instead of a slow forward per-pixel loop, Scanic uses a
 **bilinear inverse-map**: for every output pixel it computes the corresponding
 source coordinate via the inverse perspective matrix and bilinearly samples the
-source image — completing the warp in roughly **10ms**, with no Canvas
+source image, completing the warp in roughly **10ms**, with no Canvas
 state-machine overhead and no seam artifacts.
 
 ## Why hybrid JS + WASM?
 
-- **JavaScript layer** — the high-level API, DOM/canvas handling, contour detection, corner selection, the perspective warp, and workflow coordination.
-- **WebAssembly layer** — the pixel-crunching inner loops where it pays off most by default: Gaussian blur, non-maximum suppression, and dilation. Sobel gradients and hysteresis thresholding also have WASM implementations, but currently run in JS by default.
+- **JavaScript layer**: the high-level API, DOM/canvas handling, contour detection, corner selection, the perspective warp, and workflow coordination.
+- **WebAssembly layer**: the pixel-crunching inner loops where it pays off most by default: Gaussian blur, non-maximum suppression, and dilation. Sobel gradients and hysteresis thresholding also have WASM implementations, but currently run in JS by default.
 
 This split keeps the bundle tiny (~100KB) while delivering near-native speed
 where it matters.

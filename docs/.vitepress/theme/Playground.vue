@@ -151,7 +151,7 @@ async function runScan() {
     hasCorners.value = true
     drawSource(currentImage, result.corners)
     // Classical: show geometry confidence (varies by image quality).
-    // ML: the sigmoid P(document) is always ~100% for clear photos — not
+    // ML: the sigmoid P(document) is always ~100% for clear photos, not
     // informative as a percentage, so just tag which detector ran instead.
     const scoreStr = detector.value !== 'ml' && result.confidence != null
       ? ` · confidence ${(result.confidence * 100).toFixed(0)}%`
@@ -173,7 +173,7 @@ async function runScan() {
   }
 }
 
-// ── Corner editor ──────────────────────────────────────────────────────────
+// Corner editor
 function startEditing() {
   if (!currentImage || !currentCorners || !scanic.value) return
   editing.value = true

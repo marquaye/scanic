@@ -1,5 +1,5 @@
 /**
- * Scanic brand theming — overrides VitePress default theme variables.
+ * Scanic brand theming. Overrides VitePress default theme variables.
  * Brand colour matches the demo (#6366f1 indigo).
  */
 :root {
@@ -21,7 +21,7 @@
   --vp-c-brand-3: #4f46e5;
 }
 
-/* Nav bar icon — transparent mark on a rounded brand-teal badge. */
+/* Nav bar icon: transparent mark on a rounded brand-teal badge. */
 .VPNavBarTitle .logo {
   height: 28px;
   padding: 4px;
@@ -30,7 +30,7 @@
   box-sizing: border-box;
 }
 
-/* Hero logo image — round the corners of the logo on the gradient glow. */
+/* Hero logo image: round the corners of the logo on the gradient glow. */
 .VPHero .image-src {
   border-radius: 18px;
 }

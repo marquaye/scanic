@@ -1,6 +1,6 @@
 # Electron
 
-Scanic works in Electron's renderer process just like in any browser — import it
+Scanic works in Electron's renderer process just like in any browser. Import it
 and call `scanDocument`. Because the renderer is Chromium, the WASM core and the
 Canvas warp are both available on modern Electron versions.
 
@@ -20,7 +20,7 @@ Chromium 91). A normal `try/catch` can't recover from that kind of abort.
 Scanic guards against this: before touching WASM it runs a static
 `WebAssembly.validate()` feature probe (SIMD + reference-types). On engines that
 fail the probe, it **never starts the WASM module** and uses the pure-JavaScript
-implementation instead. You don't have to do anything — the same API works, just
+implementation instead. You don't have to do anything. The same API works, just
 a little slower on those old engines.
 
 ```js
@@ -39,4 +39,4 @@ On anything older, Scanic still functions via its JS fallback.
 ## Node integration vs. renderer
 
 - **Renderer (recommended):** use Scanic directly, exactly like in a browser.
-- **Main / Node context:** treat it like [Node.js](/guide/nodejs) — provide `canvas` and `jsdom` globals.
+- **Main / Node context:** treat it like [Node.js](/guide/nodejs): provide `canvas` and `jsdom` globals.

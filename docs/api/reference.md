@@ -2,10 +2,10 @@
 
 Scanic exports four entry points:
 
-- [`scanDocument`](#scandocument) — detect and (optionally) extract a document.
-- [`extractDocument`](#extractdocument) — warp a document using corners you provide.
-- [`Scanner`](#scanner) — a reusable, stateful scanner (keeps WASM warm).
-- [`createCornerEditor`](#createcornereditor) — the manual corner-editing UI.
+- [`scanDocument`](#scandocument): detect and (optionally) extract a document.
+- [`extractDocument`](#extractdocument): warp a document using corners you provide.
+- [`Scanner`](#scanner): a reusable, stateful scanner (keeps WASM warm).
+- [`createCornerEditor`](#createcornereditor): the manual corner-editing UI.
 
 There's also [`initialize()`](#initialize), an optional WASM warm-up helper.
 
@@ -31,8 +31,8 @@ const result = await scanDocument(img, { mode: 'extract', output: 'canvas' })
 | :--- | :--- | :--- | :--- |
 | `mode` | `'detect' \| 'extract'` | `'detect'` | `detect` returns coordinates; `extract` returns the warped image. |
 | `output` | `'canvas' \| 'imagedata' \| 'dataurl'` | `'canvas'` | Format of the returned processed image. |
-| `detector` | `'classical' \| 'ml'` | `'classical'` | Detection backend. `'ml'` uses the optional DocCornerNet model — see the [ML Detection guide](/guide/ml-detection). |
-| `ml` | `MlDetectorOptions` | — | Options for the ML detector (`assetBaseUrl`, `modelUrl`, `numThreads`, `minScore`, …). Only used when `detector: 'ml'`. |
+| `detector` | `'classical' \| 'ml'` | `'classical'` | Detection backend. `'ml'` uses the optional DocCornerNet model, see the [ML Detection guide](/guide/ml-detection). |
+| `ml` | `MlDetectorOptions` | - | Options for the ML detector (`assetBaseUrl`, `modelUrl`, `numThreads`, `minScore`, …). Only used when `detector: 'ml'`. |
 | `maxProcessingDimension` | `number` | `800` | Downscale to this size for detection (faster). Classical only. |
 | `lowThreshold` | `number` | adaptive | Lower Canny threshold. Omit (with `highThreshold`) for adaptive. |
 | `highThreshold` | `number` | adaptive | Upper Canny threshold. |
@@ -63,7 +63,7 @@ interface ScannerResult {
   success: boolean       // Was a document found?
   message: string        // Status or error message
   confidence?: number | null
-  score?: number | null          // P(document present) — ML detector only
+  score?: number | null          // P(document present), ML detector only
   corners: CornerPoints | null   // { topLeft, topRight, bottomRight, bottomLeft }
   output: HTMLCanvasElement | ImageData | string | null  // warped image (extract mode)
   contour: Point[] | null        // raw detection points
@@ -82,7 +82,7 @@ function extractDocument(
 ): Promise<ScannerResult>
 ```
 
-Warps a document using corners **you** supply — typically the corners confirmed
+Warps a document using corners **you** supply, typically the corners confirmed
 by the [Corner Editor](/guide/corner-editor) or adjusted by the user.
 
 ```js
@@ -126,7 +126,7 @@ and interaction details.
 function initialize(): Promise<unknown | null>
 ```
 
-Optional, best-effort WASM warm-up. It **never rejects** — on engines that can't
+Optional, best-effort WASM warm-up. It **never rejects**. On engines that can't
 run the WASM module it resolves to `null` and Scanic uses its pure-JS fallback.
 Useful to pay the load cost ahead of a user's first scan.
 

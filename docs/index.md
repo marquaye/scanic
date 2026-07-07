@@ -4,7 +4,7 @@ layout: home
 hero:
   name: Scanic
   text: Document scanning for the modern Web
-  tagline: Professional-grade edge detection and perspective correction in the browser and Node.js — powered by Rust/WebAssembly. Under 100KB, ~10ms transforms.
+  tagline: Professional-grade edge detection and perspective correction in the browser and Node.js, powered by Rust/WebAssembly. Under 100KB, ~10ms transforms.
   image:
     src: /scanic-logo-bg.png
     alt: Scanic
@@ -26,7 +26,7 @@ features:
     details: Rust/WASM handles the CPU-heavy edge detection; a fast bilinear inverse-map warp does perspective correction in under 10ms.
   - icon: 📦
     title: Featherweight
-    details: Under 100KB gzipped — versus 30MB+ for OpenCV.js. The WASM is inlined, so there are no extra files to host or fetch.
+    details: Under 100KB gzipped, versus 30MB+ for OpenCV.js. The WASM is inlined, so there are no extra files to host or fetch.
   - icon: 🎯
     title: Accurate detection
     details: Robust document contour detection with an adaptive multi-pass cascade that holds up even in low-contrast, noisy photos.

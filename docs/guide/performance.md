@@ -16,8 +16,8 @@ how to tune it for your workload.
 
 Scanic uses a **hybrid JavaScript + WebAssembly** approach:
 
-- **JavaScript layer** — high-level API, DOM/canvas handling, contour logic, workflow coordination.
-- **WebAssembly layer** — the CPU-intensive inner loops:
+- **JavaScript layer**: high-level API, DOM/canvas handling, contour logic, workflow coordination.
+- **WebAssembly layer**: the CPU-intensive inner loops:
   - Gaussian blur with SIMD
   - Canny edge detection with hysteresis thresholding
   - Sobel gradient calculations
@@ -38,7 +38,7 @@ which also had visible seam artifacts.
   it (1200) for sharper corner accuracy on large images. Corners are scaled back
   to full resolution automatically.
 - **Reuse a `Scanner`.** The [`Scanner`](/api/reference#scanner) class keeps the
-  WASM instance warm — essential for webcams and batch jobs. Call
+  WASM instance warm. Essential for webcams and batch jobs. Call
   `initialize()` once.
 - **Detect, then extract.** In live preview, run `mode: 'detect'` on a fraction
   of frames and only `extract` on capture.

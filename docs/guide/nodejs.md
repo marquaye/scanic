@@ -41,7 +41,7 @@ const result = await scanDocument(img, { mode: 'extract', output: 'imagedata' })
 
 if (result.success) {
   console.log('Corners:', result.corners)
-  // result.output is ImageData — draw it onto a node-canvas to save it
+  // result.output is ImageData; draw it onto a node-canvas to save it
 }
 ```
 

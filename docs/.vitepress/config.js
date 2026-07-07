@@ -3,7 +3,7 @@ import { defineConfig } from 'vitepress'
 
 // Match what build-lib.mjs does: resolve onnxruntime-web to the external-wasm
 // variant (ort.wasm.min.mjs) so the playground never loads the full ORT bundle
-// with JSEP/WebGPU probing (which fetches ort-wasm-simd-threaded.jsep.mjs —
+// with JSEP/WebGPU probing (which fetches ort-wasm-simd-threaded.jsep.mjs,
 // a file our minimal scanic-ml CDN build does not include).
 const viteCfg = {
   resolve: {
@@ -23,7 +23,7 @@ export default defineConfig({
   vite: viteCfg,
 
   title: 'Scanic',
-  description: 'Ultra-fast, production-ready document scanning for the modern Web — pure JavaScript + Rust/WebAssembly.',
+  description: 'Ultra-fast, production-ready document scanning for the modern Web, pure JavaScript + Rust/WebAssembly.',
 
   // GitHub project page is served from /scanic/
   base: '/scanic/',
@@ -36,11 +36,11 @@ export default defineConfig({
     ['meta', { name: 'theme-color', content: '#6366f1' }],
     ['meta', { property: 'og:type', content: 'website' }],
     ['meta', { property: 'og:url', content: 'https://marquaye.github.io/scanic/' }],
-    ['meta', { property: 'og:title', content: 'Scanic — Modern document scanner' }],
+    ['meta', { property: 'og:title', content: 'Scanic: Modern document scanner' }],
     ['meta', { property: 'og:description', content: 'Document edge detection and perspective correction in the browser and Node.js. ~100KB, WASM-accelerated.' }],
     ['meta', { property: 'og:image', content: 'https://marquaye.github.io/scanic/scanic-logo-bg.png' }],
     ['meta', { name: 'twitter:card', content: 'summary_large_image' }],
-    ['meta', { name: 'twitter:title', content: 'Scanic — Modern document scanner' }],
+    ['meta', { name: 'twitter:title', content: 'Scanic: Modern document scanner' }],
     ['meta', { name: 'twitter:description', content: 'Document edge detection and perspective correction in the browser and Node.js. ~100KB, WASM-accelerated.' }],
     ['meta', { name: 'twitter:image', content: 'https://marquaye.github.io/scanic/scanic-logo-bg.png' }]
   ],
