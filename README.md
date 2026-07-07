@@ -494,10 +494,10 @@ Contributions are welcome! Whether it's reporting a bug, suggesting a feature, o
     <td align="center" width="250">
       <a href="https://ausschreibungszentrale.de/" target="_blank">
         <br/>
-        <strong>mein-kreativbuch.de</strong>
+        <strong>ausschreibungszentrale.de</strong>
       </a>
       <br/>
-       <em>Unique and personalized children's books</em>
+       <em>Public tender matching platform</em>
     </td>
   </tr>
 </table>
