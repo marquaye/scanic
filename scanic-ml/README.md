@@ -9,11 +9,10 @@ dependency on this package.
 
 | file | size | what |
 |---|---|---|
-| `dist/doccornernet_lean.ort` | ~1.9 MB | The corner-detection model, a channel-slimmed SimCC ([DocCornerNet](https://github.com/mapo80/DocCornerNet-CoordClass)), in ORT format. |
+| `dist/doccornernet_lean.ort` | ~1.9 MB | The corner-detection model, a channel-slimmed SimCC ([DocCornerNet](https://github.com/mapo80/DocCornerNet-CoordClass)), in ORT format. Shared by both wasm flavors (the threaded build reuses this one, it is not duplicated). |
 | `dist/ort-wasm-simd.wasm` | ~1.5 MB | A **custom minimal** ONNX Runtime Web build (SIMD, single-thread) compiled with only the ~18 operators this model uses, ~88% smaller than stock ort-web (13 MB), same MLAS kernels, same speed. |
 | `dist/ort-wasm-simd-threaded.mjs` | ~12 KB | The emscripten loader (named for what `onnxruntime-web`'s JS expects). |
-| `dist/threaded/doccornernet_lean.ort` | ~1.9 MB | Same model, duplicated so `assetBaseUrl: '.../threaded/'` is self-contained. |
-| `dist/threaded/ort-wasm-simd-threaded.wasm` | ~1.5 MB | The same minimal build, compiled **with pthread support** (SIMD + threads). Needs the host page to be cross-origin isolated (see [Threads](#threads) below); roughly halves inference time at 4 threads (see the model card for measured latency). |
+| `dist/threaded/ort-wasm-simd-threaded.wasm` | ~1.5 MB | The same minimal build, compiled **with pthread support** (SIMD + threads). Needs the host page to be cross-origin isolated (see [Threads](#threads) below); roughly halves inference time at 4 threads (see the model card for measured latency). The model is loaded from the parent `dist/` (only the wasm lives here). |
 | `dist/threaded/ort-wasm-simd-threaded.mjs` | ~12 KB | The matching multi-thread emscripten loader. |
 
 These are served from a CDN by default (jsDelivr mirrors npm), so most users never

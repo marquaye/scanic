@@ -54,9 +54,9 @@ function mlOptionsFor(config) {
       numThreads: 1,
     };
   }
-  // ml-mt
+  // ml-mt: same shared model, threaded wasm loaded from dist/threaded/
   return {
-    modelBytes: new Uint8Array(fs.readFileSync(path.join(distDir, 'threaded', 'doccornernet_lean.ort'))),
+    modelBytes: new Uint8Array(fs.readFileSync(path.join(distDir, 'doccornernet_lean.ort'))),
     assetBaseUrl: `${pathToFileURL(distDir).href}/`,
     threaded: true,
     numThreads: MULTI_THREAD_COUNT,
@@ -138,7 +138,8 @@ function runChild(config) {
 
 async function orchestrate() {
   // Fail early with a clear message if the ML assets aren't built/fetched.
-  for (const p of [path.join(distDir, 'doccornernet_lean.ort'), path.join(distDir, 'threaded', 'doccornernet_lean.ort')]) {
+  // The model is shared; the threaded flavor only adds its own wasm.
+  for (const p of [path.join(distDir, 'doccornernet_lean.ort'), path.join(distDir, 'threaded', 'ort-wasm-simd-threaded.wasm')]) {
     if (!fs.existsSync(p)) {
       console.error(`ML assets missing at ${p}. Build/fetch scanic-ml first (see scanic-ml/README.md).`);
       process.exit(1);

@@ -21,7 +21,6 @@
     "dist/doccornernet_lean.ort",
     "dist/ort-wasm-simd-threaded.mjs",
     "dist/ort-wasm-simd.wasm",
-    "dist/threaded/doccornernet_lean.ort",
     "dist/threaded/ort-wasm-simd-threaded.mjs",
     "dist/threaded/ort-wasm-simd-threaded.wasm",
     "MODEL_CARD.md",

@@ -17,17 +17,20 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const distDir = path.resolve(__dirname, '../scanic-ml/dist');
-const threadedModelPath = path.join(distDir, 'threaded', 'doccornernet_lean.ort');
+// The model is shared; only the wasm differs between flavors, so the threaded
+// build reuses the single model at dist/ (dist/threaded/ ships only wasm).
+const modelPath = path.join(distDir, 'doccornernet_lean.ort');
+const threadedWasmPath = path.join(distDir, 'threaded', 'ort-wasm-simd-threaded.wasm');
 
 let available = false;
 let detectDocumentMl;
-let threadedModelBytes;
+let modelBytes;
 
 beforeAll(async () => {
   try {
     await import('onnxruntime-web');
-    if (!fs.existsSync(threadedModelPath)) return;
-    threadedModelBytes = new Uint8Array(fs.readFileSync(threadedModelPath));
+    if (!fs.existsSync(modelPath) || !fs.existsSync(threadedWasmPath)) return;
+    modelBytes = new Uint8Array(fs.readFileSync(modelPath));
     ({ detectDocumentMl } = await import('./mlDetector.js'));
     available = true;
   } catch {
@@ -47,9 +50,9 @@ describe('mlDetector (multi-thread)', () => {
 
     const res = await detectDocumentMl(image, {
       inputData,
-      modelBytes: threadedModelBytes,
+      modelBytes,
       assetBaseUrl: pathToFileURL(distDir).href + '/',
-      threaded: true, // -> assetBaseUrl + 'threaded/', numThreads defaults to 4
+      threaded: true, // -> wasm from assetBaseUrl + 'threaded/', numThreads defaults to 4
     });
 
     expect(res).toBeTruthy();

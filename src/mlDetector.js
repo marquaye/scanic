@@ -57,24 +57,28 @@ async function getSession(options) {
   // back to running on 1 thread if SharedArrayBuffer isn't available, so it's
   // safe to request speculatively.
   const explicitBase = options.assetBaseUrl ? normalizeBaseUrl(options.assetBaseUrl) : DEFAULT_ASSET_BASE_URL;
-  const baseUrl = options.threaded ? `${explicitBase}threaded/` : explicitBase;
-  const modelUrl = options.modelUrl || `${baseUrl}doccornernet_lean.ort`;
+  // Only the wasm runtime differs between the two flavors; the .ort model is
+  // byte-identical, so it lives once at the base URL and both flavors share it.
+  // The threaded/ directory ships only its wasm + loader (no duplicate model).
+  const wasmBaseUrl = options.threaded ? `${explicitBase}threaded/` : explicitBase;
+  const modelUrl = options.modelUrl || `${explicitBase}doccornernet_lean.ort`;
+  const wasmPaths = options.wasmPaths || wasmBaseUrl;
+  // Single-threaded by default (no SharedArrayBuffer / cross-origin-isolation
+  // requirement on the host); `threaded: true` defaults to 4 threads (the
+  // build's thread count), overridable via `numThreads`.
+  const numThreads = options.numThreads !== undefined ? options.numThreads : (options.threaded ? 4 : 1);
 
-  if (sessionCache.has(modelUrl)) return sessionCache.get(modelUrl);
+  // The same model can be run against the single- or multi-thread wasm, so the
+  // cache key must include the wasm choice and thread count, not just the model.
+  const cacheKey = `${modelUrl}|${wasmPaths}|${numThreads}`;
+  if (sessionCache.has(cacheKey)) return sessionCache.get(cacheKey);
 
   const sessionPromise = (async () => {
     const ort = await loadOrt();
 
-    // Point ORT at our custom minimal wasm assets. Single-threaded by default
-    // (no SharedArrayBuffer / cross-origin-isolation requirement on the host);
-    // `threaded: true` defaults to 4 threads (the build's thread count),
-    // overridable via `numThreads`.
-    ort.env.wasm.wasmPaths = options.wasmPaths || baseUrl;
-    if (options.numThreads !== undefined) {
-      ort.env.wasm.numThreads = options.numThreads;
-    } else {
-      ort.env.wasm.numThreads = options.threaded ? 4 : 1;
-    }
+    // Point ORT at our custom minimal wasm assets.
+    ort.env.wasm.wasmPaths = wasmPaths;
+    ort.env.wasm.numThreads = numThreads;
     ort.env.wasm.proxy = false;
 
     const modelBytes = options.modelBytes || new Uint8Array(await (await fetch(modelUrl)).arrayBuffer());
@@ -85,11 +89,11 @@ async function getSession(options) {
     return { ort, session };
   })();
 
-  sessionCache.set(modelUrl, sessionPromise);
+  sessionCache.set(cacheKey, sessionPromise);
   try {
     return await sessionPromise;
   } catch (error) {
-    sessionCache.delete(modelUrl); // allow a retry after a transient load failure
+    sessionCache.delete(cacheKey); // allow a retry after a transient load failure
     throw error;
   }
 }

@@ -20,11 +20,13 @@
 #   dist/ort-wasm-simd.wasm                  (~1.5 MB single-thread runtime, SIMD)
 #   dist/ort-wasm-simd-threaded.mjs          (single-thread loader, copied to the
 #                                              name ort-web requests)
-#   dist/threaded/doccornernet_lean.ort      (same model, duplicated so
-#                                              `assetBaseUrl: '.../threaded/'`
-#                                              is a fully self-contained base)
 #   dist/threaded/ort-wasm-simd-threaded.wasm (multi-thread runtime, SIMD + pthreads)
 #   dist/threaded/ort-wasm-simd-threaded.mjs  (native multi-thread loader)
+#
+# The threaded dir ships only the wasm + loader. The .ort model is identical
+# between flavors, so it lives once at dist/ and both flavors load it from there
+# (mlDetector.js fetches the model from the base URL and the wasm from
+# dist/threaded/ when `threaded: true`).
 #
 # Pinned so the JS peer (onnxruntime-web@1.23.x) matches the wasm ABI exactly.
 set -euo pipefail
@@ -41,7 +43,7 @@ mkdir -p "$DIST" "$DIST_THREADED" "$BUILD_ROOT"
 
 # 1) Convert the .onnx model to ORT format. The reduced/minimal runtime cannot
 #    parse .onnx; it loads .ort. This also (re)generates the required-ops config.
-#    Shared by both wasm flavors, so copy it into both output directories.
+#    One model, shared by both wasm flavors (it lives only in dist/).
 echo "==> Converting $SRC_MODEL to ORT format"
 cp "$SRC_MODEL" "$BUILD_ROOT/doccornernet_lean.onnx"
 python -m onnxruntime.tools.convert_onnx_models_to_ort \
@@ -49,7 +51,6 @@ python -m onnxruntime.tools.convert_onnx_models_to_ort \
   --output_dir "$BUILD_ROOT/ort_out" \
   --enable_type_reduction
 cp "$BUILD_ROOT/ort_out/doccornernet_lean.with_runtime_opt.ort" "$DIST/doccornernet_lean.ort"
-cp "$BUILD_ROOT/ort_out/doccornernet_lean.with_runtime_opt.ort" "$DIST_THREADED/doccornernet_lean.ort"
 # Keep the committed op config authoritative, but surface drift if the model changed.
 cp "$BUILD_ROOT/ort_out/doccornernet_lean.required_operators_and_types.with_runtime_opt.config" \
    "$BUILD_ROOT/required_operators.generated.config"
