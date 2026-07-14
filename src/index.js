@@ -10,6 +10,13 @@ import { findCornerPoints } from './cornerDetection.js';
 import { cannyEdgeDetector, initializeWasm } from './edgeDetection.js';
 export { createCornerEditor } from './cornerEditor.js';
 
+// webpackIgnore keeps webpack apps from compiling the optional ML chunk (its
+// ORT bundle references the CDN-only ort.wasm.min.mjs and breaks their build).
+// Vite consumers are unaffected; guarded by src/distBundle.test.js.
+function importMlDetector() {
+  return import(/* webpackIgnore: true */ './mlDetector.js');
+}
+
 /**
  * Global initialization helper for convenience.
  */
@@ -47,7 +54,7 @@ export class Scanner {
     if (this.defaultOptions.detector === 'ml') {
       // Best-effort ML warm-up (lazy-loaded; never bundled into the classical path).
       try {
-        const { initializeMl } = await import('./mlDetector.js');
+        const { initializeMl } = await importMlDetector();
         await initializeMl(this.defaultOptions.ml || {});
       } catch {
         // ORT / assets unavailable. scan() will surface the error per-call.
@@ -1067,7 +1074,7 @@ export async function scanDocument(image, options = {}) {
     // Optional ML detector. Lazily imported so the classical build never bundles
     // onnxruntime-web or the model loader. Classical-only users pay zero bytes.
     t0 = performance.now();
-    const { detectDocumentMl } = await import('./mlDetector.js');
+    const { detectDocumentMl } = await importMlDetector();
     detection = await detectDocumentMl(image, options.ml || {});
     timings.push({ step: 'ML Detection Total', ms: (performance.now() - t0).toFixed(2) });
     if (detection.timings) detection.timings.forEach(t => timings.push(t));

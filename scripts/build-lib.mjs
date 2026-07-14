@@ -29,7 +29,11 @@ import { fileURLToPath } from 'node:url';
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
 const entry = path.resolve(root, 'src/index.js');
-const terserOptions = { compress: { drop_console: true, drop_debugger: true } };
+const terserOptions = {
+  compress: { drop_console: true, drop_debugger: true },
+  // Keep the webpackIgnore magic comment on the lazy ML import (see src/index.js).
+  format: { comments: /webpackIgnore/ },
+};
 
 // Pass 1 - ES build with onnxruntime-web bundled into a lazy chunk.
 await build({
