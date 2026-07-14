@@ -50,6 +50,16 @@ const IOU_REGRESSION_TOLERANCE = 0.85;
  * regressions like an accidental O(n²) loop.
  */
 const TIMING_BUDGET_MULTIPLIER  = 5;
+/**
+ * Absolute cushion (ms) added on top of the ratio budget. Shared CI runners
+ * routinely add tens of ms of scheduling jitter to near-instant phases
+ * (baseline just a few ms), which blows the ratio check way past 5× despite
+ * no real regression. The effective budget is
+ * `max(baselineMs * TIMING_BUDGET_MULTIPLIER, baselineMs + ABSOLUTE_JITTER_BUFFER_MS)`,
+ * so this only loosens the check for cheap/fast phases — slower phases stay
+ * governed by the ratio, which is what actually catches an O(n²)-style regression.
+ */
+const ABSOLUTE_JITTER_BUFFER_MS = 80;
 // Coverage instrumentation adds large, uneven overhead that makes per-phase
 // timing budgets meaningless, so skip those assertions under `npm run test:coverage`.
 const SKIP_TIMING_BUDGETS = process.env.npm_lifecycle_event === 'test:coverage';
@@ -271,22 +281,24 @@ describe('Baseline regression (all test images)', () => {
           if (baselineMs < MIN_ASSERTABLE_MS) continue;
           const actualMs = actualDetectTimings[step];
           if (actualMs == null) continue;
+          const budgetMs = Math.max(baselineMs * TIMING_BUDGET_MULTIPLIER, baselineMs + ABSOLUTE_JITTER_BUFFER_MS);
           expect(
             actualMs,
-            `detect "${step}" exceeded ${TIMING_BUDGET_MULTIPLIER}× budget ` +
-            `(${actualMs}ms vs baseline ${baselineMs}ms)`
-          ).toBeLessThanOrEqual(baselineMs * TIMING_BUDGET_MULTIPLIER);
+            `detect "${step}" exceeded budget ` +
+            `(${actualMs}ms vs baseline ${baselineMs}ms, budget ${budgetMs.toFixed(2)}ms)`
+          ).toBeLessThanOrEqual(budgetMs);
         }
 
         for (const [step, baselineMs] of Object.entries(baselineExtractTimings)) {
           if (baselineMs < MIN_ASSERTABLE_MS) continue;
           const actualMs = actualExtractTimings[step];
           if (actualMs == null) continue;
+          const budgetMs = Math.max(baselineMs * TIMING_BUDGET_MULTIPLIER, baselineMs + ABSOLUTE_JITTER_BUFFER_MS);
           expect(
             actualMs,
-            `extract "${step}" exceeded ${TIMING_BUDGET_MULTIPLIER}× budget ` +
-            `(${actualMs}ms vs baseline ${baselineMs}ms)`
-          ).toBeLessThanOrEqual(baselineMs * TIMING_BUDGET_MULTIPLIER);
+            `extract "${step}" exceeded budget ` +
+            `(${actualMs}ms vs baseline ${baselineMs}ms, budget ${budgetMs.toFixed(2)}ms)`
+          ).toBeLessThanOrEqual(budgetMs);
         }
       }
     });

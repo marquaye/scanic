@@ -46,6 +46,9 @@ const MIN_CONFIDENCE_FOR_SUCCESS = 0.1;
 const MIN_COVERAGE_RATIO_FOR_SUCCESS = 0.01;
 const IOU_REGRESSION_TOLERANCE = 0.85;
 const TIMING_BUDGET_MULTIPLIER = 5;
+// See src/baseline.test.js for rationale: absorbs CI scheduling jitter on
+// near-instant phases without loosening the check for slower phases.
+const ABSOLUTE_JITTER_BUFFER_MS = 80;
 const SKIP_TIMING_BUDGETS = process.env.npm_lifecycle_event === 'test:coverage';
 
 // Helpers
@@ -266,22 +269,24 @@ describe('Baseline regression (ML detector, all test images)', () => {
           if (baselineMs < MIN_ASSERTABLE_MS) continue;
           const actualMs = actualDetectTimings[step];
           if (actualMs == null) continue;
+          const budgetMs = Math.max(baselineMs * TIMING_BUDGET_MULTIPLIER, baselineMs + ABSOLUTE_JITTER_BUFFER_MS);
           expect(
             actualMs,
-            `detect "${step}" exceeded ${TIMING_BUDGET_MULTIPLIER}× budget ` +
-            `(${actualMs}ms vs baseline ${baselineMs}ms)`
-          ).toBeLessThanOrEqual(baselineMs * TIMING_BUDGET_MULTIPLIER);
+            `detect "${step}" exceeded budget ` +
+            `(${actualMs}ms vs baseline ${baselineMs}ms, budget ${budgetMs.toFixed(2)}ms)`
+          ).toBeLessThanOrEqual(budgetMs);
         }
 
         for (const [step, baselineMs] of Object.entries(baselineExtractTimings)) {
           if (baselineMs < MIN_ASSERTABLE_MS) continue;
           const actualMs = actualExtractTimings[step];
           if (actualMs == null) continue;
+          const budgetMs = Math.max(baselineMs * TIMING_BUDGET_MULTIPLIER, baselineMs + ABSOLUTE_JITTER_BUFFER_MS);
           expect(
             actualMs,
-            `extract "${step}" exceeded ${TIMING_BUDGET_MULTIPLIER}× budget ` +
-            `(${actualMs}ms vs baseline ${baselineMs}ms)`
-          ).toBeLessThanOrEqual(baselineMs * TIMING_BUDGET_MULTIPLIER);
+            `extract "${step}" exceeded budget ` +
+            `(${actualMs}ms vs baseline ${baselineMs}ms, budget ${budgetMs.toFixed(2)}ms)`
+          ).toBeLessThanOrEqual(budgetMs);
         }
       }
     }, 30_000);
