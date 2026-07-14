@@ -23,10 +23,10 @@
 #   dist/ort-wasm-simd-threaded.mjs    (emscripten loader; the name
 #                                        onnxruntime-web's JS always imports)
 #
-# Pinned so the JS peer (onnxruntime-web@1.23.x) matches the wasm ABI exactly.
+# Pinned so the JS peer (onnxruntime-web@1.27.x) matches the wasm ABI exactly.
 set -euo pipefail
 
-ORT_VERSION=v1.23.2
+ORT_VERSION=v1.27.0
 WORK=${WORK:-/work}
 SRC_MODEL=${SRC_MODEL:-/model/doccornernet_lean.onnx}
 DIST="$WORK/dist"
@@ -72,6 +72,12 @@ BUILD_FLAGS=(
   --allow_running_as_root
   --target onnxruntime_webassembly
   --enable_wasm_threads
+  # Newer emsdk/Clang toolchains raise warnings (e.g. LLVM autovectorization
+  # "-Wpass-failed=transform-warning" inside libc++ headers) that ORT's build
+  # promotes to hard errors on older-pinned ORT versions that didn't account
+  # for them. This doesn't affect the compiled output, only whether an
+  # unrelated new warning class aborts the build.
+  --compile_no_warning_as_error
 )
 
 # 3) Build the pthread-capable wasm. `--enable_wasm_threads` compiles with

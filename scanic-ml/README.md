@@ -72,14 +72,14 @@ for a single one-off scan.
 
 ## Version pinning
 
-The wasm is built from ONNX Runtime **v1.23.2**. The `onnxruntime-web` JS peer
-dependency must be **1.23.x**, the JS/wasm ABI is version-locked. The `.ort`
+The wasm is built from ONNX Runtime **v1.27.0**. The `onnxruntime-web` JS peer
+dependency must be **1.27.x**, the JS/wasm ABI is version-locked. The `.ort`
 model format is likewise tied to that runtime.
 
 ## Reproducing the assets
 
 The build is fully scripted and pinned, see [`build/`](./build). It converts the
-source `.onnx` to `.ort`, clones ORT v1.23.2, and compiles the minimal
+source `.onnx` to `.ort`, clones ORT v1.27.0, and compiles the minimal
 pthread-capable wasm:
 
 ```bash

@@ -19,7 +19,7 @@ const require = createRequire(import.meta.url);
 // scanic-ml/build/build.sh's ORT_VERSION. If you deliberately rebuild
 // scanic-ml's wasm assets against a newer ONNX Runtime, update all three
 // together (and package.json's onnxruntime-web range to match).
-const REQUIRED_ORT_ABI_PREFIX = '1.23.';
+const REQUIRED_ORT_ABI_PREFIX = '1.27.';
 
 describe('onnxruntime-web ABI version lock', () => {
   it('matches the version scanic-ml/dist wasm assets were built against', () => {

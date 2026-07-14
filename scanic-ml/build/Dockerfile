@@ -8,7 +8,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
       git build-essential ninja-build ca-certificates curl \
     && rm -rf /var/lib/apt/lists/*
 
-# ORT v1.23.2 requires CMake >= 3.28; the pip wheel ships a recent binary.
+# ORT v1.27.0 requires CMake >= 3.28; the pip wheel ships a recent binary.
 # A dedicated venv keeps the build interpreter free of a host's (possibly broken)
 # global packages, notably torch, which ORT's tools import opportunistically.
 RUN python -m venv /opt/ortbuild && \
