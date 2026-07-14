@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.5.1] - 2026-07-14
+
+### Fixed
+- **Webpack/CRA/Next.js builds broken by the lazy ML-detector import**: importing scanic's ESM entry crashed webpack-based builds with `Module not found: Error: Can't resolve 'ort.wasm.min.mjs'`, even for classical-only usage, because webpack statically followed the lazy ML-detector import into the ONNX Runtime chunk at compile time. Fixed via a `webpackIgnore` magic comment on that import, preserved through the build's minifier so future releases can't silently regress it. Vite consumers are unaffected.
+
+### Changed
+- **`scanic-ml`'s custom wasm build upgraded to ONNX Runtime v1.27.0** (was v1.23.2), and `onnxruntime-web` bumped to match (`^1.27.0`). No accuracy or performance regression: verified identical IoU against the ground-truth baseline suite and benchmark numbers within normal run-to-run variance; wasm size is unchanged (~1.5 MB).
+
 ## [1.5.0] - 2026-07-07
 
 ### Added
