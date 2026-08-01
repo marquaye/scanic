@@ -9,7 +9,7 @@
     <br />
     <a href="https://github.com/marquaye/scanic/blob/main/LICENSE"><img src="https://img.shields.io/github/license/marquaye/scanic.svg"></a>
     <a href="https://npmjs.com/package/scanic"><img src="https://badgen.net/npm/v/scanic"></a>
-    <a href="https://bundlephobia.com/package/scanic"><img src="https://img.shields.io/bundlephobia/minzip/scanic"></a>
+    <a href="https://bundlejs.com/?q=scanic"><img src="https://img.shields.io/bundlejs/size/scanic?label=gzip%20size"></a>
     <a href="https://marquaye.github.io/scanic"><img src="https://img.shields.io/badge/docs-online-6366f1"></a>
 </p>
 
