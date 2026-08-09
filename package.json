@@ -5,7 +5,7 @@
   "type": "module",
   "sideEffects": false,
   "engines": {
-    "node": ">=20"
+    "node": ">=22"
   },
   "main": "dist/scanic.umd.cjs",
   "module": "dist/scanic.js",
