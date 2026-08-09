@@ -1,16 +1,15 @@
 // @vitest-environment node
 //
-// Integration test for the optional ML detector running on its DEFAULT thread
-// count (1). There is a single wasm build (pthread-capable); this just never
-// raises numThreads. Runs in the Node environment (onnxruntime-web's wasm
-// backend works cleanly there). Skips automatically when the optional runtime
-// or the companion `scanic-ml` assets aren't present, so it never breaks a
-// classical-only CI checkout.
+// Integration test for the optional ML detector pinned to a SINGLE thread,
+// which is what a browser page that isn't cross-origin isolated gets. Runs in
+// the Node environment (onnxruntime-web's wasm backend works cleanly there).
+// Skips automatically when the optional runtime or the companion `scanic-ml`
+// assets aren't present, so it never breaks a classical-only CI checkout.
 //
 // The multi-thread case is exercised in a SEPARATE file
 // (mlDetector.threaded.test.js) on purpose: onnxruntime-web initializes its
-// wasm thread pool once per process, so a 1-thread session created here would
-// lock the pool and make a `threaded: true` session in the same process run
+// wasm thread pool once per process, so the 1-thread session created here would
+// lock the pool and make a multi-threaded session in the same process run
 // single-threaded anyway. Vitest isolates each test file in its own process
 // (pool: 'forks'), so the split gives the threaded test a genuine 4-thread run.
 import { describe, it, expect, beforeAll } from 'vitest';
@@ -53,6 +52,9 @@ describe('mlDetector (single-thread)', () => {
       inputData,
       modelBytes,
       assetBaseUrl: pathToFileURL(distDir).href + '/',
+      // Node defaults to min(cores, 4); pin it so this file covers the
+      // single-thread path a non-isolated browser page would take.
+      numThreads: 1,
     });
 
     expect(res).toBeTruthy();

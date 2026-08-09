@@ -138,13 +138,23 @@ export interface MlDetectorOptions {
   wasmPaths?: string;
   /** Pre-fetched `.ort` model bytes (skips the network fetch). */
   modelBytes?: Uint8Array;
+  /** Abort the model fetch after this many milliseconds. Default 30000; 0 disables the timeout. */
+  modelFetchTimeoutMs?: number;
   /**
-   * Shorthand for `numThreads: 4`. Roughly 2x faster inference, but needs the
-   * host page to be cross-origin isolated (COOP/COEP); falls back to a single
-   * thread otherwise, so it's safe to request speculatively. Default false.
+   * Forces `numThreads: 4`. Rarely needed: the default already uses threads
+   * wherever they can take effect. Default false.
    */
   threaded?: boolean;
-  /** ORT thread count. Default 1, or 4 when `threaded: true`. Values >1 require COOP/COEP headers on the host. */
+  /**
+   * ORT thread count. Defaults to `min(cores, 4)` on a cross-origin isolated
+   * page (COOP/COEP) or in Node, and to 1 where SharedArrayBuffer is
+   * unavailable, since threads cannot take effect there. 4 is the measured
+   * sweet spot: ~2x faster than 1 thread, while 8 is slower than 4.
+   *
+   * Only the first session created in a page or worker can set this: ORT locks
+   * its thread pool at that point, so a later differing value logs a warning
+   * and reuses the locked count.
+   */
   numThreads?: number;
   /** Minimum P(document) to report success. Default 0.5. */
   minScore?: number;

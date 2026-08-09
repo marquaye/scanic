@@ -7,9 +7,10 @@
  *
  * It runs a channel-slimmed SimCC model (DocCornerNet) on a custom *minimal*
  * ONNX Runtime Web build (~1.5 MB wasm, ~88% smaller than stock ort-web, same
- * MLAS SIMD kernels → same speed and accuracy). The wasm is pthread-capable
- * and runs on 1 thread by default; a cross-origin isolated host page can opt
- * into more threads for roughly 2x faster inference (see `threaded` below).
+ * MLAS SIMD kernels → same speed and accuracy). The wasm is pthread-capable and
+ * runs on min(cores, 4) threads wherever SharedArrayBuffer exists (a cross-origin
+ * isolated page, or Node), which is roughly 2x faster than a single thread, and
+ * on 1 thread everywhere else.
  * The runtime (`onnxruntime-web`) is an optional dependency, and the model +
  * wasm assets ship in the companion `scanic-ml` package, served from a CDN by
  * default.
@@ -33,8 +34,77 @@ const DEFAULT_ASSET_BASE_URL = `https://cdn.jsdelivr.net/npm/scanic-ml@${ML_ASSE
 let ortModulePromise = null;
 const sessionCache = new Map();
 
+// onnxruntime-web spins up its wasm thread pool when the *first* session is
+// created and keeps it for the lifetime of the page/worker. Later sessions
+// silently run on that pool no matter what `numThreads` they ask for, so we
+// track the count that was actually locked in and stop pretending otherwise.
+let lockedNumThreads = null;
+
+function resolveNumThreads(requested) {
+  if (lockedNumThreads === null || requested === lockedNumThreads) {
+    return requested;
+  }
+  console.warn(
+    `scanic: onnxruntime-web locked its thread pool at ${lockedNumThreads} thread(s) when the first ` +
+      `session was created; the requested ${requested} cannot take effect in this page/worker. ` +
+      'Set the thread count on the first call, or run the new count in a fresh worker.'
+  );
+  return lockedNumThreads;
+}
+
+const DEFAULT_MODEL_FETCH_TIMEOUT_MS = 30000;
+
+async function fetchModelBytes(modelUrl, timeoutMs) {
+  const canAbort = typeof AbortController !== 'undefined' && timeoutMs > 0;
+  const controller = canAbort ? new AbortController() : null;
+  const timer = controller ? setTimeout(() => controller.abort(), timeoutMs) : null;
+
+  try {
+    const response = await fetch(modelUrl, controller ? { signal: controller.signal } : undefined);
+    if (!response.ok) {
+      // Without this check an error page (404 HTML, CDN outage) would be handed
+      // to ORT as model bytes and surface as an opaque parse failure.
+      throw new Error(
+        `scanic: failed to fetch the ML model from ${modelUrl} (HTTP ${response.status} ${response.statusText})`
+      );
+    }
+    return new Uint8Array(await response.arrayBuffer());
+  } catch (error) {
+    if (controller?.signal.aborted) {
+      throw new Error(`scanic: timed out after ${timeoutMs}ms fetching the ML model from ${modelUrl}`, { cause: error });
+    }
+    if (error instanceof Error && error.message.startsWith('scanic:')) throw error;
+    throw new Error(`scanic: failed to fetch the ML model from ${modelUrl} (${error?.message || error})`, { cause: error });
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
+
 function normalizeBaseUrl(url) {
   return url.endsWith('/') ? url : `${url}/`;
+}
+
+// Measured on this model (see MODEL_CARD.md): 1 thread 13.2ms, 2 threads 8.8ms,
+// 4 threads 6.4ms, 8 threads 7.5ms. Past 4 the pool oversubscribes and inference
+// gets slower again, so 4 is the ceiling regardless of core count.
+const MAX_USEFUL_THREADS = 4;
+
+/**
+ * Threads need SharedArrayBuffer, which a browser only exposes to a
+ * cross-origin isolated page (COOP/COEP). Asking for more than one thread
+ * without it makes ORT warn and silently fall back, so the default only raises
+ * the count where it can actually take effect. Node has no isolation concept
+ * and always supports the pool.
+ */
+function defaultNumThreads() {
+  if (typeof SharedArrayBuffer === 'undefined') return 1;
+  const inBrowser = typeof window !== 'undefined' || typeof importScripts === 'function';
+  if (inBrowser && !globalThis.crossOriginIsolated) return 1;
+
+  const cores = globalThis.navigator?.hardwareConcurrency
+    || globalThis.process?.availableParallelism?.()
+    || MAX_USEFUL_THREADS;
+  return Math.max(2, Math.min(cores, MAX_USEFUL_THREADS));
 }
 
 async function loadOrt() {
@@ -53,20 +123,21 @@ async function loadOrt() {
 }
 
 async function getSession(options) {
-  // There is a single wasm build (pthread-capable). It runs on 1 thread when
-  // the host page isn't cross-origin isolated or `numThreads` isn't raised,
-  // and on more threads (roughly 2x faster inference, see
-  // scanic-ml/MODEL_CARD.md) when it is COOP/COEP-isolated. `threaded: true`
-  // is sugar that defaults `numThreads` to 4; it no longer switches assets.
-  // Requesting >1 threads is safe to do speculatively: ORT detects a missing
-  // SharedArrayBuffer and falls back to running on 1 thread with a warning.
+  // There is a single wasm build (pthread-capable), used at every thread count.
+  // See defaultNumThreads() for how the default is picked.
   const baseUrl = options.assetBaseUrl ? normalizeBaseUrl(options.assetBaseUrl) : DEFAULT_ASSET_BASE_URL;
   const modelUrl = options.modelUrl || `${baseUrl}doccornernet_lean.ort`;
   const wasmPaths = options.wasmPaths || baseUrl;
-  const numThreads = options.numThreads !== undefined ? options.numThreads : (options.threaded ? 4 : 1);
+  const requestedThreads = options.numThreads !== undefined
+    ? options.numThreads
+    : (options.threaded ? MAX_USEFUL_THREADS : defaultNumThreads());
+  // A thread count that can't take effect must not create a second session that
+  // only looks distinct, so the key uses the effective count.
+  const numThreads = resolveNumThreads(requestedThreads);
+  const fetchTimeoutMs = options.modelFetchTimeoutMs !== undefined
+    ? options.modelFetchTimeoutMs
+    : DEFAULT_MODEL_FETCH_TIMEOUT_MS;
 
-  // The same wasm can run at different thread counts, so the cache key must
-  // include numThreads, not just the model/wasm URLs.
   const cacheKey = `${modelUrl}|${wasmPaths}|${numThreads}`;
   if (sessionCache.has(cacheKey)) return sessionCache.get(cacheKey);
 
@@ -78,7 +149,7 @@ async function getSession(options) {
     ort.env.wasm.numThreads = numThreads;
     ort.env.wasm.proxy = false;
 
-    const modelBytes = options.modelBytes || new Uint8Array(await (await fetch(modelUrl)).arrayBuffer());
+    const modelBytes = options.modelBytes || (await fetchModelBytes(modelUrl, fetchTimeoutMs));
     const session = await ort.InferenceSession.create(modelBytes, {
       executionProviders: ['wasm'],
       graphOptimizationLevel: 'all'
@@ -86,11 +157,18 @@ async function getSession(options) {
     return { ort, session };
   })();
 
+  // Claim the pool now rather than after the await: concurrent callers asking
+  // for different counts must all resolve to the one that actually gets built.
+  const previousLockedNumThreads = lockedNumThreads;
+  lockedNumThreads = numThreads;
   sessionCache.set(cacheKey, sessionPromise);
   try {
     return await sessionPromise;
   } catch (error) {
     sessionCache.delete(cacheKey); // allow a retry after a transient load failure
+    // Nothing was created, so a later call may still pick the thread count -
+    // unless another session did get through in the meantime.
+    if (sessionCache.size === 0) lockedNumThreads = previousLockedNumThreads;
     throw error;
   }
 }
@@ -185,11 +263,14 @@ function decodeOutputs(outputs, width, height) {
  *   - modelUrl      Explicit model URL (overrides assetBaseUrl for the model).
  *   - wasmPaths     Explicit wasm directory (overrides assetBaseUrl for the wasm).
  *   - modelBytes    Pre-fetched model bytes (skips the network fetch).
- *   - threaded      Shorthand for numThreads: 4, default false. Needs a cross-
- *                    origin isolated host page (COOP/COEP) to actually run on
- *                    more than 1 thread; falls back to 1 otherwise.
- *   - numThreads    ORT thread count (default 1, or 4 when `threaded: true`).
- *                    Values above 1 need COOP/COEP headers.
+ *   - modelFetchTimeoutMs  Abort the model fetch after this many ms (default 30000; 0 disables).
+ *   - threaded      Forces numThreads to 4. Rarely needed now that the default
+ *                    already uses threads wherever they work.
+ *   - numThreads    ORT thread count. Defaults to min(cores, 4) on a cross-origin
+ *                    isolated page or in Node, and to 1 anywhere SharedArrayBuffer
+ *                    is unavailable. Only the first session in a page/worker can
+ *                    set it: ORT locks its thread pool there, and later differing
+ *                    values warn and are ignored.
  *   - minScore      Minimum P(document) to report success (default 0.5).
  * @returns {Promise<{success, corners, confidence, score, timings, message}>}
  */
