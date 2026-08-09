@@ -8,6 +8,13 @@
 import { detectDocumentContour, approximatePolygon } from './contourDetection.js';
 import { findCornerPoints } from './cornerDetection.js';
 import { cannyEdgeDetector, initializeWasm } from './edgeDetection.js';
+import {
+  cornersAreFiniteAndDistinct,
+  cornersToPoints,
+  isConvexQuadrilateral,
+  polygonAreaFromCorners,
+  sideLengthsFromCorners
+} from './geometry.js';
 export { createCornerEditor } from './cornerEditor.js';
 
 // webpackIgnore keeps webpack apps from compiling the optional ML chunk (its
@@ -195,32 +202,8 @@ function clamp01(value) {
   return value;
 }
 
-function pointDistance(a, b) {
-  return Math.hypot(a.x - b.x, a.y - b.y);
-}
-
-function polygonAreaFromCorners(corners) {
-  if (!corners) return 0;
-  const points = [corners.topLeft, corners.topRight, corners.bottomRight, corners.bottomLeft];
-  let area = 0;
-  for (let i = 0; i < points.length; i++) {
-    const j = (i + 1) % points.length;
-    area += points[i].x * points[j].y - points[j].x * points[i].y;
-  }
-  return Math.abs(area) / 2;
-}
-
-function sideLengthsFromCorners(corners) {
-  return [
-    pointDistance(corners.topLeft, corners.topRight),
-    pointDistance(corners.topRight, corners.bottomRight),
-    pointDistance(corners.bottomRight, corners.bottomLeft),
-    pointDistance(corners.bottomLeft, corners.topLeft)
-  ];
-}
-
 function cornerAnglesDegrees(corners) {
-  const points = [corners.topLeft, corners.topRight, corners.bottomRight, corners.bottomLeft];
+  const points = cornersToPoints(corners);
   const angles = [];
 
   for (let i = 0; i < points.length; i++) {
@@ -293,45 +276,9 @@ function compareCandidates(a, b) {
   );
 }
 
-function cornersAreFiniteAndDistinct(corners, minDistance = 6) {
-  const points = [corners?.topLeft, corners?.topRight, corners?.bottomRight, corners?.bottomLeft];
-  if (points.some((p) => !p || !Number.isFinite(p.x) || !Number.isFinite(p.y))) {
-    return false;
-  }
-
-  for (let i = 0; i < points.length; i++) {
-    for (let j = i + 1; j < points.length; j++) {
-      if (pointDistance(points[i], points[j]) < minDistance) {
-        return false;
-      }
-    }
-  }
-
-  return true;
-}
-
-function isConvexQuadrilateral(corners) {
-  const points = [corners.topLeft, corners.topRight, corners.bottomRight, corners.bottomLeft];
-  const crossSigns = [];
-
-  for (let i = 0; i < points.length; i++) {
-    const p0 = points[i];
-    const p1 = points[(i + 1) % points.length];
-    const p2 = points[(i + 2) % points.length];
-    const cross = (p1.x - p0.x) * (p2.y - p1.y) - (p1.y - p0.y) * (p2.x - p1.x);
-    if (Math.abs(cross) < 1e-6) {
-      continue;
-    }
-    crossSigns.push(Math.sign(cross));
-  }
-
-  if (crossSigns.length < 3) {
-    return false;
-  }
-
-  const firstSign = crossSigns[0];
-  return crossSigns.every((s) => s === firstSign);
-}
+// Detection works on the downscaled image, where corners closer than 6px apart
+// are a collapsed quad rather than a real document.
+const MIN_CORNER_SEPARATION_PX = 6;
 
 function computeEdgeSupportScore(contour, edges, width, height) {
   if (!contour?.points || contour.points.length === 0) {
@@ -443,7 +390,7 @@ function evaluateContourCandidate(contour, edges, width, height, options = {}) {
   const minSidePx = Math.min(width, height) * minSideRatio;
 
   const geometryValid =
-    cornersAreFiniteAndDistinct(corners) &&
+    cornersAreFiniteAndDistinct(corners, MIN_CORNER_SEPARATION_PX) &&
     convex &&
     minSide >= minSidePx &&
     coverageRatio >= minCoverage &&

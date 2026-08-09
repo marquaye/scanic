@@ -1,3 +1,9 @@
+import {
+  CORNER_ORDER,
+  cornersAreFiniteAndDistinct,
+  isConvexQuadrilateral
+} from './geometry.js';
+
 function cloneCorners(corners) {
   return {
     topLeft: { x: corners.topLeft.x, y: corners.topLeft.y },
@@ -7,52 +13,18 @@ function cloneCorners(corners) {
   };
 }
 
-function pointDistance(a, b) {
-  return Math.hypot(a.x - b.x, a.y - b.y);
-}
-
 // Drag sensitivity shaping (see onHandlePointerMove): below this pointer
 // speed (canvas px/ms), movement is scaled down towards DRAG_MIN_SENSITIVITY
 // for precision; at/above it, dragging tracks the pointer at full 1:1 speed.
 const DRAG_FULL_SENSITIVITY_SPEED = 0.8;
 const DRAG_MIN_SENSITIVITY = 0.35;
 
-function cornersAreFiniteAndDistinct(corners, minDistance = 4) {
-  const points = [corners?.topLeft, corners?.topRight, corners?.bottomRight, corners?.bottomLeft];
-  if (points.some((p) => !p || !Number.isFinite(p.x) || !Number.isFinite(p.y))) {
-    return false;
-  }
+// The editor works in full-resolution image pixels and has to tolerate corners
+// the user has dragged together, so it allows them closer than detection does.
+const MIN_CORNER_SEPARATION_PX = 4;
 
-  for (let i = 0; i < points.length; i++) {
-    for (let j = i + 1; j < points.length; j++) {
-      if (pointDistance(points[i], points[j]) < minDistance) {
-        return false;
-      }
-    }
-  }
-
-  return true;
-}
-
-function isConvexQuadrilateral(corners) {
-  const points = [corners.topLeft, corners.topRight, corners.bottomRight, corners.bottomLeft];
-  const crossSigns = [];
-
-  for (let i = 0; i < points.length; i++) {
-    const p0 = points[i];
-    const p1 = points[(i + 1) % points.length];
-    const p2 = points[(i + 2) % points.length];
-    const cross = (p1.x - p0.x) * (p2.y - p1.y) - (p1.y - p0.y) * (p2.x - p1.x);
-    if (Math.abs(cross) < 1e-6) continue;
-    crossSigns.push(Math.sign(cross));
-  }
-
-  if (crossSigns.length < 3) {
-    return false;
-  }
-
-  const firstSign = crossSigns[0];
-  return crossSigns.every((s) => s === firstSign);
+function cornersValidForEditor(corners) {
+  return cornersAreFiniteAndDistinct(corners, MIN_CORNER_SEPARATION_PX) && isConvexQuadrilateral(corners);
 }
 
 function createDefaultCorners(imageWidth, imageHeight, insetRatio = 0.08) {
@@ -382,7 +354,7 @@ export function createCornerEditor(options = {}) {
 
   const defaultCorners = createDefaultCorners(imageWidth, imageHeight);
   const requestedCorners = options.corners ? cloneCorners(options.corners) : defaultCorners;
-  let corners = cornersAreFiniteAndDistinct(requestedCorners) && isConvexQuadrilateral(requestedCorners)
+  let corners = cornersValidForEditor(requestedCorners)
     ? requestedCorners
     : defaultCorners;
   const initialCorners = cloneCorners(corners);
@@ -407,7 +379,7 @@ export function createCornerEditor(options = {}) {
   if (options.handleHitArea) {
     container.style.setProperty('--scanic-handle-hit', handleHit + 'px');
   }
-  const cornerOrder = ['topLeft', 'topRight', 'bottomRight', 'bottomLeft'];
+  const cornerOrder = CORNER_ORDER;
   const cornerLabels = {
     topLeft: 'Top-left corner',
     topRight: 'Top-right corner',
@@ -546,9 +518,7 @@ export function createCornerEditor(options = {}) {
     };
   }
 
-  function cornersValid(nextCorners) {
-    return cornersAreFiniteAndDistinct(nextCorners) && isConvexQuadrilateral(nextCorners);
-  }
+  const cornersValid = cornersValidForEditor;
 
   function getEventCanvasPoint(event) {
     const rect = editorCanvas.getBoundingClientRect();
