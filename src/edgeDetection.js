@@ -3,10 +3,9 @@
  * Inspired by OpenCV's Canny edge detector
  */
 
-import { DEFAULTS } from './constants.js';
 import init, {
   blur as wasmBlur,
-  calculate_gradients as wasmGradients,
+  find_contours as wasmFindContours,
   dilate as wasmDilate,
   non_maximum_suppression as wasmMaximumSuppression,
   canny_edge_detector_full as wasmFullCanny,
@@ -18,6 +17,9 @@ import wasmBase64 from '../wasm_blur/pkg/wasm_blur_bg_base64.js';
 let wasmReadyPromise = null;
 let hasLoggedFullCannyFallback = false;
 let wasmSupportCache = null;
+// Set once instantiation resolves, so synchronous callers can tell whether the
+// WASM exports are usable without awaiting.
+let wasmInstance = null;
 
 /**
  * Decodes the inlined base64 WASM into bytes, in both browser and Node runtimes.
@@ -97,12 +99,40 @@ async function initializeWasmInternal() {
  */
 export function initializeWasm() {
   if (!wasmReadyPromise) {
-    wasmReadyPromise = initializeWasmInternal().catch((error) => {
-      wasmReadyPromise = null;
-      throw error;
-    });
+    wasmReadyPromise = initializeWasmInternal()
+      .then((instance) => {
+        wasmInstance = instance ?? true;
+        return instance;
+      })
+      .catch((error) => {
+        wasmReadyPromise = null;
+        throw error;
+      });
   }
   return wasmReadyPromise;
+}
+
+/**
+ * Runs Suzuki border following inside WASM, if the module is already loaded.
+ *
+ * Deliberately synchronous and non-initializing: contour detection sits in the
+ * middle of a hot pass that has already awaited WASM for the Canny stage, so a
+ * miss here just means the caller uses its JS implementation for this call
+ * instead of introducing another await.
+ *
+ * @param {Uint8ClampedArray} edges - Binary edge image
+ * @param {number} width
+ * @param {number} height
+ * @param {number} minPoints - Minimum points a simplified contour must keep
+ * @returns {Int32Array|null} Flat contour encoding, or null when unavailable
+ */
+export function findContoursWasm(edges, width, height, minPoints) {
+  if (!wasmInstance) return null;
+  try {
+    return wasmFindContours(edges, width, height, minPoints);
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -181,18 +211,6 @@ export function gaussianBlurGrayscale(grayscale, width, height, kernelSize = 5, 
   }
   
   return blurred;
-}
-
-/**
- * Legacy wrapper for backwards compatibility
- * @param {ImageData} imageData - Original image data
- * @param {number} sigma - Gaussian sigma parameter (standard deviation)
- * @returns {Uint8ClampedArray} Blurred grayscale image data (1 channel)
- */
-export function gaussianBlur(imageData, sigma = DEFAULTS.GAUSSIAN_SIGMA, forcedKernelSize = null) {
-  const grayscale = convertToGrayscale(imageData);
-  const kernelSize = forcedKernelSize || 5; // Default to 5 like jscanify
-  return gaussianBlurGrayscale(grayscale, imageData.width, imageData.height, kernelSize, sigma);
 }
 
 /**
@@ -490,10 +508,6 @@ export function dilateEdges(edges, width, height, kernelSize = 5) {
  * @param {boolean} [options.L2gradient=false] - Use L2 norm for gradient magnitude (like OpenCV default)
  * @param {boolean} [options.applyDilation=true] - Apply dilation after Canny (matching jscanify)
  * @param {number} [options.dilationKernelSize=5] - Dilation kernel size
- * @param {boolean} [options.useWasmBlur=false] - Use WASM for Gaussian blur
- * @param {boolean} [options.useWasmGradients=false] - Use WASM for gradient calculation
- * @param {boolean} [options.useWasmDilation=false] - Use WASM for dilation
- * @param {boolean} [options.useWasmNMS=false] - Use WASM for non-maximum suppression
  * @param {boolean} [options.useWasmHysteresis=false] - Use WASM for hysteresis thresholding
  * @param {boolean} [options.useWasmFullCanny=false] - Use the full WASM Canny implementation
  * @param {object} [options.debug={}] - Object to store intermediate results if provided
@@ -578,10 +592,9 @@ export async function cannyEdgeDetector(input, options = {}) {
   const L2gradient = options.L2gradient === undefined ? false : options.L2gradient;
   const applyDilation = options.applyDilation !== undefined ? options.applyDilation : true;
   const dilationKernelSize = options.dilationKernelSize || 5;
-  const useWasmBlur = true;
-  const useWasmGradients = false; 
-  const useWasmDilation = true;
-  const useWasmNMS = true;
+  // Blur, NMS and dilation always run in WASM, falling back to the JS versions
+  // below only when the module is unavailable. Gradients stay in JS: the WASM
+  // version marshals two Int16 arrays back per call and isn't a win.
   const useWasmHysteresis = options.useWasmHysteresis !== undefined ? options.useWasmHysteresis : false;
   const useWasmFullCanny = options.useWasmFullCanny !== undefined ? options.useWasmFullCanny : false;
 
@@ -640,14 +653,10 @@ export async function cannyEdgeDetector(input, options = {}) {
   // Step 2: Apply Gaussian blur (JS or WASM)
   let blurred;
   t0 = performance.now();
-  if (useWasmBlur) {
-    try {
-      await initializeWasm(); // Ensure wasm is initialized
-      blurred = wasmBlur(grayscale, width, height, kernelSize, sigma);
-    } catch {
-      blurred = gaussianBlurGrayscale(grayscale, width, height, kernelSize, sigma);
-    }
-  } else {
+  try {
+    await initializeWasm(); // Ensure wasm is initialized
+    blurred = wasmBlur(grayscale, width, height, kernelSize, sigma);
+  } catch {
     blurred = gaussianBlurGrayscale(grayscale, width, height, kernelSize, sigma);
   }
   t1 = performance.now();
@@ -658,37 +667,17 @@ export async function cannyEdgeDetector(input, options = {}) {
 
   // Step 3: Compute gradients (dx, dy)
   t0 = performance.now();
-  let dx, dy;
-  if (useWasmGradients) {
-    try {
-      await initializeWasm(); // Ensure wasm is initialized
-      const gradientResult = wasmGradients(blurred, width, height);
-      dx = new Int16Array(gradientResult.gx);
-      dy = new Int16Array(gradientResult.gy);
-    } catch {
-      const gradients = calculateGradients(blurred, width, height);
-      dx = gradients.dx;
-      dy = gradients.dy;
-    }
-  } else {
-    const gradients = calculateGradients(blurred, width, height);
-    dx = gradients.dx;
-    dy = gradients.dy;
-  }
+  const { dx, dy } = calculateGradients(blurred, width, height);
   t1 = performance.now();
   timings.push({ step: 'Gradients', ms: (t1 - t0).toFixed(2) });
 
   // Step 4: Apply non-maximum suppression
   t0 = performance.now();
   let suppressed;
-  if (useWasmNMS) {
-    try {
-      await initializeWasm();
-      suppressed = await wasmMaximumSuppression(dx, dy, width, height, L2gradient);
-    } catch {
-      suppressed = nonMaximumSuppression(dx, dy, width, height, L2gradient);
-    }
-  } else {
+  try {
+    await initializeWasm();
+    suppressed = await wasmMaximumSuppression(dx, dy, width, height, L2gradient);
+  } catch {
     suppressed = nonMaximumSuppression(dx, dy, width, height, L2gradient);
   }
   t1 = performance.now();
@@ -728,14 +717,10 @@ export async function cannyEdgeDetector(input, options = {}) {
   t0 = performance.now();
   let finalEdges = cannyEdges;
   if (applyDilation) {
-    if (useWasmDilation) {
-      try {
-        await initializeWasm(); // Ensure wasm is initialized
-        finalEdges = wasmDilate(cannyEdges, width, height, dilationKernelSize);
-      } catch {
-        finalEdges = dilateEdges(cannyEdges, width, height, dilationKernelSize);
-      }
-    } else {
+    try {
+      await initializeWasm(); // Ensure wasm is initialized
+      finalEdges = wasmDilate(cannyEdges, width, height, dilationKernelSize);
+    } catch {
       finalEdges = dilateEdges(cannyEdges, width, height, dilationKernelSize);
     }
   }
@@ -772,30 +757,4 @@ export async function cannyEdgeDetector(input, options = {}) {
   // Timings available via options.debug.timings
 
   return finalEdges; // Return the final binary edge image
-}
-
-/**
- * Full Canny edge detector implementation using WASM, for comparison or direct use
- * This function is intended to match the performance and output of the JS cannyEdgeDetector,
- * but runs entirely in WASM for potentially faster execution.
- * @param {ImageData} imageData - Original image data
- * @param {Object} options - Configuration options (same as cannyEdgeDetector)
- * @returns {Promise<Uint8ClampedArray>} Binary edge image (0 or 255)
- */
-export async function cannyEdgeDetectorWasm(imageData, options = {}) {
-  // Directly call the WASM canny_edge_detector_full function
-  let result;
-  try {
-    await initializeWasm(); // Ensure wasm is initialized
-    console.log('Using WASM Full Canny');
-    result = wasmFullCanny(imageData.data, imageData.width, imageData.height, options.lowThreshold, options.highThreshold, options.sigma, options.kernelSize, options.L2gradient, options.applyDilation, options.dilationKernelSize);
-  } catch (e) {
-    console.error("WASM full Canny failed:", e);
-    throw e; // Rethrow to let the caller handle the error
-  }
-  
-  // Convert result to Uint8ClampedArray (if not already)
-  const edges = new Uint8ClampedArray(result);
-  
-  return edges;
 }

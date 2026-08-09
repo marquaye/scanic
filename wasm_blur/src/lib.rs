@@ -4,6 +4,7 @@ pub mod gradient_calculation;
 pub mod canny;
 pub mod gaussian_blur;
 pub mod hysteresis;
+pub mod contours;
 
 // Re-export the blur function from gaussian_blur module for backward compatibility
 pub use gaussian_blur::blur;
