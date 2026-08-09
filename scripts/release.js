@@ -52,9 +52,7 @@ async function main() {
     // 4. Build WASM module (optional if already built)
     console.log('\n🦀 Building WASM module...');
     run('npm run build:wasm', { optional: true });
-    
-    // ... (rest of logic) ...
-    
+
     // 5. Build the project
     console.log('\n🏗️  Building project...');
     run('npm run build');
