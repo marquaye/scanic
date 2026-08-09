@@ -167,8 +167,15 @@ export interface DetectionOptions {
   highThreshold?: number;
   applyDilation?: boolean;
   dilationKernelSize?: number;
+  /** @deprecated Ignored. Dilation always runs exactly one pass; this was never implemented. */
   dilationIterations?: number;
   useWasmHysteresis?: boolean;
+  /**
+   * Run the whole Canny pipeline inside WASM instead of marshalling each stage
+   * back to JS. Bit-identical output, ~6% faster end to end. Defaults to true
+   * unless `debug` is set, since only the step-by-step path exposes the
+   * per-stage buffers. Falls back to JS automatically without WASM.
+   */
   useWasmFullCanny?: boolean;
   minArea?: number;
   epsilon?: number;

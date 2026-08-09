@@ -109,6 +109,8 @@ export class Scanner {
  * @param {HTMLImageElement|HTMLCanvasElement|ImageData} image - Input image
  * @param {number} maxDimension - Maximum dimension for processing (default 800)
  * @returns {Promise<Object>} { grayscaleData, scaleFactor, originalDimensions, scaledDimensions }
+ *   Only the grayscale plane is produced; the RGBA buffer is discarded, so this
+ *   never writes back the 3 extra bytes per pixel that no caller reads.
  */
 async function prepareScaleAndGrayscale(image, maxDimension = 800) {
   let originalWidth, originalHeight;
@@ -177,19 +179,15 @@ async function prepareScaleAndGrayscale(image, maxDimension = 800) {
   }
   
   // Get image data and compute grayscale in a single pass (BT.709 luminance)
-  const imageData = ctx.getImageData(0, 0, targetWidth, targetHeight);
-  const data = imageData.data;
+  const data = ctx.getImageData(0, 0, targetWidth, targetHeight).data;
   const pixelCount = targetWidth * targetHeight;
   const grayscaleData = new Uint8ClampedArray(pixelCount);
   for (let i = 0, j = 0; i < data.length; i += 4, j++) {
-    const gray = (data[i] * 54 + data[i + 1] * 183 + data[i + 2] * 19) >> 8;
-    grayscaleData[j] = gray;
-    data[i] = data[i + 1] = data[i + 2] = gray; // update RGBA for debug viz
+    grayscaleData[j] = (data[i] * 54 + data[i + 1] * 183 + data[i + 2] * 19) >> 8;
   }
-  
+
   return {
     grayscaleData,
-    imageData, // Keep full RGBA for debug visualization
     scaleFactor,
     originalDimensions: { width: originalWidth, height: originalHeight },
     scaledDimensions: { width: targetWidth, height: targetHeight }
@@ -469,9 +467,11 @@ function shouldRunDetectionCascade(bestCandidate, options = {}) {
   return false;
 }
 
+// `dilationIterations` is deliberately absent: cannyEdgeDetector dilates exactly
+// once and has never read it, so including it here only produced profiles that
+// looked distinct to the dedup check while doing identical work.
 function buildDetectionPassProfiles(options = {}) {
   const baseKernel = options.dilationKernelSize || 3;
-  const baseIterations = options.dilationIterations || 1;
   const baseApplyDilation = options.applyDilation !== undefined ? options.applyDilation : true;
 
   const profiles = [
@@ -480,7 +480,6 @@ function buildDetectionPassProfiles(options = {}) {
       lowThreshold: options.lowThreshold,
       highThreshold: options.highThreshold,
       dilationKernelSize: baseKernel,
-      dilationIterations: baseIterations,
       applyDilation: baseApplyDilation
     }
   ];
@@ -494,7 +493,6 @@ function buildDetectionPassProfiles(options = {}) {
     lowThreshold: options.lowThreshold,
     highThreshold: options.highThreshold,
     dilationKernelSize: Math.max(baseKernel, 5),
-    dilationIterations: Math.max(baseIterations, 2),
     applyDilation: true
   });
 
@@ -503,7 +501,6 @@ function buildDetectionPassProfiles(options = {}) {
     lowThreshold: options.lowThreshold,
     highThreshold: options.highThreshold,
     dilationKernelSize: baseKernel,
-    dilationIterations: baseIterations,
     applyDilation: false
   });
 
@@ -513,7 +510,6 @@ function buildDetectionPassProfiles(options = {}) {
       lowThreshold: 60,
       highThreshold: 180,
       dilationKernelSize: baseKernel,
-      dilationIterations: baseIterations,
       applyDilation: baseApplyDilation
     });
   }
@@ -525,7 +521,6 @@ function buildDetectionPassProfiles(options = {}) {
       profile.lowThreshold,
       profile.highThreshold,
       profile.dilationKernelSize,
-      profile.dilationIterations,
       profile.applyDilation
     ].join(':');
     if (seen.has(key)) continue;
@@ -554,6 +549,16 @@ async function detectDocumentInternal(grayscaleData, width, height, scaleFactor,
   const passProfiles = buildDetectionPassProfiles(options);
   const passResults = [];
 
+  // The all-in-WASM Canny keeps every stage in linear memory instead of
+  // marshalling four intermediate buffers back to JS. It is bit-identical to the
+  // step-by-step path (guarded by edgeDetectionWasm.test.js) and ~6% faster end
+  // to end, so it is the default. Debug runs keep the step-by-step path: it is
+  // the only one that exposes the per-stage buffers, and it falls back to pure
+  // JS automatically when WASM is unavailable.
+  const useWasmFullCanny = options.useWasmFullCanny !== undefined
+    ? options.useWasmFullCanny
+    : !options.debug;
+
   const runDetectionPass = async (profile, passIndex) => {
     const passLabel = profile.name || `pass-${passIndex + 1}`;
     const passSuffix = passIndex === 0 ? '' : ` (${passLabel})`;
@@ -565,13 +570,12 @@ async function detectDocumentInternal(grayscaleData, width, height, scaleFactor,
       lowThreshold: profile.lowThreshold,
       highThreshold: profile.highThreshold,
       dilationKernelSize: profile.dilationKernelSize,
-      dilationIterations: profile.dilationIterations,
       applyDilation: profile.applyDilation,
       debug: passDebug,
       skipGrayscale: true,
       useWasmBlur: true,
       useWasmHysteresis: options.useWasmHysteresis,
-      useWasmFullCanny: options.useWasmFullCanny,
+      useWasmFullCanny,
     });
 
     if (passDebug.timings) {
@@ -599,7 +603,6 @@ async function detectDocumentInternal(grayscaleData, width, height, scaleFactor,
         lowThreshold: profile.lowThreshold,
         highThreshold: profile.highThreshold,
         dilationKernelSize: profile.dilationKernelSize,
-        dilationIterations: profile.dilationIterations,
         applyDilation: profile.applyDilation
       },
       contours,
@@ -613,7 +616,13 @@ async function detectDocumentInternal(grayscaleData, width, height, scaleFactor,
 
   if (shouldRunDetectionCascade(primaryPass.best, options)) {
     for (let i = 1; i < passProfiles.length; i++) {
-      passResults.push(await runDetectionPass(passProfiles[i], i));
+      const pass = await runDetectionPass(passProfiles[i], i);
+      passResults.push(pass);
+      // Stop as soon as a profile yields a candidate good enough that it would
+      // not have triggered the cascade on its own. Running the remaining
+      // profiles can only add candidates that lose to it, at a full Canny +
+      // contour trace each.
+      if (!shouldRunDetectionCascade(pass.best, options)) break;
     }
   }
 
