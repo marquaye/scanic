@@ -1,0 +1,14 @@
+# Normalize every text file to LF in the repository and in the working tree.
+# Without this the checked-in endings depend on whoever last saved the file,
+# which produced whole-file diffs on Windows and hid the real changes.
+* text=auto eol=lf
+
+# Binaries, so text=auto never guesses wrong on them.
+*.png   binary
+*.jpg   binary
+*.JPG   binary
+*.jpeg  binary
+*.ico   binary
+*.wasm  binary
+*.onnx  binary
+*.ort   binary
