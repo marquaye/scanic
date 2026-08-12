@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.6.0] - 2026-08-12
+
+### Added
+- **`modelFetchTimeoutMs` option on the ML detector**: aborts the model download after the given number of milliseconds. Defaults to 30000; pass 0 to disable the timeout.
+
+### Changed
+- **The ML detector now uses multiple threads by default**: `numThreads` defaults to `min(cores, 4)` wherever threads can take effect, meaning a cross-origin isolated page (COOP/COEP) or Node, and to 1 where `SharedArrayBuffer` is unavailable. Inference is roughly 2x faster than the previous single-threaded default. Measured on this model: 1 thread 13.2ms, 2 threads 8.8ms, 4 threads 6.4ms, 8 threads 7.5ms, so 4 is the ceiling regardless of core count. `threaded: true` still forces 4 but is rarely needed now.
+- **A locked ONNX Runtime thread pool is now reported instead of ignored**: onnxruntime-web builds its wasm thread pool with the first session in a page or worker and keeps it. A later session asking for a different `numThreads` silently ran on the existing pool. Scanic now warns and reuses the locked count rather than returning a session that only looks like it honoured the request.
+- **Contour tracing runs in WASM**: the Suzuki-Abe border follower is ported to Rust for the mode the scanner uses. Only the simplified polygons cross back to JavaScript. The JavaScript tracer remains as a fallback and no longer allocates an object per boundary pixel, which on a busy edge map meant over 100,000 short-lived objects per frame. Output is identical either way, pinned by tests.
+- **The all-in-WASM Canny path is now the default**: it keeps every stage in linear memory instead of marshalling four intermediate buffers back to JavaScript, and is about 6% faster end to end with bit-identical output. Runs with `debug` set keep the step by step path, which is the only one that exposes the per-stage buffers. Set `useWasmFullCanny: false` to opt out.
+- **The detection cascade stops early**: once a pass produces a candidate good enough that it would not have triggered the cascade on its own, the remaining profiles are skipped. They could only contribute candidates that lose to it, at the cost of a full Canny plus contour trace each. In rare cases this can change which candidate wins.
+- **Node 22 or newer is required** (`engines.node` was `>=20`). This comes from the test toolchain rather than the library: jsdom 30 dropped Node 20, so it can no longer be tested there. CI covers Node 22 and 24.
+
+### Deprecated
+- **`dilationIterations` is ignored**: dilation has always run exactly one pass and the option was never read. It is still accepted so existing calls keep working.
+
+### Fixed
+- **A failed ML model download no longer surfaces as an opaque parse error**: the fetch went straight to `arrayBuffer()` with no status check, so a 404 page or a CDN outage was handed to ONNX Runtime as model bytes. The HTTP status is now checked and failures name the URL.
+
 ## [1.5.1] - 2026-07-14
 
 ### Fixed
