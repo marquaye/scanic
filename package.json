@@ -69,7 +69,7 @@
   ],
   "devDependencies": {
     "@eslint/js": "^10.0.1",
-    "@vitest/coverage-v8": "^4.1.9",
+    "@vitest/coverage-v8": "^5.0.1",
     "canvas": "^3.2.0",
     "eslint": "^10.5.0",
     "globals": "^17.6.0",
@@ -79,7 +79,7 @@
     "terser": "^5.44.1",
     "vite": "^8.0.16",
     "vitepress": "^1.6.4",
-    "vitest": "^4.0.16",
+    "vitest": "^5.0.1",
     "vue": "^3.5.38",
     "webpack": "^5.108.4"
   }
