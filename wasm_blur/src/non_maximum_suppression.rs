@@ -84,8 +84,8 @@ pub fn non_maximum_suppression(
     }
 
     // Perform non-maximum suppression
-    for y in 1..height - 1 {
-        for x in 1..width - 1 {
+    for y in 1..height.saturating_sub(1) {
+        for x in 1..width.saturating_sub(1) {
             let idx = y * width + x;
             let mag = magnitude[idx];
 

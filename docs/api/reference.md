@@ -13,13 +13,29 @@ There's also [`initialize()`](#initialize), an optional WASM warm-up helper.
 
 ```ts
 function scanDocument(
-  image: HTMLImageElement | HTMLCanvasElement | ImageData,
+  image: ScanicImageSource,
   options?: DetectionOptions
 ): Promise<ScannerResult>
 ```
 
 The primary function. In `detect` mode it returns corner coordinates; in
 `extract` mode it also returns the perspective-corrected image.
+
+`image` can be any of these:
+
+```ts
+type ScanicImageSource =
+  | HTMLImageElement
+  | HTMLCanvasElement
+  | HTMLVideoElement      // after `loadedmetadata`
+  | OffscreenCanvasLike   // any OffscreenCanvas
+  | ImageBitmap
+  | VideoFrameLike        // any WebCodecs VideoFrame
+  | ImageData
+```
+
+For a camera, pass the `<video>` itself rather than calling `getImageData()`
+first; Scanic downscales before it reads any pixels.
 
 ```js
 const result = await scanDocument(img, { mode: 'extract', output: 'canvas' })
@@ -65,7 +81,7 @@ interface ScannerResult {
   confidence?: number | null
   score?: number | null          // P(document present), ML detector only
   corners: CornerPoints | null   // { topLeft, topRight, bottomRight, bottomLeft }
-  output: HTMLCanvasElement | ImageData | string | null  // warped image (extract mode)
+  output: HTMLCanvasElement | ImageData | string | null  // warped image (extract mode; an OffscreenCanvas in a Web Worker)
   contour: Point[] | null        // raw detection points
   debug: any | null              // intermediate steps (when debug: true)
   timings: { step: string; ms: string }[]  // performance breakdown
@@ -76,7 +92,7 @@ interface ScannerResult {
 
 ```ts
 function extractDocument(
-  image: HTMLImageElement | HTMLCanvasElement | ImageData,
+  image: ScanicImageSource,
   corners: CornerPoints,
   options?: Pick<DetectionOptions, 'output'>
 ): Promise<ScannerResult>
@@ -96,7 +112,8 @@ document.body.appendChild(extracted.output)
 class Scanner {
   constructor(options?: DetectionOptions)
   initialize(): Promise<void>
-  scan(image, options?: DetectionOptions): Promise<ScannerResult>
+  scan(image: ScanicImageSource, options?: DetectionOptions): Promise<ScannerResult>
+  extract(image: ScanicImageSource, corners: CornerPoints, options?: DetectionOptions): Promise<ScannerResult>
 }
 ```
 

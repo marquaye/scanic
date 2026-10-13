@@ -19,7 +19,9 @@ to build one of these, open a
 
 - [ ] More image filters: adaptive thresholding, black & white
 - [ ] Real-time video scanning tuned for mobile
-- [ ] Moving more detection stages into the Rust core
+- [ ] Moving more detection stages into the Rust core, starting with sharing
+  the unchanged Canny stages across the detection cascade passes (see
+  `docs/REFACTOR-OPPORTUNITIES.md`)
 
 ## Maybe later
 

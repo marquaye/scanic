@@ -40,8 +40,16 @@ which also had visible seam artifacts.
 - **Reuse a `Scanner`.** The [`Scanner`](/api/reference#scanner) class keeps the
   WASM instance warm. Essential for webcams and batch jobs. Call
   `initialize()` once.
-- **Detect, then extract.** In live preview, run `mode: 'detect'` on a fraction
-  of frames and only `extract` on capture.
+- **Detect about 10 times per second, not on every frame.** In live preview,
+  show the `<video>` itself and run `mode: 'detect'` on a timer of about 100ms.
+  `requestAnimationFrame` fires 60 to 120 times per second on phones, which
+  keeps the CPU busy and drains the battery without a visibly better overlay.
+  Only `extract` on capture. See [Real-time scanning](/guide/web#real-time-scanning).
+- **Pass the video or canvas directly.** `scan()` accepts `<video>`, canvases,
+  `ImageBitmap` and `VideoFrame`. Calling `getImageData()` first copies the full
+  frame for nothing; Scanic downscales before it reads any pixels.
+- **Move scanning off the main thread** if the UI must stay perfectly smooth:
+  detection and extraction run in a [Web Worker](/guide/web#in-a-web-worker).
 - **Mind the cascade.** [`enableDetectionCascade`](/api/reference#options) retries
   hard images with extra passes. It improves accuracy but costs time; disable it
   if you control image quality and need maximum throughput.

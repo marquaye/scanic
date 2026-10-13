@@ -2,7 +2,7 @@
  * @vitest-environment jsdom
  */
 import { describe, it, expect } from 'vitest';
-import { scanDocument, Scanner, createCornerEditor } from './index.js';
+import { scanDocument, extractDocument, Scanner, createCornerEditor } from './index.js';
 import { createCanvas, loadImage } from 'canvas';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -203,6 +203,42 @@ describe('Regression Tests', () => {
     expect(result.output).toBeTruthy();
     expect(result.output.width).toBeGreaterThan(0);
     expect(result.output.height).toBeGreaterThan(0);
+  });
+
+  it('reports no document for an image too small to hold one', async () => {
+    const tiny = createCanvas(4, 4);
+    const result = await scanDocument(tiny, { mode: 'detect' });
+    expect(result.success).toBe(false);
+    expect(result.message).toMatch(/too small/);
+  });
+
+  // Canvas sources only read the quad's bounding box; ImageData is sampled in
+  // place over the whole image. Both must give the same pixels, including for
+  // corners outside the image and a nearly degenerate quad, whose mapping folds
+  // and samples far outside the quad.
+  it('extracts the same pixels from a canvas and from ImageData', async () => {
+    const img = await loadImage(path.join(imagesDir, 'test-sized.png'));
+    const canvas = createCanvas(img.width, img.height);
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(img, 0, 0);
+    const imageData = ctx.getImageData(0, 0, img.width, img.height);
+
+    const w = img.width;
+    const h = img.height;
+    const quads = [
+      { topLeft: { x: w * 0.2, y: h * 0.15 }, topRight: { x: w * 0.8, y: h * 0.1 }, bottomRight: { x: w * 0.85, y: h * 0.9 }, bottomLeft: { x: w * 0.15, y: h * 0.85 } },
+      { topLeft: { x: -20, y: -10 }, topRight: { x: w + 15, y: 5 }, bottomRight: { x: w - 5, y: h + 30 }, bottomLeft: { x: 10, y: h - 10 } },
+      { topLeft: { x: w * 0.5, y: 0 }, topRight: { x: w * 0.5, y: 4 }, bottomRight: { x: w * 0.7, y: h * 0.6 }, bottomLeft: { x: w * 0.1, y: h * 0.9 } }
+    ];
+
+    for (const corners of quads) {
+      const fromCanvas = await extractDocument(canvas, corners, { output: 'imagedata' });
+      const fromImageData = await extractDocument(imageData, corners, { output: 'imagedata' });
+      expect(fromCanvas.success).toBe(true);
+      expect(fromCanvas.output.width).toBe(fromImageData.output.width);
+      expect(fromCanvas.output.height).toBe(fromImageData.output.height);
+      expect(Buffer.from(fromCanvas.output.data).equals(Buffer.from(fromImageData.output.data))).toBe(true);
+    }
   });
 });
 

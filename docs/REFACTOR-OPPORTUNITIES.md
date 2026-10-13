@@ -1,5 +1,50 @@
 # Scanic: Refactor & Optimisation Opportunities
 
+## Open (October 2026)
+
+### TODO: share the unchanged Canny stages across cascade passes
+
+**Files:** `src/index.js` (`detectDocumentInternal`), `src/edgeDetection.js`, `wasm_blur/src/canny.rs`
+
+When the first pass is weak, the detection cascade runs up to 4 full Canny
+passes. In a live preview with no document in view that is the common case,
+so every frame pays for all 4.
+
+Blur, gradients and non-maximum suppression do not depend on the pass
+settings. They are about 7 of the 9ms of one Canny pass (desktop, 800x600).
+Passes 1 to 3 (`default`, `connect-edges`, `no-dilation`) also share their
+thresholds, so their hysteresis output is identical as well; only dilation
+differs (3, 5, none).
+
+Idea: a stateful WASM context that runs blur, gradients and NMS once per
+frame, then produces edges per pass from that (hysteresis and dilation only).
+The edge map could stay in WASM memory for `find_contours` too, which saves a
+480KB copy out and back per pass. Worst case drops from about 4 x 9ms to about
+9 + 1.5 + 2ms.
+
+**Constraint:** detection quality must not change. The result has to be
+bit-identical to today: same corners, confidence and extracted pixels on every
+test image (`npm run baseline:check` plus an exact old-vs-new comparison).
+
+### Smaller open items
+
+- **ML threads spin between runs.** ONNX Runtime keeps its worker threads
+  spinning for a while after each inference. In a live loop that costs
+  battery. Measure `extra: { session: { intra_op: { allow_spinning: '0' } } }`
+  with `npm run bench:detectors` (a fresh process per thread count) and make
+  it the default if latency barely moves.
+- **A failed WASM start is retried on every call.** `initializeWasm()` resets
+  its promise on failure (e.g. a CSP without `wasm-unsafe-eval`), so the base64
+  module is decoded and compiled again up to 4 times per pass. Remember the
+  failure and stay on the JS fallback.
+- **Release hardening.** Publish with npm Trusted Publishing (OIDC) instead of
+  the long-lived `NPM_TOKEN`, and pin third-party actions to a commit SHA.
+
+---
+
+The analysis below is from April 2026. Items 1 to 4 have shipped since; it is
+kept for the measurements and the reasoning.
+
 > Analysis date: April 2026
 > Baseline: 12 images, 11/12 detect success, 17/17 tests passing
 

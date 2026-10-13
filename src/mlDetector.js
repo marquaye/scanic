@@ -114,7 +114,7 @@ async function loadOrt() {
       throw new Error(
         "scanic: failed to load the ML runtime (onnxruntime-web). " +
           "It is bundled with scanic's ESM build; if you use the UMD/CommonJS build, " +
-          'install it alongside scanic: `npm install onnxruntime-web@1.23.x`. ' +
+          'install it alongside scanic: `npm install onnxruntime-web@1.27.x`. ' +
           `(original error: ${error?.message || error})`
       );
     });
@@ -173,17 +173,20 @@ async function getSession(options) {
   }
 }
 
+// Same as getImageSize in imageSource.js, kept local so this lazy chunk shares
+// no module with index.js (a shared module would become an unshipped chunk).
+// Intrinsic sizes come first: `<img>.width` is the rendered width and
+// `<video>.width` the usually unset attribute.
 function getImageDimensions(image) {
-  const isImageData =
-    image && typeof image.width === 'number' && typeof image.height === 'number' && image.data;
-  if (isImageData) return { width: image.width, height: image.height };
-  if (image) {
-    return {
-      width: image.width || image.naturalWidth,
-      height: image.height || image.naturalHeight
-    };
+  if (!image) throw new Error('No image provided');
+  const width = image.naturalWidth || image.videoWidth || image.displayWidth || image.width;
+  const height = image.naturalHeight || image.videoHeight || image.displayHeight || image.height;
+  if (!(width > 0 && height > 0)) {
+    throw new Error(
+      'scanic: the image has no pixels yet. Wait for an <img> to load, or for a <video> to fire loadedmetadata.'
+    );
   }
-  throw new Error('No image provided');
+  return { width, height };
 }
 
 /**
@@ -191,7 +194,7 @@ function getImageDimensions(image) {
  * Uses OffscreenCanvas when available, falling back to a DOM canvas. Same
  * strategy the classical pipeline uses.
  */
-function preprocess(image) {
+function preprocess(image, width, height) {
   const useOffscreen = typeof OffscreenCanvas !== 'undefined';
   const canvas = useOffscreen
     ? new OffscreenCanvas(MODEL_SIZE, MODEL_SIZE)
@@ -217,9 +220,7 @@ function preprocess(image) {
     tmp.getContext('2d').putImageData(image, 0, 0);
     ctx.drawImage(tmp, 0, 0, image.width, image.height, 0, 0, MODEL_SIZE, MODEL_SIZE);
   } else {
-    const w = image.width || image.naturalWidth;
-    const h = image.height || image.naturalHeight;
-    ctx.drawImage(image, 0, 0, w, h, 0, 0, MODEL_SIZE, MODEL_SIZE);
+    ctx.drawImage(image, 0, 0, width, height, 0, 0, MODEL_SIZE, MODEL_SIZE);
   }
 
   const { data } = ctx.getImageData(0, 0, MODEL_SIZE, MODEL_SIZE);
@@ -286,7 +287,7 @@ export async function detectDocumentMl(image, mlOptions = {}) {
   t0 = (typeof performance !== 'undefined' ? performance : Date).now();
   // `inputData` lets callers supply their own normalized [1,224,224,3] NHWC tensor
   // (also used by tests to exercise inference without a canvas backend).
-  const inputData = mlOptions.inputData || preprocess(image);
+  const inputData = mlOptions.inputData || preprocess(image, width, height);
   const tensor = new ortMod.Tensor('float32', inputData, [1, MODEL_SIZE, MODEL_SIZE, 3]);
   timings.push({ step: 'ML Preprocess', ms: (((typeof performance !== 'undefined' ? performance : Date).now()) - t0).toFixed(2) });
 

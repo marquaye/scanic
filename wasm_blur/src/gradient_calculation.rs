@@ -6,12 +6,12 @@ pub fn calculate_gradients(blurred: &[u8], width: usize, height: usize) -> Vec<i
     let mut result = vec![0i16; 2 * size];
 
     // Full 3×3 Sobel operator (matches the JS calculateGradients implementation)
-    for y in 1..height - 1 {
+    for y in 1..height.saturating_sub(1) {
         let prev_row = (y - 1) * width;
         let curr_row = y * width;
         let next_row = (y + 1) * width;
 
-        for x in 1..width - 1 {
+        for x in 1..width.saturating_sub(1) {
             let p0 = blurred[prev_row + x - 1] as i16;
             let p1 = blurred[prev_row + x]     as i16;
             let p2 = blurred[prev_row + x + 1] as i16;

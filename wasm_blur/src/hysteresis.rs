@@ -24,12 +24,16 @@ pub fn hysteresis_thresholding(
     // Map values: 0 = weak edge (potential), 1 = non-edge, 2 = strong edge
     let mut edge_map = vec![1u8; width * height]; // Initialize all as non-edge
     let mut stack = Vec::with_capacity(1024); // Pre-allocate with reasonable capacity
-    
+    // Too small to have any interior pixel; the row slicing below would underflow.
+    if width < 3 || height < 3 {
+        return edge_map;
+    }
+
     // SIMD-optimized first pass: Identify strong edges and potential weak edges
     // Process 4 pixels at a time using SIMD where possible
     let chunk_size = 4;
     
-    for y in 1..height - 1 {
+    for y in 1..height.saturating_sub(1) {
         let row_start = y * width + 1;
         let row_end = y * width + width - 1;
         let row_slice = &suppressed[row_start..row_end];
@@ -172,8 +176,8 @@ pub fn hysteresis_thresholding_binary(
     let mut stack = Vec::with_capacity(1024);
     
     // First pass: Identify strong edges and potential weak edges
-    for y in 1..height - 1 {
-        for x in 1..width - 1 {
+    for y in 1..height.saturating_sub(1) {
+        for x in 1..width.saturating_sub(1) {
             let idx = y * width + x;
             let mag = suppressed[idx];
             

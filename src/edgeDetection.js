@@ -337,16 +337,7 @@ function nonMaximumSuppression(dx, dy, width, height, L2gradient) {
         neighbor1 = magnitude[idx - 1]; // left
         neighbor2 = magnitude[idx + 1]; // right
       } else { // Diagonal edge
-        // Determine diagonal direction based on signs of gx and gy
-        const s = (gx ^ gy) < 0 ? -1 : 1; // Check if signs are different
-        if (gy > 0) { // Gradient points down
-          neighbor1 = magnitude[(y - 1) * width + (x - s)]; // top-left/right
-          neighbor2 = magnitude[(y + 1) * width + (x + s)]; // bottom-right/left
-        } else { // Gradient points up
-          neighbor1 = magnitude[(y + 1) * width + (x - s)]; // bottom-left/right
-          neighbor2 = magnitude[(y - 1) * width + (x + s)]; // top-right/left
-        }
-        // Refined diagonal check (approximating OpenCV's logic)
+        // Diagonal direction from the gradient signs (approximating OpenCV's logic)
         // Check 45 degrees (top-right / bottom-left)
         if ((gx > 0 && gy > 0) || (gx < 0 && gy < 0)) { // Quadrants 1 & 3
              neighbor1 = magnitude[(y - 1) * width + (x + 1)]; // top-right
@@ -498,6 +489,64 @@ export function dilateEdges(edges, width, height, kernelSize = 5) {
 }
 
 /**
+ * Picks Canny thresholds from the image itself: the 70th percentile of the
+ * non-zero Sobel magnitudes (L1 norm, the default Canny magnitude scale) is the
+ * pivot, low = pivot / 2, high = pivot * 1.5.
+ *
+ * Depends only on the grayscale frame, so a multi-pass detection computes it
+ * once and hands the result to every pass.
+ * @param {Uint8ClampedArray|Uint8Array} grayscale
+ * @param {number} width
+ * @param {number} height
+ * @returns {{lowThreshold: number, highThreshold: number}}
+ */
+export function computeAdaptiveThresholds(grayscale, width, height) {
+  const HIST_SIZE = 1024;
+  const hist = new Uint32Array(HIST_SIZE);
+  let nonZeroCount = 0;
+  for (let y = 1; y < height - 1; y++) {
+    for (let x = 1; x < width - 1; x++) {
+      const idx = y * width + x;
+      const gx =
+        -grayscale[idx - width - 1] + grayscale[idx - width + 1]
+        - 2 * grayscale[idx - 1] + 2 * grayscale[idx + 1]
+        - grayscale[idx + width - 1] + grayscale[idx + width + 1];
+      const gy =
+        -grayscale[idx - width - 1] - 2 * grayscale[idx - width] - grayscale[idx - width + 1]
+        + grayscale[idx + width - 1] + 2 * grayscale[idx + width] + grayscale[idx + width + 1];
+      let mag = Math.abs(gx) + Math.abs(gy);
+      if (mag >= HIST_SIZE) mag = HIST_SIZE - 1;
+      if (mag > 0) {
+        hist[mag]++;
+        nonZeroCount++;
+      }
+    }
+  }
+
+  // A frame with no gradient at all (covered lens, blank wall) keeps the
+  // fallback pivot instead of collapsing to 1.
+  const targetCount = Math.round(nonZeroCount * 0.7);
+  let pivot = 75; // fallback
+  if (nonZeroCount > 0) {
+    let cumulative = 0;
+    for (let i = 1; i < HIST_SIZE; i++) {
+      cumulative += hist[i];
+      if (cumulative >= targetCount) {
+        pivot = i;
+        break;
+      }
+    }
+  }
+
+  // Both thresholds have a floor. Without one on the high threshold a near-flat
+  // frame ended up with high <= low (e.g. 5 / 2) and sensor noise passed as
+  // edges. The floor of 10 only changes frames with pivot < 7.
+  const lowThreshold = Math.max(5, Math.round(pivot * 0.5));
+  const highThreshold = Math.min(500, Math.max(10, Math.round(pivot * 1.5)));
+  return { lowThreshold, highThreshold };
+}
+
+/**
  * Full Canny edge detector implementation matching jscanify's approach
  * @param {ImageData} imageData - Original image data
  * @param {Object} options - Configuration options
@@ -550,42 +599,9 @@ export async function cannyEdgeDetector(input, options = {}) {
 
   // Adaptive thresholds: compute from gradient magnitudes if not provided
   if (lowThreshold === null || highThreshold === null) {
-    // Quick 3×3 Sobel gradient magnitude scan on raw grayscale (O(n), single pass).
-    // Uses L1 norm (|gx|+|gy|) to match the default Canny magnitude scale.
-    const HIST_SIZE = 1024;
-    const hist = new Uint32Array(HIST_SIZE);
-    let nonZeroCount = 0;
-    for (let y = 1; y < height - 1; y++) {
-      for (let x = 1; x < width - 1; x++) {
-        const idx = y * width + x;
-        const gx =
-          -grayscale[idx - width - 1] + grayscale[idx - width + 1]
-          - 2 * grayscale[idx - 1] + 2 * grayscale[idx + 1]
-          - grayscale[idx + width - 1] + grayscale[idx + width + 1];
-        const gy =
-          -grayscale[idx - width - 1] - 2 * grayscale[idx - width] - grayscale[idx - width + 1]
-          + grayscale[idx + width - 1] + 2 * grayscale[idx + width] + grayscale[idx + width + 1];
-        let mag = Math.abs(gx) + Math.abs(gy);
-        if (mag >= HIST_SIZE) mag = HIST_SIZE - 1;
-        if (mag > 0) {
-          hist[mag]++;
-          nonZeroCount++;
-        }
-      }
-    }
-    // Use the 70th percentile of non-zero gradient magnitudes as pivot
-    const targetCount = Math.round(nonZeroCount * 0.7);
-    let cumulative = 0;
-    let pivot = 75; // fallback
-    for (let i = 1; i < HIST_SIZE; i++) {
-      cumulative += hist[i];
-      if (cumulative >= targetCount) {
-        pivot = i;
-        break;
-      }
-    }
-    if (lowThreshold === null) lowThreshold = Math.max(5, Math.round(pivot * 0.5));
-    if (highThreshold === null) highThreshold = Math.min(500, Math.round(pivot * 1.5));
+    const adaptive = computeAdaptiveThresholds(grayscale, width, height);
+    if (lowThreshold === null) lowThreshold = adaptive.lowThreshold;
+    if (highThreshold === null) highThreshold = adaptive.highThreshold;
   }
   const kernelSize = options.kernelSize || 5; // Match jscanify's 5x5 kernel
   const sigma = options.sigma || 0; // Let the blur function calculate sigma
@@ -611,15 +627,16 @@ export async function cannyEdgeDetector(input, options = {}) {
     try {
       await initializeWasm();
       const t0w = performance.now();
-      const finalEdges = new Uint8ClampedArray(
-        wasmFullCanny(
-          grayscale, width, height,
-          lowThreshold, highThreshold,
-          kernelSize, sigma,
-          L2gradient,
-          applyDilation, dilationKernelSize
-        )
+      const wasmEdges = wasmFullCanny(
+        grayscale, width, height,
+        lowThreshold, highThreshold,
+        kernelSize, sigma,
+        L2gradient,
+        applyDilation, dilationKernelSize
       );
+      // wasm-bindgen already copied the result out of linear memory, so a view
+      // over that copy is enough.
+      const finalEdges = new Uint8ClampedArray(wasmEdges.buffer, wasmEdges.byteOffset, wasmEdges.length);
       const t1w = performance.now();
 
       // Record a single combined timing entry. Individual phases ran entirely
@@ -676,7 +693,7 @@ export async function cannyEdgeDetector(input, options = {}) {
   let suppressed;
   try {
     await initializeWasm();
-    suppressed = await wasmMaximumSuppression(dx, dy, width, height, L2gradient);
+    suppressed = wasmMaximumSuppression(dx, dy, width, height, L2gradient);
   } catch {
     suppressed = nonMaximumSuppression(dx, dy, width, height, L2gradient);
   }

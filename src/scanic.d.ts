@@ -127,7 +127,7 @@ export interface CornerEditor {
  * API is bundled into scanic's ESM build as a lazy, code-split chunk (no extra
  * install); the model and custom wasm are lazy-loaded from the companion
  * `scanic-ml` package on a CDN by default. (UMD/CommonJS consumers must provide
- * `onnxruntime-web@1.23.x` themselves, as UMD can't code-split.)
+ * `onnxruntime-web@1.27.x` themselves, as UMD can't code-split.)
  */
 export interface MlDetectorOptions {
   /** Base URL for the wasm + `.ort` model. Default: scanic-ml on jsDelivr. */
@@ -214,6 +214,10 @@ export interface ScannerResult {
   confidence?: number | null;
   /** P(document present) from the ML detector (`detector: 'ml'`); null otherwise. */
   score?: number | null;
+  /**
+   * In a Web Worker (no DOM), `output: 'canvas'` returns an OffscreenCanvas.
+   * It is not part of this union so existing type narrowing keeps working.
+   */
   output: HTMLCanvasElement | ImageData | string | null;
   corners: CornerPoints | null;
   contour: Point[] | null;
@@ -222,10 +226,42 @@ export interface ScannerResult {
 }
 
 /**
+ * Structural stand-ins for OffscreenCanvas and VideoFrame. The real types are
+ * assignable to them, and unlike the real ones they compile with TypeScript
+ * versions whose DOM lib predates OffscreenCanvas (before 4.9) or VideoFrame
+ * (5.0 and older).
+ */
+export interface OffscreenCanvasLike {
+  readonly width: number;
+  readonly height: number;
+  convertToBlob(options?: object): Promise<Blob>;
+}
+
+export interface VideoFrameLike {
+  readonly displayWidth: number;
+  readonly displayHeight: number;
+  close(): void;
+}
+
+/**
+ * Anything scanic can read pixels from. Pass a `<video>` (after
+ * `loadedmetadata`) or a canvas directly instead of calling getImageData()
+ * first: that saves a full-resolution copy per frame.
+ */
+export type ScanicImageSource =
+  | HTMLImageElement
+  | HTMLCanvasElement
+  | HTMLVideoElement
+  | OffscreenCanvasLike
+  | ImageBitmap
+  | VideoFrameLike
+  | ImageData;
+
+/**
  * Main entry point for document scanning.
  */
 export function scanDocument(
-  image: HTMLImageElement | HTMLCanvasElement | ImageData,
+  image: ScanicImageSource,
   options?: DetectionOptions
 ): Promise<ScannerResult>;
 
@@ -233,7 +269,7 @@ export function scanDocument(
  * Extract document with manual corner points.
  */
 export function extractDocument(
-  image: HTMLImageElement | HTMLCanvasElement | ImageData,
+  image: ScanicImageSource,
   corners: CornerPoints,
   options?: Pick<DetectionOptions, 'output'>
 ): Promise<ScannerResult>;
@@ -245,7 +281,12 @@ export class Scanner {
   constructor(options?: DetectionOptions);
   initialize(): Promise<void>;
   scan(
-    image: HTMLImageElement | HTMLCanvasElement | ImageData,
+    image: ScanicImageSource,
+    options?: DetectionOptions
+  ): Promise<ScannerResult>;
+  extract(
+    image: ScanicImageSource,
+    corners: CornerPoints,
     options?: DetectionOptions
   ): Promise<ScannerResult>;
 }

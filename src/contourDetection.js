@@ -35,6 +35,17 @@ export function detectDocumentContour(edges, options = {}) {
   const method = options.method !== undefined ? options.method : CHAIN_APPROX_SIMPLE;
   const minArea = options.minArea || DEFAULTS.MIN_CONTOUR_AREA;
 
+  // WASM traces the borders and hands back only the simplified polygons, which
+  // keeps the edge map from being walked in JS at all. Area, bounding box,
+  // filtering and sorting stay here either way, so the numbers are identical.
+  const minPoints = method === CHAIN_APPROX_SIMPLE ? 4 : DEFAULTS.MIN_CONTOUR_POINTS;
+  if (mode === RETR_LIST && method === CHAIN_APPROX_SIMPLE) {
+    const encoded = findContoursWasm(edges, width, height, minPoints);
+    if (encoded) {
+      return finishContours(decodeWasmContours(encoded), minArea, options, null, true);
+    }
+  }
+
   // Create a padded label map to simplify boundary checks.
   // 0: background
   // 1: foreground (unlabeled)
@@ -54,17 +65,6 @@ export function detectDocumentContour(edges, options = {}) {
 
   const contours = [];
   let nextContourId = 2; // Start labeling contours from 2
-
-  // WASM traces the borders and hands back only the simplified polygons, which
-  // keeps the edge map from being walked in JS at all. Area, bounding box,
-  // filtering and sorting stay here either way, so the numbers are identical.
-  const minPoints = method === CHAIN_APPROX_SIMPLE ? 4 : DEFAULTS.MIN_CONTOUR_POINTS;
-  if (mode === RETR_LIST && method === CHAIN_APPROX_SIMPLE) {
-    const encoded = findContoursWasm(edges, width, height, minPoints);
-    if (encoded) {
-      return finishContours(decodeWasmContours(encoded), minArea, options, null, true);
-    }
-  }
 
   // Allocated once per image and reused by every trace.
   const visitStamp = new Int32Array(paddedWidth * paddedHeight);
@@ -154,8 +154,6 @@ export function detectDocumentContour(edges, options = {}) {
                  labels[startY * paddedWidth + startX] = contourId; // Mark as visited
              }
         }
-      } else if (currentPixelLabel >= 1 && leftPixelLabel >= 1 && currentPixelLabel !== leftPixelLabel) {
-          // Handle merging contours or complex topology if needed (not implemented for RETR_LIST/EXTERNAL)
       }
     }
   }

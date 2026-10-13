@@ -12,8 +12,8 @@ fn hysteresis_thresholding(
     let mut stack = Vec::new();
 
     // Apply double thresholding to identify strong and weak edges.
-    for y in 1..(height - 1) {
-        for x in 1..(width - 1) {
+    for y in 1..height.saturating_sub(1) {
+        for x in 1..width.saturating_sub(1) {
             let idx = y * width + x;
             let mag = suppressed[idx];
             if mag >= high_threshold {

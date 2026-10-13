@@ -3,7 +3,6 @@ use std::arch::wasm32::*;
 
 // Constants for optimization
 const SIMD_WIDTH: usize = 4;
-const FIXED_POINT_SHIFT: u32 = 16;
 const FIXED_POINT_SCALE: f32 = 65536.0; // 2^16
 
 // Fixed-point kernel for better performance
@@ -13,12 +12,6 @@ type FixedPoint = u32;
 #[inline]
 fn to_fixed_point(val: f32) -> FixedPoint {
     (val * FIXED_POINT_SCALE + 0.5) as FixedPoint
-}
-
-// Convert fixed point to float (for final conversion)
-#[inline]
-fn from_fixed_point(val: FixedPoint) -> f32 {
-    val as f32 / FIXED_POINT_SCALE
 }
 
 // Optimized 1D Gaussian kernel creation with fixed-point arithmetic
@@ -79,11 +72,10 @@ unsafe fn horizontal_pass_fixed(
         let src_row = &src[row_offset..row_offset + width];
         let dst_row = &mut dst[row_offset..row_offset + width];
         
-        // Process pixels with SIMD when possible
-        let simd_end = width.saturating_sub(SIMD_WIDTH);
+        // Process pixels with SIMD when a full 4-pixel block fits in the row
         let mut x = 0;
         
-        while x <= simd_end {
+        while x + SIMD_WIDTH <= width {
             let mut sum_vec = u32x4_splat(0);
             
             for k_idx in 0..kernel_len {
@@ -143,10 +135,11 @@ unsafe fn horizontal_pass_3x3_fixed(
         let src_row = &src[row_offset..row_offset + width];
         let dst_row = &mut dst[row_offset..row_offset + width];
         
-        // First pixel (special case)
-        dst_row[0] = kernel[0] * src_row[0] as u32 + 
-                     kernel[1] * src_row[0] as u32 + 
-                     kernel[2] * src_row[1] as u32;
+        // First pixel (special case), stored in Q8 like every other pixel
+        let right = src_row[1.min(width - 1)];
+        dst_row[0] = ((kernel[0] as u64 * src_row[0] as u64 +
+                       kernel[1] as u64 * src_row[0] as u64 +
+                       kernel[2] as u64 * right as u64) >> 8) as u32;
         
         // SIMD processing for middle pixels
         let mut x = 1;
@@ -250,11 +243,10 @@ unsafe fn vertical_pass_fixed(
     for y in 0..height {
         let dst_row = &mut dst[y * width..(y + 1) * width];
         
-        // Process with SIMD
+        // Process with SIMD when a full 4-pixel block fits in the row
         let mut x = 0;
-        let simd_end = width.saturating_sub(SIMD_WIDTH);
         
-        while x <= simd_end {
+        while x + SIMD_WIDTH <= width {
             let mut sum_vec_lo = u64x2_splat(0);
             let mut sum_vec_hi = u64x2_splat(0);
             
@@ -320,13 +312,14 @@ unsafe fn vertical_pass_3x3_fixed(
     let k1 = kernel[1] as u64;
     let k2 = kernel[2] as u64;
     
-    // First row
+    // First row (on a single-row image the row below is the row itself)
     {
+        let below = if height > 1 { width } else { 0 };
         let dst_row = &mut dst[0..width];
         for x in 0..width {
             let sum = k0 * (src[x] as u64) + 
                      k1 * (src[x] as u64) + 
-                     k2 * (src[width + x] as u64);
+                     k2 * (src[below + x] as u64);
             dst_row[x] = ((sum >> 24).min(255)) as u8;
         }
     }
@@ -402,6 +395,9 @@ pub fn blur(
     }
     if kernel_size == 0 || kernel_size % 2 == 0 {
         panic!("Kernel size must be odd and greater than 0");
+    }
+    if width == 0 || height == 0 {
+        return Vec::new();
     }
 
     // Calculate sigma using OpenCV's default formula if not provided

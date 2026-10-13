@@ -337,6 +337,27 @@
       margin-top: 1rem;
     }
 
+    /* The <video> is the live preview; the canvas on top only holds the overlay. */
+    .live-view {
+      position: relative;
+      margin-top: 1rem;
+    }
+    .live-view video {
+      display: block;
+      width: 100%;
+      height: auto;
+      border-radius: 8px;
+      background: #000;
+    }
+    .live-view canvas {
+      position: absolute;
+      inset: 0;
+      height: 100%;
+      margin-top: 0;
+      background: transparent;
+      pointer-events: none;
+    }
+
     .stats {
       margin-top: 1rem;
       padding: 12px;
@@ -464,7 +485,10 @@
           <button class="btn btn-danger hidden" id="btnCapture">Capture</button>
         </div>
 
-        <canvas id="liveCanvas"></canvas>
+        <div class="live-view">
+          <video id="liveVideo" playsinline muted></video>
+          <canvas id="liveCanvas"></canvas>
+        </div>
 
         <div class="stats">
           <span>Resolution: <strong id="statRes">-</strong></span>
@@ -502,7 +526,15 @@
     let isLive = false;
     let stream = null;
     let video = null;
-    let animationId = null;
+    let detectTimer = null;
+    // Bumped on every start. A scan still in flight from before a stop/start
+    // sees a newer session and ends its loop instead of running a second one.
+    let liveSession = 0;
+
+    // About 10 detections per second. The preview itself is the <video>, which
+    // the browser plays at full frame rate for free; running detection on every
+    // frame (60-120 Hz) mostly burns battery without a visibly better overlay.
+    const DETECT_INTERVAL_MS = 100;
 
     // DOM Elements
     const liveCanvas = document.getElementById('liveCanvas');
@@ -923,9 +955,8 @@
           video: { facingMode: 'environment', width: { ideal: 1280 } } 
         });
         
-        video = document.createElement('video');
+        video = document.getElementById('liveVideo');
         video.srcObject = stream;
-        video.autoplay = true;
         
         await video.play();
         
@@ -940,7 +971,7 @@
         streamDot.classList.add('status-active');
         statStatus.textContent = 'Scanning...';
         
-        requestAnimationFrame(loop);
+        detectLoop(++liveSession);
       } catch (err) {
         console.error(err);
         alert('Camera access denied or unavailable');
@@ -951,7 +982,8 @@
     btnStop.onclick = () => {
       isLive = false;
       if (stream) stream.getTracks().forEach(t => t.stop());
-      cancelAnimationFrame(animationId);
+      clearTimeout(detectTimer);
+      ctx.clearRect(0, 0, liveCanvas.width, liveCanvas.height);
       btnStart.classList.remove('hidden');
       btnStop.classList.add('hidden');
       btnCapture.classList.add('hidden');
@@ -959,19 +991,21 @@
       statStatus.textContent = 'Idle';
     };
 
-    async function loop() {
-      if (!isLive) return;
-
+    async function detectLoop(session) {
+      if (!isLive || session !== liveSession) return;
       const t0 = performance.now();
-      ctx.drawImage(video, 0, 0);
 
-      // Process every other frame for performance
-      if (true) {
+      // Skip the work while the tab is hidden; the timer keeps ticking cheaply.
+      if (!document.hidden) {
         const usingMl = detectorBackend === 'ml';
-        const result = await scanner.scan(liveCanvas, withDetectorOption({ mode: 'detect' }));
+        // The video goes in directly: no drawImage + getImageData copy at full
+        // resolution first.
+        const result = await scanner.scan(video, withDetectorOption({ mode: 'detect' }));
+        if (!isLive || session !== liveSession) return;
         if (usingMl) mlModelReady = true;
         statTime.textContent = `${Math.round(performance.now() - t0)}ms`;
 
+        ctx.clearRect(0, 0, liveCanvas.width, liveCanvas.height);
         if (result.success && result.corners) {
           const scorePercent = usingMl
             ? (result.score != null ? `${Math.round(result.score * 100)}%` : '')
@@ -984,12 +1018,14 @@
         }
       }
 
-      animationId = requestAnimationFrame(loop);
+      // A slow device simply runs fewer detections per second.
+      const elapsed = performance.now() - t0;
+      detectTimer = setTimeout(() => detectLoop(session), Math.max(0, DETECT_INTERVAL_MS - elapsed));
     }
 
     btnCapture.onclick = async () => {
       statStatus.textContent = 'Extracting...';
-      const result = await scanner.scan(liveCanvas, withDetectorOption({ mode: 'extract' }));
+      const result = await scanner.scan(video, withDetectorOption({ mode: 'extract' }));
       if (result.success) {
         extractedContainer.classList.remove('hidden');
         staticCanvas.width = result.output.width;

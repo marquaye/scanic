@@ -7,7 +7,7 @@
 
 import { detectDocumentContour, approximatePolygon } from './contourDetection.js';
 import { findCornerPoints } from './cornerDetection.js';
-import { cannyEdgeDetector, initializeWasm } from './edgeDetection.js';
+import { cannyEdgeDetector, computeAdaptiveThresholds, initializeWasm } from './edgeDetection.js';
 import {
   cornersAreFiniteAndDistinct,
   cornersToPoints,
@@ -15,6 +15,13 @@ import {
   polygonAreaFromCorners,
   sideLengthsFromCorners
 } from './geometry.js';
+import {
+  createOutputCanvas,
+  createScratchCanvas,
+  getImageSize,
+  isImageData,
+  toOutput
+} from './imageSource.js';
 export { createCornerEditor } from './cornerEditor.js';
 
 // webpackIgnore keeps webpack apps from compiling the optional ML chunk (its
@@ -79,7 +86,7 @@ export class Scanner {
 
   /**
    * Scan an image for a document.
-   * @param {HTMLImageElement|HTMLCanvasElement|ImageData} image 
+   * @param {CanvasImageSource|ImageData} image Image, canvas, video, ImageBitmap, VideoFrame or ImageData
    * @param {Object} options Override default options
    */
   async scan(image, options = {}) {
@@ -90,7 +97,7 @@ export class Scanner {
 
   /**
    * Extract a document from an image using manual corners.
-   * @param {HTMLImageElement|HTMLCanvasElement|ImageData} image 
+   * @param {CanvasImageSource|ImageData} image Image, canvas, video, ImageBitmap, VideoFrame or ImageData
    * @param {Object} corners 
    * @param {Object} options 
    */
@@ -103,81 +110,68 @@ export class Scanner {
 
 
 
+// Reused across calls: a live preview scans the same frame size over and over,
+// so one canvas avoids allocating (and later collecting) a new one per frame.
+// Safe to share because nothing awaits between drawing and reading it back.
+let scaleCanvas = null;
+let scaleContext = null;
+
+function getScaleContext(width, height) {
+  if (!scaleCanvas) {
+    scaleCanvas = createScratchCanvas(width, height);
+    scaleContext = scaleCanvas.getContext('2d', { willReadFrequently: true });
+  } else if (scaleCanvas.width !== width || scaleCanvas.height !== height) {
+    // Resizing clears the canvas and resets the context state; the caller sets
+    // smoothing afterwards.
+    scaleCanvas.width = width;
+    scaleCanvas.height = height;
+  } else {
+    // Same size: clear, so a transparent image isn't drawn over the last frame.
+    scaleContext.clearRect(0, 0, width, height);
+  }
+  return scaleContext;
+}
+
 /**
  * Prepares image, downscales, and converts to grayscale in a single operation.
- * Uses OffscreenCanvas and CSS filters for maximum performance.
- * @param {HTMLImageElement|HTMLCanvasElement|ImageData} image - Input image
+ * @param {CanvasImageSource|ImageData} image - Input image
  * @param {number} maxDimension - Maximum dimension for processing (default 800)
  * @returns {Promise<Object>} { grayscaleData, scaleFactor, originalDimensions, scaledDimensions }
  *   Only the grayscale plane is produced; the RGBA buffer is discarded, so this
  *   never writes back the 3 extra bytes per pixel that no caller reads.
  */
 async function prepareScaleAndGrayscale(image, maxDimension = 800) {
-  let originalWidth, originalHeight;
-  
-  // Robust check for ImageData without relying on global ImageData class
-  const isImageData = image && typeof image.width === 'number' && typeof image.height === 'number' && image.data;
-
-  // Get original dimensions
-  if (isImageData) {
-    originalWidth = image.width;
-    originalHeight = image.height;
-  } else if (image) {
-    originalWidth = image.width || image.naturalWidth;
-    originalHeight = image.height || image.naturalHeight;
-  } else {
-    throw new Error('No image provided');
-  }
-  
+  const { width: originalWidth, height: originalHeight } = getImageSize(image);
   const maxCurrentDimension = Math.max(originalWidth, originalHeight);
-  
+
   // Calculate target dimensions
   let targetWidth, targetHeight, scaleFactor;
-  
+
   if (maxCurrentDimension <= maxDimension) {
     targetWidth = originalWidth;
     targetHeight = originalHeight;
     scaleFactor = 1;
   } else {
     const scale = maxDimension / maxCurrentDimension;
-    targetWidth = Math.round(originalWidth * scale);
-    targetHeight = Math.round(originalHeight * scale);
+    // Very wide or tall images could otherwise round a side down to 0.
+    targetWidth = Math.max(1, Math.round(originalWidth * scale));
+    targetHeight = Math.max(1, Math.round(originalHeight * scale));
     scaleFactor = 1 / scale;
   }
-  
-  // Use OffscreenCanvas if available (faster, no DOM interaction)
-  const useOffscreen = typeof OffscreenCanvas !== 'undefined';
-  const canvas = useOffscreen 
-    ? new OffscreenCanvas(targetWidth, targetHeight)
-    : document.createElement('canvas');
-  
-  if (!useOffscreen) {
-    canvas.width = targetWidth;
-    canvas.height = targetHeight;
-  }
-  
-  const ctx = canvas.getContext('2d', { willReadFrequently: true });
-  
-  // Draw scaled image without CSS filter
+
+  const ctx = getScaleContext(targetWidth, targetHeight);
   ctx.imageSmoothingEnabled = true;
   ctx.imageSmoothingQuality = 'medium';
-  
-  if (isImageData) {
-    // For ImageData, need to put on temp canvas first
-    const tempCanvas = useOffscreen
-      ? new OffscreenCanvas(originalWidth, originalHeight)
-      : document.createElement('canvas');
-    if (!useOffscreen) {
-      tempCanvas.width = originalWidth;
-      tempCanvas.height = originalHeight;
-    }
-    const tempCtx = tempCanvas.getContext('2d');
-    tempCtx.putImageData(image, 0, 0);
+
+  if (isImageData(image)) {
+    // ImageData can't be drawn scaled directly, so it goes through a temp canvas.
+    const tempCanvas = createScratchCanvas(originalWidth, originalHeight);
+    tempCanvas.getContext('2d').putImageData(image, 0, 0);
     ctx.drawImage(tempCanvas, 0, 0, originalWidth, originalHeight, 0, 0, targetWidth, targetHeight);
   } else {
     ctx.drawImage(image, 0, 0, originalWidth, originalHeight, 0, 0, targetWidth, targetHeight);
   }
-  
+
   // Get image data and compute grayscale in a single pass (BT.709 luminance)
   const data = ctx.getImageData(0, 0, targetWidth, targetHeight).data;
   const pixelCount = targetWidth * targetHeight;
@@ -277,6 +271,10 @@ function compareCandidates(a, b) {
 // Detection works on the downscaled image, where corners closer than 6px apart
 // are a collapsed quad rather than a real document.
 const MIN_CORNER_SEPARATION_PX = 6;
+
+// Below this the image can't hold a quad whose corners are MIN_CORNER_SEPARATION_PX
+// apart, so detection is skipped instead of running Canny on a handful of pixels.
+const MIN_DETECTION_SIZE_PX = 8;
 
 function computeEdgeSupportScore(contour, edges, width, height) {
   if (!contour?.points || contour.points.length === 0) {
@@ -546,8 +544,26 @@ async function detectDocumentInternal(grayscaleData, width, height, scaleFactor,
     };
   }
   
+  if (width < MIN_DETECTION_SIZE_PX || height < MIN_DETECTION_SIZE_PX) {
+    return {
+      success: false,
+      message: 'Image too small to detect a document',
+      debug: debugInfo._timingsOnly ? null : debugInfo,
+      timings
+    };
+  }
+
   const passProfiles = buildDetectionPassProfiles(options);
   const passResults = [];
+
+  // Adaptive thresholds depend only on the frame, so every pass that leaves
+  // them unset shares one histogram instead of rebuilding it.
+  let adaptiveThresholds = null;
+  if (passProfiles.some((p) => p.lowThreshold === undefined || p.highThreshold === undefined)) {
+    const t0 = performance.now();
+    adaptiveThresholds = computeAdaptiveThresholds(grayscaleData, width, height);
+    timings.push({ step: 'Adaptive Thresholds', ms: (performance.now() - t0).toFixed(2) });
+  }
 
   // The all-in-WASM Canny keeps every stage in linear memory instead of
   // marshalling four intermediate buffers back to JS. It is bit-identical to the
@@ -567,13 +583,12 @@ async function detectDocumentInternal(grayscaleData, width, height, scaleFactor,
     const edges = await cannyEdgeDetector(grayscaleData, {
       width,
       height,
-      lowThreshold: profile.lowThreshold,
-      highThreshold: profile.highThreshold,
+      lowThreshold: profile.lowThreshold ?? adaptiveThresholds?.lowThreshold,
+      highThreshold: profile.highThreshold ?? adaptiveThresholds?.highThreshold,
       dilationKernelSize: profile.dilationKernelSize,
       applyDilation: profile.applyDilation,
       debug: passDebug,
       skipGrayscale: true,
-      useWasmBlur: true,
       useWasmHysteresis: options.useWasmHysteresis,
       useWasmFullCanny,
     });
@@ -812,20 +827,23 @@ function getPerspectiveTransform(srcPoints, dstPoints) {
 
 
 
-function unwarpImage(ctx, image, corners) {
-  // Get perspective transform matrix
+/**
+ * Warps the quad under `corners` into an upright rectangle.
+ * @returns {{canvas: HTMLCanvasElement|OffscreenCanvas, imageData: ImageData}}
+ */
+function unwarpImage(image, corners) {
   const { topLeft, topRight, bottomRight, bottomLeft } = corners;
-  // Compute output rectangle size
+  // Compute output rectangle size (at least 1px, so a degenerate quad still
+  // yields a valid canvas instead of an IndexSizeError)
   const widthA = Math.hypot(bottomRight.x - bottomLeft.x, bottomRight.y - bottomLeft.y);
   const widthB = Math.hypot(topRight.x - topLeft.x, topRight.y - topLeft.y);
-  const maxWidth = Math.round(Math.max(widthA, widthB));
+  const maxWidth = Math.max(1, Math.round(Math.max(widthA, widthB)));
   const heightA = Math.hypot(topRight.x - bottomRight.x, topRight.y - bottomRight.y);
   const heightB = Math.hypot(topLeft.x - bottomLeft.x, topLeft.y - bottomLeft.y);
-  const maxHeight = Math.round(Math.max(heightA, heightB));
+  const maxHeight = Math.max(1, Math.round(Math.max(heightA, heightB)));
 
-  // Set output canvas size
-  ctx.canvas.width = maxWidth;
-  ctx.canvas.height = maxHeight;
+  const canvas = createOutputCanvas(maxWidth, maxHeight);
+  const ctx = canvas.getContext('2d');
 
   const srcPoints = [
     [topLeft.x, topLeft.y],
@@ -840,7 +858,8 @@ function unwarpImage(ctx, image, corners) {
     [0, maxHeight - 1]
   ];
   const perspectiveMatrix = getPerspectiveTransform(srcPoints, dstPoints);
-  warpTransform(ctx, image, perspectiveMatrix, maxWidth, maxHeight);
+  const imageData = warpTransform(ctx, image, perspectiveMatrix, maxWidth, maxHeight, srcPoints);
+  return { canvas, imageData };
 }
 
 function invert3x3(m) {
@@ -866,7 +885,7 @@ function invert3x3(m) {
   ];
 }
 
-function warpTransform(ctx, image, matrix, outWidth, outHeight) {
+function warpTransform(ctx, image, matrix, outWidth, outHeight, quad) {
   // Pixel-level bilinear interpolation approach.
   // For each output pixel, compute the corresponding source coordinate via the
   // inverse perspective matrix, then sample the source image with bilinear
@@ -874,21 +893,7 @@ function warpTransform(ctx, image, matrix, outWidth, outHeight) {
   // both faster (no ctx.save/clip/setTransform/drawImage/restore per triangle)
   // and produces seamless output (no triangle-seam artifacts).
 
-  const isImageData = image && typeof image.width === 'number' && typeof image.height === 'number' && image.data;
-  const srcWidth = image.width || image.naturalWidth;
-  const srcHeight = image.height || image.naturalHeight;
-
-  // Read source pixels once
-  const srcCanvas = document.createElement('canvas');
-  srcCanvas.width = srcWidth;
-  srcCanvas.height = srcHeight;
-  const srcCtx = srcCanvas.getContext('2d', { willReadFrequently: true });
-  if (isImageData) {
-    srcCtx.putImageData(image, 0, 0);
-  } else {
-    srcCtx.drawImage(image, 0, 0, srcWidth, srcHeight);
-  }
-  const srcData = srcCtx.getImageData(0, 0, srcWidth, srcHeight).data;
+  const { width: imageWidth, height: imageHeight } = getImageSize(image);
 
   // Inverse matrix for mapping output coords → source coords
   const inv = invert3x3(matrix);
@@ -897,10 +902,54 @@ function warpTransform(ctx, image, matrix, outWidth, outHeight) {
   const i10 = inv[1][0], i11 = inv[1][1], i12 = inv[1][2];
   const i20 = inv[2][0], i21 = inv[2][1], i22 = inv[2][2];
 
+  // Samples are clamped to [minSrc, maxSrc]; by default that is the whole image.
+  let minSrcX = 0, minSrcY = 0;
+  let maxSrcX = imageWidth - 1, maxSrcY = imageHeight - 1;
+
+  // srcData holds the region starting at (originX, originY), srcWidth px per row.
+  let srcData, srcWidth, originX, originY;
+  if (isImageData(image)) {
+    // Already in memory: sample it in place, no canvas round trip.
+    srcData = image.data;
+    srcWidth = imageWidth;
+    originX = 0;
+    originY = 0;
+  } else {
+    // When the projective denominator has the same sign at all four output
+    // corners, the output rectangle maps onto the quad itself, so only the
+    // quad's bounding box needs reading. For a 12 MP photo that is often a
+    // fraction of the 48 MB a full read takes. The 1px margin absorbs floating
+    // point samples that land a hair outside the quad, so the clamped pixels
+    // are exactly the ones a full read would give. A degenerate quad (e.g. two
+    // corners almost on top of each other) folds the mapping and samples far
+    // outside the quad; it keeps the full read.
+    const wAt = (ox, oy) => i20 * ox + i21 * oy + i22;
+    const w00 = wAt(0, 0), w10 = wAt(outWidth - 1, 0);
+    const w01 = wAt(0, outHeight - 1), w11 = wAt(outWidth - 1, outHeight - 1);
+    const mapsOntoQuad = (w00 > 0 && w10 > 0 && w01 > 0 && w11 > 0) || (w00 < 0 && w10 < 0 && w01 < 0 && w11 < 0);
+    if (mapsOntoQuad) {
+      const xs = quad.map((p) => p[0]);
+      const ys = quad.map((p) => p[1]);
+      const clampToRange = (v, max) => (v < 0 ? 0 : v > max ? max : v);
+      minSrcX = clampToRange(Math.floor(Math.min(...xs)) - 1, imageWidth - 1);
+      maxSrcX = clampToRange(Math.ceil(Math.max(...xs)) + 1, imageWidth - 1);
+      minSrcY = clampToRange(Math.floor(Math.min(...ys)) - 1, imageHeight - 1);
+      maxSrcY = clampToRange(Math.ceil(Math.max(...ys)) + 1, imageHeight - 1);
+    }
+
+    const regionWidth = maxSrcX - minSrcX + 1;
+    const regionHeight = maxSrcY - minSrcY + 1;
+    const srcCanvas = createScratchCanvas(regionWidth, regionHeight);
+    const srcCtx = srcCanvas.getContext('2d', { willReadFrequently: true });
+    srcCtx.drawImage(image, minSrcX, minSrcY, regionWidth, regionHeight, 0, 0, regionWidth, regionHeight);
+    srcData = srcCtx.getImageData(0, 0, regionWidth, regionHeight).data;
+    srcWidth = regionWidth;
+    originX = minSrcX;
+    originY = minSrcY;
+  }
+
   const outData = ctx.createImageData(outWidth, outHeight);
   const dst = outData.data;
-  const maxSrcX = srcWidth - 1;
-  const maxSrcY = srcHeight - 1;
 
   for (let oy = 0; oy < outHeight; oy++) {
     // Precompute the y-dependent part of the inverse transform
@@ -915,8 +964,8 @@ function warpTransform(ctx, image, matrix, outWidth, outHeight) {
       const sy = (i10 * ox + iy2) * invW;
 
       // Clamp to source bounds
-      const csx = sx < 0 ? 0 : sx > maxSrcX ? maxSrcX : sx;
-      const csy = sy < 0 ? 0 : sy > maxSrcY ? maxSrcY : sy;
+      const csx = sx < minSrcX ? minSrcX : sx > maxSrcX ? maxSrcX : sx;
+      const csy = sy < minSrcY ? minSrcY : sy > maxSrcY ? maxSrcY : sy;
 
       // Bilinear interpolation
       const x0 = csx | 0;        // floor
@@ -933,10 +982,12 @@ function warpTransform(ctx, image, matrix, outWidth, outHeight) {
       const w01 = fx1 * fy;
       const w11 = fx  * fy;
 
-      const idx00 = (y0 * srcWidth + x0) << 2;
-      const idx10 = (y0 * srcWidth + x1) << 2;
-      const idx01 = (y1 * srcWidth + x0) << 2;
-      const idx11 = (y1 * srcWidth + x1) << 2;
+      const row0 = (y0 - originY) * srcWidth - originX;
+      const row1 = (y1 - originY) * srcWidth - originX;
+      const idx00 = (row0 + x0) << 2;
+      const idx10 = (row0 + x1) << 2;
+      const idx01 = (row1 + x0) << 2;
+      const idx11 = (row1 + x1) << 2;
 
       const di = (oy * outWidth + ox) << 2;
       dst[di]     = srcData[idx00]     * w00 + srcData[idx10]     * w10 + srcData[idx01]     * w01 + srcData[idx11]     * w11 + 0.5 | 0;
@@ -947,12 +998,13 @@ function warpTransform(ctx, image, matrix, outWidth, outHeight) {
   }
 
   ctx.putImageData(outData, 0, 0);
+  return outData;
 }
 
 
 /**
  * Extract document with manual corner points (no detection).
- * @param {HTMLImageElement|HTMLCanvasElement|ImageData} image
+ * @param {CanvasImageSource|ImageData} image Image, canvas, video, ImageBitmap, VideoFrame or ImageData
  * @param {Object} corners - Corner points object with topLeft, topRight, bottomRight, bottomLeft
  * @param {Object} options
  *   - output: 'canvas' | 'imagedata' | 'dataurl' (default: 'canvas')
@@ -971,22 +1023,8 @@ export async function extractDocument(image, corners, options = {}) {
   }
 
   try {
-    // Create result canvas and extract document
-    const resultCanvas = document.createElement('canvas');
-    const ctx = resultCanvas.getContext('2d');
-    unwarpImage(ctx, image, corners);
-
-    let output;
-    // Prepare output in requested format
-    if (outputType === 'canvas') {
-      output = resultCanvas;
-    } else if (outputType === 'imagedata') {
-      output = resultCanvas.getContext('2d').getImageData(0, 0, resultCanvas.width, resultCanvas.height);
-    } else if (outputType === 'dataurl') {
-      output = resultCanvas.toDataURL();
-    } else {
-      output = resultCanvas;
-    }
+    const { canvas, imageData } = unwarpImage(image, corners);
+    const output = await toOutput(canvas, imageData, outputType);
 
     return {
       output,
@@ -1006,7 +1044,7 @@ export async function extractDocument(image, corners, options = {}) {
 
 /**
  * Main entry point for document scanning.
- * @param {HTMLImageElement|HTMLCanvasElement|ImageData} image
+ * @param {CanvasImageSource|ImageData} image Image, canvas, video, ImageBitmap, VideoFrame or ImageData
  * @param {Object} options
  *   - mode: 'detect' | 'extract' (default: 'detect')
  *   - output: 'canvas' | 'imagedata' | 'dataurl' (default: 'canvas')
@@ -1071,33 +1109,17 @@ export async function scanDocument(image, options = {}) {
     };
   }
 
-  let resultCanvas;
-  let output;
+  // 'detect' only returns the detection info, no image processing
+  let output = null;
 
-  if (mode === 'detect') {
-    // Just return detection info, no image processing
-    output = null;
-  } else if (mode === 'extract') {
+  if (mode === 'extract') {
     // Return only the cropped/warped document
     t0 = performance.now();
-    resultCanvas = document.createElement('canvas');
-    const ctx = resultCanvas.getContext('2d');
-    unwarpImage(ctx, image, detection.corners);
+    const { canvas, imageData } = unwarpImage(image, detection.corners);
     timings.push({ step: 'Perspective Transform', ms: (performance.now() - t0).toFixed(2) });
-  }
 
-  // Prepare output in requested format (only if not detect mode)
-  if (mode !== 'detect' && resultCanvas) {
     t0 = performance.now();
-    if (outputType === 'canvas') {
-      output = resultCanvas;
-    } else if (outputType === 'imagedata') {
-      output = resultCanvas.getContext('2d').getImageData(0, 0, resultCanvas.width, resultCanvas.height);
-    } else if (outputType === 'dataurl') {
-      output = resultCanvas.toDataURL();
-    } else {
-      output = resultCanvas;
-    }
+    output = await toOutput(canvas, imageData, outputType);
     timings.push({ step: 'Output Conversion', ms: (performance.now() - t0).toFixed(2) });
   }
 

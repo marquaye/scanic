@@ -94,7 +94,11 @@ const onFile = (e) => {
 ## Live camera scanning
 
 For webcam capture, hold a single [`Scanner`](/api/reference#scanner) instance
-across renders so WASM is initialized only once.
+across renders so WASM is initialized only once. The `<video>` is the preview,
+a transparent canvas on top holds the overlay, and detection runs about 10
+times per second instead of on every animation frame. See
+[Real-time scanning](/guide/web#real-time-scanning) for why that matters on
+phones.
 
 ::: code-group
 
@@ -102,45 +106,54 @@ across renders so WASM is initialized only once.
 import { useRef, useState, useEffect } from 'react'
 import { Scanner } from 'scanic'
 
+const DETECT_INTERVAL_MS = 100 // about 10 detections per second
+
 export function LiveScanner() {
-  const canvasRef = useRef(null)
+  const videoRef = useRef(null)
+  const overlayRef = useRef(null)
   const scannerRef = useRef(new Scanner())
-  const stateRef = useRef({ stream: null, video: null, raf: 0, running: false })
+  const stateRef = useRef({ stream: null, timer: 0, running: false })
   const [scanning, setScanning] = useState(false)
 
   const start = async () => {
     await scannerRef.current.initialize()
     const s = stateRef.current
-    s.stream = await navigator.mediaDevices.getUserMedia({ video: true })
-    s.video = Object.assign(document.createElement('video'), {
-      srcObject: s.stream, autoplay: true, muted: true,
+    const video = videoRef.current
+    s.stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: 'environment' },
     })
-    await new Promise((r) => (s.video.onloadedmetadata = r))
-    canvasRef.current.width = s.video.videoWidth
-    canvasRef.current.height = s.video.videoHeight
+    video.srcObject = s.stream
+    await video.play()
+    // Corners come back in video pixels, so the overlay uses the same size.
+    overlayRef.current.width = video.videoWidth
+    overlayRef.current.height = video.videoHeight
     s.running = true
     setScanning(true)
-    loop()
+    detectLoop()
   }
 
-  const loop = async () => {
+  const detectLoop = async () => {
     const s = stateRef.current
     if (!s.running) return
-    const ctx = canvasRef.current.getContext('2d')
-    ctx.drawImage(s.video, 0, 0, canvasRef.current.width, canvasRef.current.height)
+    const started = performance.now()
 
-    if (Math.random() < 0.3) {
-      const frame = ctx.getImageData(0, 0, canvasRef.current.width, canvasRef.current.height)
-      const result = await scannerRef.current.scan(frame, { mode: 'detect' })
+    if (!document.hidden) {
+      // Pass the video directly, no getImageData() copy per frame.
+      const result = await scannerRef.current.scan(videoRef.current, { mode: 'detect' })
+      if (!s.running) return
+      const ctx = overlayRef.current.getContext('2d')
+      ctx.clearRect(0, 0, overlayRef.current.width, overlayRef.current.height)
       if (result.success) drawQuad(ctx, result.corners)
     }
-    s.raf = requestAnimationFrame(loop)
+
+    const elapsed = performance.now() - started
+    s.timer = setTimeout(detectLoop, Math.max(0, DETECT_INTERVAL_MS - elapsed))
   }
 
   const stop = () => {
     const s = stateRef.current
     s.running = false
-    cancelAnimationFrame(s.raf)
+    clearTimeout(s.timer)
     s.stream?.getTracks().forEach((t) => t.stop())
     setScanning(false)
   }
@@ -151,7 +164,13 @@ export function LiveScanner() {
     <div>
       <button onClick={start} disabled={scanning}>Start</button>
       <button onClick={stop} disabled={!scanning}>Stop</button>
-      <canvas ref={canvasRef} />
+      <div style={{ position: 'relative' }}>
+        <video ref={videoRef} playsInline muted style={{ width: '100%', display: 'block' }} />
+        <canvas
+          ref={overlayRef}
+          style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }}
+        />
+      </div>
     </div>
   )
 }
@@ -174,32 +193,39 @@ function drawQuad(ctx, c) {
 import { ref, onUnmounted } from 'vue'
 import { Scanner } from 'scanic'
 
+const DETECT_INTERVAL_MS = 100 // about 10 detections per second
+
 const scanner = new Scanner()
-const canvas = ref(null)
+const video = ref(null)
+const overlay = ref(null)
 const scanning = ref(false)
-let stream = null, video = null, raf = 0, running = false
+let stream = null, timer = 0, running = false
 
 const start = async () => {
   await scanner.initialize()
-  stream = await navigator.mediaDevices.getUserMedia({ video: true })
-  video = Object.assign(document.createElement('video'), {
-    srcObject: stream, autoplay: true, muted: true,
+  stream = await navigator.mediaDevices.getUserMedia({
+    video: { facingMode: 'environment' },
   })
-  await new Promise((r) => (video.onloadedmetadata = r))
-  canvas.value.width = video.videoWidth
-  canvas.value.height = video.videoHeight
+  video.value.srcObject = stream
+  await video.value.play()
+  // Corners come back in video pixels, so the overlay uses the same size.
+  overlay.value.width = video.value.videoWidth
+  overlay.value.height = video.value.videoHeight
   running = true
   scanning.value = true
-  loop()
+  detectLoop()
 }
 
-const loop = async () => {
+const detectLoop = async () => {
   if (!running) return
-  const ctx = canvas.value.getContext('2d')
-  ctx.drawImage(video, 0, 0, canvas.value.width, canvas.value.height)
-  if (Math.random() < 0.3) {
-    const frame = ctx.getImageData(0, 0, canvas.value.width, canvas.value.height)
-    const result = await scanner.scan(frame, { mode: 'detect' })
+  const started = performance.now()
+
+  if (!document.hidden) {
+    // Pass the video directly, no getImageData() copy per frame.
+    const result = await scanner.scan(video.value, { mode: 'detect' })
+    if (!running) return
+    const ctx = overlay.value.getContext('2d')
+    ctx.clearRect(0, 0, overlay.value.width, overlay.value.height)
     if (result.success) {
       const c = result.corners
       ctx.strokeStyle = '#22c55e'
@@ -213,12 +239,14 @@ const loop = async () => {
       ctx.stroke()
     }
   }
-  raf = requestAnimationFrame(loop)
+
+  const elapsed = performance.now() - started
+  timer = setTimeout(detectLoop, Math.max(0, DETECT_INTERVAL_MS - elapsed))
 }
 
 const stop = () => {
   running = false
-  cancelAnimationFrame(raf)
+  clearTimeout(timer)
   stream?.getTracks().forEach((t) => t.stop())
   scanning.value = false
 }
@@ -230,7 +258,10 @@ onUnmounted(stop)
   <div>
     <button @click="start" :disabled="scanning">Start</button>
     <button @click="stop" :disabled="!scanning">Stop</button>
-    <canvas ref="canvas" />
+    <div style="position: relative">
+      <video ref="video" playsinline muted style="width: 100%; display: block" />
+      <canvas ref="overlay" style="position: absolute; inset: 0; width: 100%; height: 100%" />
+    </div>
   </div>
 </template>
 ```

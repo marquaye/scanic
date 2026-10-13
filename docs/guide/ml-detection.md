@@ -48,7 +48,7 @@ const { output } = await scanDocument(image, { detector: 'ml', mode: 'extract' }
 ::: tip Using the UMD or `<script>` build
 The bundled runtime applies to the ESM build (the `import` path). If you load
 scanic through `require('scanic')` or a `<script>` tag and want ML, add
-`onnxruntime-web@1.23.x` to your page yourself. It stays external in that build
+`onnxruntime-web@1.27.x` to your page yourself. It stays external in that build
 because the UMD format cannot split code into separate chunks.
 :::
 
