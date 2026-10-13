@@ -19,3 +19,11 @@ updates:
     groups:
       dev-dependencies:
         dependency-type: "development"
+    ignore:
+      # The custom minimal wasm in scanic-ml/dist is ABI-locked to ONNX Runtime
+      # 1.27 (see scanic-ml/README.md "Version pinning"). A newer onnxruntime-web
+      # breaks ML detection in the browser while every Node test still passes.
+      # Bump it by hand together with a scanic-ml rebuild; the guard in
+      # src/onnxruntimeAbiVersion.test.js fails CI on a mismatch.
+      - dependency-name: "onnxruntime-web"
+        versions: [">=1.28.0"]
