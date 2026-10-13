@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.7.0] - 2026-10-13
+
+### Added
+- **`<video>`, `ImageBitmap`, `VideoFrame` and `OffscreenCanvas` as input**: `scanDocument`, `extractDocument` and `Scanner` now take these directly. For a live camera, pass the `<video>` instead of calling `getImageData()` first: that full-resolution copy per frame is wasted work, since Scanic downscales before it reads any pixels. The types export a `ScanicImageSource` union, with structural `OffscreenCanvasLike` and `VideoFrameLike` types so the definitions still compile on TypeScript 4.7 to 5.0.
+- **Detection and extraction run in a Web Worker**: without a DOM, Scanic uses `OffscreenCanvas`, and `output: 'canvas'` returns one. `output: 'dataurl'` works there too. Needs `OffscreenCanvas` (Safari 16.4+).
+- **`Scanner.extract()` is now in the TypeScript definitions.** It already existed at runtime.
+
+### Changed
+- **The live camera examples and the demo detect about 10 times per second instead of on every animation frame.** They show the `<video>` itself as the preview with a transparent overlay canvas, pass the video straight to `scan()` and skip work while the tab is hidden. In the demo this cut main-thread load from about 100% to about 37% with the same overlay.
+- **Adaptive Canny thresholds are computed once per frame**: every cascade pass that leaves the thresholds unset shares one gradient histogram instead of rebuilding it (about 2ms per extra pass on desktop). Results are unchanged.
+- **Extraction reads only the part of the image under the document**: a canvas or image source is read for the quad's bounding box instead of in full (a 12 MP photo is 48 MB of pixels), and `ImageData` is sampled in place. The `'imagedata'` output no longer reads the canvas back. Output is bit-identical.
+- **The scaling canvas is reused between scans**, so a live preview no longer allocates a new canvas per frame.
+- **Smaller, faster WASM**: a release profile (LTO, one codegen unit, `panic = "abort"`) shrinks the module from 45.3 KB to 43.3 KB and makes the Canny pass about 5% faster with identical output.
+- **`onnxruntime-web` is pinned to `~1.27.0`** and Dependabot no longer proposes newer versions. The custom wasm in `scanic-ml` is ABI-locked to 1.27, and a newer runtime breaks ML detection in the browser while every Node test passes.
+
+### Fixed
+- **An `<img>` displayed at a different size was scanned wrong**: the source size came from `img.width`, which is the rendered width once the image is laid out, instead of `naturalWidth`. Detection then drew the wrong source rectangle.
+- **Tiny images crashed the WASM module**: 0x0, 1x1 and images narrower than 4 pixels trapped, and with a blur kernel of 7 or more a SIMD store wrote past the end of the row. They now return empty edges, and `scanDocument` reports images under 8 pixels as too small instead of running Canny on them. Very wide or tall inputs can no longer round a downscaled side to 0.
+- **Near-flat frames (covered lens, blank wall) produced noise edges**: the adaptive high threshold could fall to 2 while the low threshold had a floor of 5, so the two were swapped and sensor noise passed as edges. A frame with no gradient at all now keeps the fallback thresholds, and the high threshold has a floor of 10. Only frames whose gradient pivot is below 7 are affected.
+- **The kernel 3 blur saturated the first column** in WASM (the first pixel skipped the fixed-point shift). Not reachable through the public API, which always blurs with kernel 5.
+- **The `onnxruntime-web` version guard never ran**: `require('onnxruntime-web/package.json')` is blocked by the package's exports map, so the test treated the package as missing and skipped itself, in CI too. It now resolves the version properly and fails if the package is missing.
+- **A degenerate quad no longer throws in extraction**: the output size is at least 1x1.
+
 ## [1.6.0] - 2026-08-12
 
 ### Added
