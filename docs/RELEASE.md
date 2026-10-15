@@ -4,7 +4,11 @@ This document describes the simplified automated release process for Scanic.
 
 ## Prerequisites
 
-1. **NPM Token**: Create an NPM access token with publish permissions and add it as `NPM_TOKEN` in GitHub repository secrets.
+1. **Trusted publishing on npmjs.com** (one time, no token): in the settings of the
+   `scanic` package, add a trusted publisher of type GitHub Actions with owner
+   `marquaye`, repository `scanic` and workflow `release.yml`. Do the same for
+   `scanic-ml` with workflow `publish-scanic-ml.yml`. The workflows then publish
+   through GitHub's OIDC token, so there is no `NPM_TOKEN` secret that can expire.
 2. **Docker**: Ensure Docker is installed locally for WASM builds.
 
 ## Release Process
@@ -67,5 +71,5 @@ The NPM package includes:
 ## Troubleshooting
 
 - **Docker issues**: Ensure Docker is running and the compose file is accessible
-- **NPM publish fails**: Check NPM_TOKEN in GitHub secrets
+- **NPM publish fails with 404 or "not authorized"**: check that the trusted publisher on npmjs.com names exactly `marquaye` / `scanic` / `release.yml` (case-sensitive), and that the publish step runs npm 11.5.1 or newer
 - **WASM build fails**: Verify Docker compose setup in `dev/docker-compose.yml`

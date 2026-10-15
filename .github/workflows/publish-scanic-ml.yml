@@ -23,26 +23,14 @@ jobs:
         node-version: '22'
         registry-url: 'https://registry.npmjs.org'
 
-    - name: Validate NPM publish access
-      env:
-        NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-      run: |
-        if [ -z "$NODE_AUTH_TOKEN" ]; then
-          echo "::error::Missing NPM_TOKEN secret."
-          exit 1
-        fi
-        NPM_USER="$(npm whoami 2>/dev/null || true)"
-        if [ -z "$NPM_USER" ]; then
-          echo "::error::NPM_TOKEN is invalid or lacks publish permissions."
-          exit 1
-        fi
-        echo "Using npm account: $NPM_USER"
+    # Trusted publishing, see release.yml. The npmjs.com entry for scanic-ml
+    # names the workflow publish-scanic-ml.yml.
+    - name: Update npm for trusted publishing
+      run: npm install -g npm@^11.5.1
 
     - name: Publish scanic-ml to NPM
       run: npm publish --access public --provenance
       working-directory: scanic-ml
-      env:
-        NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
     - name: Extract version from tag
       id: version
