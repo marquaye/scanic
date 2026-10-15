@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **Extraction of large photos was sometimes 3x slower**: the per-pixel warp loop sat inside one large function, so V8 had to optimize it mid-run through on-stack replacement and threw that code away at the end of every row (83 deoptimizations in 15 extractions of a 12 MP photo). On unlucky runs it stayed slow for the whole image, about 1 second instead of 300ms. Each output row is now sampled by its own small function, which V8 optimizes normally (2 deoptimizations). Output is bit-identical.
+
 ## [1.7.0] - 2026-10-13
 
 ### Added

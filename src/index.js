@@ -885,6 +885,95 @@ function invert3x3(m) {
   ];
 }
 
+/**
+ * Samples one output row of the warp. It is its own function because V8 then
+ * optimizes it as an ordinary hot function. As one nested loop inside
+ * warpTransform it ran through on-stack replacement, was thrown out at the end
+ * of every row, and on some runs stayed slow for the whole image (3 to 4x).
+ */
+function warpRow(
+  dst, rowStart, outWidth, srcData, srcWidth,
+  minSrcX, minSrcY, maxSrcX, maxSrcY,
+  i00, i10, i20, iy1, iy2, iy3
+) {
+  for (let ox = 0; ox < outWidth; ox++) {
+    const w = i20 * ox + iy3;
+    const invW = 1 / w;
+    const sx = (i00 * ox + iy1) * invW;
+    const sy = (i10 * ox + iy2) * invW;
+
+    // Clamp to source bounds
+    const csx = sx < minSrcX ? minSrcX : sx > maxSrcX ? maxSrcX : sx;
+    const csy = sy < minSrcY ? minSrcY : sy > maxSrcY ? maxSrcY : sy;
+
+    // Bilinear interpolation
+    const x0 = csx | 0;        // floor
+    const y0 = csy | 0;
+    const x1 = x0 < maxSrcX ? x0 + 1 : x0;
+    const y1 = y0 < maxSrcY ? y0 + 1 : y0;
+    const fx = csx - x0;
+    const fy = csy - y0;
+    const fx1 = 1 - fx;
+    const fy1 = 1 - fy;
+
+    const w00 = fx1 * fy1;
+    const w10 = fx  * fy1;
+    const w01 = fx1 * fy;
+    const w11 = fx  * fy;
+
+    const row0 = (y0 - minSrcY) * srcWidth - minSrcX;
+    const row1 = (y1 - minSrcY) * srcWidth - minSrcX;
+    const idx00 = (row0 + x0) << 2;
+    const idx10 = (row0 + x1) << 2;
+    const idx01 = (row1 + x0) << 2;
+    const idx11 = (row1 + x1) << 2;
+
+    const di = (rowStart + ox) << 2;
+    dst[di]     = srcData[idx00]     * w00 + srcData[idx10]     * w10 + srcData[idx01]     * w01 + srcData[idx11]     * w11 + 0.5 | 0;
+    dst[di + 1] = srcData[idx00 + 1] * w00 + srcData[idx10 + 1] * w10 + srcData[idx01 + 1] * w01 + srcData[idx11 + 1] * w11 + 0.5 | 0;
+    dst[di + 2] = srcData[idx00 + 2] * w00 + srcData[idx10 + 2] * w10 + srcData[idx01 + 2] * w01 + srcData[idx11 + 2] * w11 + 0.5 | 0;
+    dst[di + 3] = 255;
+  }
+}
+
+/**
+ * Source pixel region a warp samples, as inclusive bounds clamped to the image.
+ *
+ * When the projective denominator has the same sign at all four output
+ * corners, the output rectangle maps onto the quad itself, so only the quad's
+ * bounding box is needed. For a 12 MP photo that is often a fraction of the
+ * 48 MB a full read takes. The 1px margin absorbs floating point samples that
+ * land a hair outside the quad, so clamping to it gives exactly the pixels a
+ * full read would. A degenerate quad (e.g. two corners almost on top of each
+ * other) folds the mapping and samples far outside the quad, so it gets the
+ * whole image.
+ */
+function sampledRegion(inv, outWidth, outHeight, quad, imageWidth, imageHeight) {
+  const whole = { minX: 0, minY: 0, maxX: imageWidth - 1, maxY: imageHeight - 1 };
+  const [, , [i20, i21, i22]] = inv;
+  const lastX = outWidth - 1, lastY = outHeight - 1;
+  const w = [i22, i20 * lastX + i22, i21 * lastY + i22, i20 * lastX + i21 * lastY + i22];
+  if (!w.every((v) => v > 0) && !w.every((v) => v < 0)) return whole;
+
+  const xs = quad.map((p) => p[0]);
+  const ys = quad.map((p) => p[1]);
+  const clamp = (v, max) => (v < 0 ? 0 : v > max ? max : v);
+  return {
+    minX: clamp(Math.floor(Math.min(...xs)) - 1, whole.maxX),
+    minY: clamp(Math.floor(Math.min(...ys)) - 1, whole.maxY),
+    maxX: clamp(Math.ceil(Math.max(...xs)) + 1, whole.maxX),
+    maxY: clamp(Math.ceil(Math.max(...ys)) + 1, whole.maxY)
+  };
+}
+
+/** Draws one region of an image source and returns its RGBA pixels. */
+function readRegion(image, x, y, width, height) {
+  const canvas = createScratchCanvas(width, height);
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
+  ctx.drawImage(image, x, y, width, height, 0, 0, width, height);
+  return ctx.getImageData(0, 0, width, height).data;
+}
+
 function warpTransform(ctx, image, matrix, outWidth, outHeight, quad) {
   // Pixel-level bilinear interpolation approach.
   // For each output pixel, compute the corresponding source coordinate via the
@@ -902,51 +991,20 @@ function warpTransform(ctx, image, matrix, outWidth, outHeight, quad) {
   const i10 = inv[1][0], i11 = inv[1][1], i12 = inv[1][2];
   const i20 = inv[2][0], i21 = inv[2][1], i22 = inv[2][2];
 
-  // Samples are clamped to [minSrc, maxSrc]; by default that is the whole image.
-  let minSrcX = 0, minSrcY = 0;
-  let maxSrcX = imageWidth - 1, maxSrcY = imageHeight - 1;
-
-  // srcData holds the region starting at (originX, originY), srcWidth px per row.
-  let srcData, srcWidth, originX, originY;
-  if (isImageData(image)) {
-    // Already in memory: sample it in place, no canvas round trip.
-    srcData = image.data;
-    srcWidth = imageWidth;
-    originX = 0;
-    originY = 0;
-  } else {
-    // When the projective denominator has the same sign at all four output
-    // corners, the output rectangle maps onto the quad itself, so only the
-    // quad's bounding box needs reading. For a 12 MP photo that is often a
-    // fraction of the 48 MB a full read takes. The 1px margin absorbs floating
-    // point samples that land a hair outside the quad, so the clamped pixels
-    // are exactly the ones a full read would give. A degenerate quad (e.g. two
-    // corners almost on top of each other) folds the mapping and samples far
-    // outside the quad; it keeps the full read.
-    const wAt = (ox, oy) => i20 * ox + i21 * oy + i22;
-    const w00 = wAt(0, 0), w10 = wAt(outWidth - 1, 0);
-    const w01 = wAt(0, outHeight - 1), w11 = wAt(outWidth - 1, outHeight - 1);
-    const mapsOntoQuad = (w00 > 0 && w10 > 0 && w01 > 0 && w11 > 0) || (w00 < 0 && w10 < 0 && w01 < 0 && w11 < 0);
-    if (mapsOntoQuad) {
-      const xs = quad.map((p) => p[0]);
-      const ys = quad.map((p) => p[1]);
-      const clampToRange = (v, max) => (v < 0 ? 0 : v > max ? max : v);
-      minSrcX = clampToRange(Math.floor(Math.min(...xs)) - 1, imageWidth - 1);
-      maxSrcX = clampToRange(Math.ceil(Math.max(...xs)) + 1, imageWidth - 1);
-      minSrcY = clampToRange(Math.floor(Math.min(...ys)) - 1, imageHeight - 1);
-      maxSrcY = clampToRange(Math.ceil(Math.max(...ys)) + 1, imageHeight - 1);
-    }
-
-    const regionWidth = maxSrcX - minSrcX + 1;
-    const regionHeight = maxSrcY - minSrcY + 1;
-    const srcCanvas = createScratchCanvas(regionWidth, regionHeight);
-    const srcCtx = srcCanvas.getContext('2d', { willReadFrequently: true });
-    srcCtx.drawImage(image, minSrcX, minSrcY, regionWidth, regionHeight, 0, 0, regionWidth, regionHeight);
-    srcData = srcCtx.getImageData(0, 0, regionWidth, regionHeight).data;
-    srcWidth = regionWidth;
-    originX = minSrcX;
-    originY = minSrcY;
-  }
+  // ImageData is already in memory and sampled in place over the whole image.
+  // Other sources are drawn and read back, limited to the region samples hit.
+  const inPlace = isImageData(image);
+  const bounds = inPlace
+    ? { minX: 0, minY: 0, maxX: imageWidth - 1, maxY: imageHeight - 1 }
+    : sampledRegion(inv, outWidth, outHeight, quad, imageWidth, imageHeight);
+  // Samples are clamped to these bounds.
+  const minSrcX = bounds.minX, minSrcY = bounds.minY;
+  const maxSrcX = bounds.maxX, maxSrcY = bounds.maxY;
+  // srcData holds the region starting at (minSrcX, minSrcY), srcWidth px per row.
+  const srcWidth = maxSrcX - minSrcX + 1;
+  const srcData = inPlace
+    ? image.data
+    : readRegion(image, minSrcX, minSrcY, srcWidth, maxSrcY - minSrcY + 1);
 
   const outData = ctx.createImageData(outWidth, outHeight);
   const dst = outData.data;
@@ -956,45 +1014,11 @@ function warpTransform(ctx, image, matrix, outWidth, outHeight, quad) {
     const iy1 = i01 * oy + i02;
     const iy2 = i11 * oy + i12;
     const iy3 = i21 * oy + i22;
-
-    for (let ox = 0; ox < outWidth; ox++) {
-      const w = i20 * ox + iy3;
-      const invW = 1 / w;
-      const sx = (i00 * ox + iy1) * invW;
-      const sy = (i10 * ox + iy2) * invW;
-
-      // Clamp to source bounds
-      const csx = sx < minSrcX ? minSrcX : sx > maxSrcX ? maxSrcX : sx;
-      const csy = sy < minSrcY ? minSrcY : sy > maxSrcY ? maxSrcY : sy;
-
-      // Bilinear interpolation
-      const x0 = csx | 0;        // floor
-      const y0 = csy | 0;
-      const x1 = x0 < maxSrcX ? x0 + 1 : x0;
-      const y1 = y0 < maxSrcY ? y0 + 1 : y0;
-      const fx = csx - x0;
-      const fy = csy - y0;
-      const fx1 = 1 - fx;
-      const fy1 = 1 - fy;
-
-      const w00 = fx1 * fy1;
-      const w10 = fx  * fy1;
-      const w01 = fx1 * fy;
-      const w11 = fx  * fy;
-
-      const row0 = (y0 - originY) * srcWidth - originX;
-      const row1 = (y1 - originY) * srcWidth - originX;
-      const idx00 = (row0 + x0) << 2;
-      const idx10 = (row0 + x1) << 2;
-      const idx01 = (row1 + x0) << 2;
-      const idx11 = (row1 + x1) << 2;
-
-      const di = (oy * outWidth + ox) << 2;
-      dst[di]     = srcData[idx00]     * w00 + srcData[idx10]     * w10 + srcData[idx01]     * w01 + srcData[idx11]     * w11 + 0.5 | 0;
-      dst[di + 1] = srcData[idx00 + 1] * w00 + srcData[idx10 + 1] * w10 + srcData[idx01 + 1] * w01 + srcData[idx11 + 1] * w11 + 0.5 | 0;
-      dst[di + 2] = srcData[idx00 + 2] * w00 + srcData[idx10 + 2] * w10 + srcData[idx01 + 2] * w01 + srcData[idx11 + 2] * w11 + 0.5 | 0;
-      dst[di + 3] = 255;
-    }
+    warpRow(
+      dst, oy * outWidth, outWidth, srcData, srcWidth,
+      minSrcX, minSrcY, maxSrcX, maxSrcY,
+      i00, i10, i20, iy1, iy2, iy3
+    );
   }
 
   ctx.putImageData(outData, 0, 0);
