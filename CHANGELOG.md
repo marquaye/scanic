@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.7.1] - 2026-10-15
+
+1.7.0 was tagged but never reached npm, so this is the first published release with the 1.7.0 changes below.
+
+### Changed
+- **Releases are published through npm trusted publishing**: the release workflow authenticates with GitHub's OIDC token instead of a long-lived npm token, publishes with provenance, and runs the test suite before publishing.
+
 ### Fixed
 - **Extraction of large photos was sometimes 3x slower**: the per-pixel warp loop sat inside one large function, so V8 had to optimize it mid-run through on-stack replacement and threw that code away at the end of every row (83 deoptimizations in 15 extractions of a 12 MP photo). On unlucky runs it stayed slow for the whole image, about 1 second instead of 300ms. Each output row is now sampled by its own small function, which V8 optimizes normally (2 deoptimizations). Output is bit-identical.
 
