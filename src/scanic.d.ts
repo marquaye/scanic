@@ -189,6 +189,13 @@ export interface DetectionOptions {
   useWasmFullCanny?: boolean;
   minArea?: number;
   epsilon?: number;
+  /**
+   * Report `success: false` when the best candidate's `confidence` is below
+   * this value (0 to 1). Unset by default, so the best guess is always
+   * returned. For live camera frames, 0.5 is a good starting point. Applies to
+   * both detectors; for `detector: 'ml'` the confidence is the same value as
+   * `score`.
+   */
   minDetectionConfidence?: number;
   maxCandidateContours?: number;
   enableDetectionCascade?: boolean;
@@ -211,7 +218,21 @@ export interface Timing {
 export interface ScannerResult {
   success: boolean;
   message: string;
+  /**
+   * How document-like the returned quad is, from 0 to 1. With the classical
+   * detector a quad that failed the geometry checks (`isValid: false`) is
+   * scaled down to a third of its score, so it stays below about 0.33. A quad
+   * that passes typically scores between 0.55 and 1. With `detector: 'ml'` this equals
+   * `score`. Without `minDetectionConfidence`, `success: true` only means a
+   * quad was found, so check this value before trusting it on camera frames.
+   */
   confidence?: number | null;
+  /**
+   * Classical detector: whether the returned quad passed the geometry checks
+   * (convex, large enough, roughly rectangular). `false` means it is a best
+   * guess, not a confirmed document. `null` for the ML detector.
+   */
+  isValid?: boolean | null;
   /** P(document present) from the ML detector (`detector: 'ml'`); null otherwise. */
   score?: number | null;
   /**

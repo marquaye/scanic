@@ -139,7 +139,12 @@ export function LiveScanner() {
 
     if (!document.hidden) {
       // Pass the video directly, no getImageData() copy per frame.
-      const result = await scannerRef.current.scan(videoRef.current, { mode: 'detect' })
+      // minDetectionConfidence: frames with no document return success: false
+      // instead of the best edge in the room.
+      const result = await scannerRef.current.scan(videoRef.current, {
+        mode: 'detect',
+        minDetectionConfidence: 0.5,
+      })
       if (!s.running) return
       const ctx = overlayRef.current.getContext('2d')
       ctx.clearRect(0, 0, overlayRef.current.width, overlayRef.current.height)
@@ -222,7 +227,12 @@ const detectLoop = async () => {
 
   if (!document.hidden) {
     // Pass the video directly, no getImageData() copy per frame.
-    const result = await scanner.scan(video.value, { mode: 'detect' })
+    // minDetectionConfidence: frames with no document return success: false
+    // instead of the best edge in the room.
+    const result = await scanner.scan(video.value, {
+      mode: 'detect',
+      minDetectionConfidence: 0.5,
+    })
     if (!running) return
     const ctx = overlay.value.getContext('2d')
     ctx.clearRect(0, 0, overlay.value.width, overlay.value.height)

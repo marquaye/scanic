@@ -54,8 +54,9 @@ const result = await scanDocument(img, { mode: 'extract', output: 'canvas' })
 | `highThreshold` | `number` | adaptive | Upper Canny threshold. |
 | `applyDilation` | `boolean` | `true` | Enable dilation in the primary pass. |
 | `dilationKernelSize` | `number` | `3` | Dilation kernel size for edge connection. |
-| `dilationIterations` | `number` | `1` | Number of dilation passes. |
+| `dilationIterations` | `number` | - | Deprecated and ignored. Dilation always runs exactly one pass. |
 | `minArea` | `number` | `1000` | Minimum pixel area to consider a contour a document. |
+| `minDetectionConfidence` | `number` | unset | Report `success: false` when `confidence` is below this value. See [Confidence](#confidence). |
 | `enableDetectionCascade` | `boolean` | `true` | Enable fallback pass profiles for hard images. |
 | `minCascadeTriggerConfidence` | `number` | `0.68` | Confidence below which extra pass profiles are tried. |
 | `maxCandidateContours` | `number` | `12` | Number of largest contours scored per pass. |
@@ -66,8 +67,8 @@ const result = await scanDocument(img, { mode: 'extract', output: 'canvas' })
 
 ::: details Advanced tuning options
 These finer-grained scoring controls are also accepted (see the TypeScript
-`DetectionOptions` type): `epsilon`, `minDetectionConfidence`,
-`minDocumentSideRatio`, `minContourFitRatio`, `maxContourFitRatio`,
+`DetectionOptions` type): `epsilon`, `minDocumentSideRatio`,
+`minContourFitRatio`, `maxContourFitRatio`,
 `minRightAngleScore`, `minOppositeSideConsistency`, `useWasmHysteresis`,
 `useWasmFullCanny`. Most projects never need to touch these.
 :::
@@ -76,9 +77,10 @@ These finer-grained scoring controls are also accepted (see the TypeScript
 
 ```ts
 interface ScannerResult {
-  success: boolean       // Was a document found?
+  success: boolean       // Was a quad returned? See Confidence below
   message: string        // Status or error message
-  confidence?: number | null
+  confidence?: number | null     // 0 to 1, how document-like the quad is
+  isValid?: boolean | null       // passed the geometry checks, classical only
   score?: number | null          // P(document present), ML detector only
   corners: CornerPoints | null   // { topLeft, topRight, bottomRight, bottomLeft }
   output: HTMLCanvasElement | ImageData | string | null  // warped image (extract mode; an OffscreenCanvas in a Web Worker)
@@ -87,6 +89,39 @@ interface ScannerResult {
   timings: { step: string; ms: string }[]  // performance breakdown
 }
 ```
+
+### Confidence
+
+By default the classical detector always returns its best quad when it finds
+one, even if that quad failed the geometry checks (not convex, too small, not
+roughly rectangular). For a still photo that goes on to the
+[Corner Editor](/guide/corner-editor) this best guess is a useful start. On a
+camera frame with no document in view it is usually the edge of a table or a
+rug, so `success: true` alone does not mean a document was found.
+
+Two fields tell the cases apart:
+
+- `isValid` is `true` when the quad passed every geometry check. It is `null`
+  for the ML detector.
+- `confidence` runs from 0 to 1. A quad with `isValid: false` is scaled down to
+  a third of its score, so it stays below about 0.33. A quad that passes
+  typically scores between 0.55 and 1. With `detector: 'ml'` it is the same
+  value as `score`.
+
+To have Scanic make the call for you, set `minDetectionConfidence`. A result
+below it comes back as `success: false` with `corners: null`, and `confidence`
+still tells you how close it was:
+
+```js
+const result = await scanner.scan(video, {
+  mode: 'detect',
+  minDetectionConfidence: 0.5
+})
+```
+
+For live video, 0.5 is a good starting point. Requiring the quad to stay in
+roughly the same place for a few frames before drawing it removes most of the
+remaining flicker.
 
 ## `extractDocument`
 

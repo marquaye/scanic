@@ -107,7 +107,13 @@ async function detectLoop() {
   if (!document.hidden) {
     // Pass the video directly. Calling getImageData() first would copy every
     // frame at full resolution for nothing.
-    const result = await scanner.scan(video, { mode: 'detect' })
+    // Without a confidence floor a frame with no paper in view still returns
+    // its best quad, usually the edge of a table. See "Confidence" in the API
+    // reference.
+    const result = await scanner.scan(video, {
+      mode: 'detect',
+      minDetectionConfidence: 0.5
+    })
 
     ctx.clearRect(0, 0, overlay.width, overlay.height)
     if (result.success) {
@@ -177,7 +183,7 @@ const scanner = new Scanner()
 
 self.onmessage = async (e) => {
   const frame = e.data
-  const result = await scanner.scan(frame, { mode: 'detect' })
+  const result = await scanner.scan(frame, { mode: 'detect', minDetectionConfidence: 0.5 })
   frame.close()
   self.postMessage({ success: result.success, corners: result.corners })
 }

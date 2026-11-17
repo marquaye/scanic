@@ -746,6 +746,7 @@ async function detectDocumentInternal(grayscaleData, width, height, scaleFactor,
     contour: documentContour,
     corners: finalCorners,
     confidence: best.confidence,
+    isValid: best.isValid,
     debug: debugInfo._timingsOnly ? null : debugInfo,
     timings: timings
   };
@@ -1115,7 +1116,28 @@ export async function scanDocument(image, options = {}) {
       detection.timings.forEach(t => timings.push(t));
     }
   }
-  
+
+  // The classical detector returns its best candidate even when that candidate
+  // failed the geometry checks (useful as a starting point for the corner
+  // editor). minDetectionConfidence lets callers such as live camera loops
+  // treat weak candidates as "no document" instead.
+  const minConfidence = options.minDetectionConfidence;
+  if (
+    detection.success &&
+    typeof minConfidence === 'number' &&
+    typeof detection.confidence === 'number' &&
+    detection.confidence < minConfidence
+  ) {
+    // Round down so the message never shows a value that looks equal to the
+    // threshold (0.499 would otherwise print as "0.50 is below 0.5").
+    const shown = Math.floor(detection.confidence * 100) / 100;
+    detection = {
+      ...detection,
+      success: false,
+      message: `Best candidate confidence ${shown} is below minDetectionConfidence ${minConfidence}`
+    };
+  }
+
   if (!detection.success) {
     const totalEnd = performance.now();
     timings.unshift({ step: 'Total', ms: (totalEnd - totalStart).toFixed(2) });
@@ -1124,7 +1146,8 @@ export async function scanDocument(image, options = {}) {
       output: null,
       corners: null,
       contour: null,
-      confidence: detection.confidence || null,
+      confidence: detection.confidence ?? null,
+      isValid: detection.isValid ?? null,
       score: detection.score ?? null,
       debug: detection.debug,
       success: false,
@@ -1155,7 +1178,8 @@ export async function scanDocument(image, options = {}) {
     output,
     corners: detection.corners,
     contour: detection.contour ?? null,
-    confidence: detection.confidence || null,
+    confidence: detection.confidence ?? null,
+    isValid: detection.isValid ?? null,
     score: detection.score ?? null,
     debug: detection.debug,
     success: true,

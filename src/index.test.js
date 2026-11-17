@@ -243,3 +243,68 @@ describe('Regression Tests', () => {
 });
 
 
+describe('Detection confidence', () => {
+  const imagesDir = path.join(__dirname, '..', 'testImages');
+
+  // A scene with no document: random strokes on a flat background, drawn from
+  // a fixed seed so the result is stable. Like a camera pointed at a room, it
+  // still has edges that can form a quad.
+  function noDocumentScene() {
+    let seed = 12345;
+    const rand = () => {
+      seed = (seed * 1664525 + 1013904223) >>> 0;
+      return seed / 2 ** 32;
+    };
+    const canvas = createCanvas(640, 480);
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#887766';
+    ctx.fillRect(0, 0, 640, 480);
+    ctx.lineWidth = 4;
+    for (let i = 0; i < 25; i++) {
+      ctx.strokeStyle = `hsl(${i * 37}, 40%, ${20 + i * 2}%)`;
+      ctx.beginPath();
+      ctx.moveTo(rand() * 640, rand() * 480);
+      ctx.lineTo(rand() * 640, rand() * 480);
+      ctx.stroke();
+    }
+    return canvas;
+  }
+
+  it('returns the best guess by default and marks it as not valid', async () => {
+    const result = await scanDocument(noDocumentScene(), { mode: 'detect', maxProcessingDimension: 640 });
+    expect(result.success).toBe(true);
+    expect(result.isValid).toBe(false);
+    expect(result.confidence).toBeLessThan(0.34);
+  });
+
+  it('reports no document when confidence is below minDetectionConfidence', async () => {
+    const result = await scanDocument(noDocumentScene(), {
+      mode: 'detect',
+      maxProcessingDimension: 640,
+      minDetectionConfidence: 0.5
+    });
+    expect(result.success).toBe(false);
+    expect(result.corners).toBeNull();
+    expect(result.confidence).toBeGreaterThan(0);
+    expect(result.confidence).toBeLessThan(0.5);
+    expect(result.message).toMatch(/minDetectionConfidence/);
+  });
+
+  it('still detects a real document with minDetectionConfidence set', async () => {
+    const img = await loadImage(path.join(imagesDir, 'test.png'));
+    const result = await scanDocument(img, {
+      mode: 'detect',
+      maxProcessingDimension: 800,
+      minDetectionConfidence: 0.5
+    });
+    expect(result.success).toBe(true);
+    expect(result.isValid).toBe(true);
+    expect(result.confidence).toBeGreaterThanOrEqual(0.5);
+  });
+
+  it('applies minDetectionConfidence set on the Scanner', async () => {
+    const scanner = new Scanner({ minDetectionConfidence: 0.5, maxProcessingDimension: 640 });
+    const result = await scanner.scan(noDocumentScene());
+    expect(result.success).toBe(false);
+  });
+});
