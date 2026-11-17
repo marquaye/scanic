@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.8.0] - 2026-11-17
+
+### Added
+- **`isValid` on the scan result**: with the classical detector it tells you whether the returned quad passed the geometry checks. `false` means the quad is a best guess, not a confirmed document. It is `null` for the ML detector.
+
+### Changed
+- **New demo design**: controls on the left, the result in a large preview on the right, with size, time and confidence underneath and the corner editor and download next to the result. On phones the page scrolls to the result after a scan. The live camera mode only locks onto a page when its confidence is at least 0.5. The gallery shows 8 curated samples, and only those are published with the demo.
+
+### Fixed
+- **`minDetectionConfidence` now works**: it was in the types and docs but never read. When set, a result whose `confidence` is below it comes back as `success: false`. It is unset by default, so the best guess is still returned for still photos. For live camera frames, 0.5 is a good starting point; the camera examples in the guides now use it. ([#47](https://github.com/marquaye/scanic/issues/47))
+- **`confidence` of exactly 0 was reported as `null`.**
+- **Docs**: the API reference now explains `confidence` and `isValid`, and no longer describes the ignored `dilationIterations` option as working.
+
 ## [1.7.1] - 2026-10-15
 
 1.7.0 was tagged but never reached npm, so this is the first published release with the 1.7.0 changes below.
