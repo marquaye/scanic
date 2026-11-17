@@ -3,517 +3,1135 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Scanic Live Demo - Modern Document Scanner</title>
+  <meta name="color-scheme" content="light dark">
+  <title>Scanic Demo · Document scanning in the browser</title>
+  <meta name="description" content="Detect, crop and straighten documents right in the browser. Scanic runs locally in JavaScript and WebAssembly.">
   <link rel="icon" type="image/x-icon" href="favicon.ico">
   <style>
     :root {
-      --primary: #6366f1;
-      --primary-hover: #4f46e5;
-      --bg: #f8fafc;
-      --card-bg: #ffffff;
-      --text: #1e293b;
-      --text-muted: #64748b;
-      --border: #e2e8f0;
-      --success: #22c55e;
-      --danger: #ef4444;
+      --bg: #f6f6f7;
+      --surface: #ffffff;
+      --surface-2: #f1f1f3;
+      --surface-active: #ffffff;
+      --border: #e4e4e8;
+      --border-strong: #d2d2d8;
+      --text: #111216;
+      --text-2: #5a5f6b;
+      --text-3: #8b909b;
+      --accent: #6366f1;
+      --accent-hover: #4f46e5;
+      --accent-fg: #ffffff;
+      --accent-soft: rgb(99 102 241 / 0.1);
+      --success: #16a34a;
+      --danger: #dc2626;
+      --stage: #0c0d11;
+      --stage-border: #0c0d11;
+      --shadow-sm: 0 1px 2px rgb(16 17 22 / 0.06), 0 1px 1px rgb(16 17 22 / 0.04);
+      --shadow-md: 0 8px 24px -8px rgb(16 17 22 / 0.18), 0 2px 6px rgb(16 17 22 / 0.06);
+      --radius-sm: 8px;
       --radius: 12px;
-      --shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+      --radius-lg: 16px;
+      --topbar-h: 56px;
+      --font: -apple-system, BlinkMacSystemFont, "Segoe UI Variable Text", "Segoe UI", Inter, Roboto, "Helvetica Neue", Arial, sans-serif;
+      --mono: ui-monospace, "SF Mono", "Cascadia Mono", Menlo, Consolas, monospace;
     }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #0b0c0f;
+        --surface: #121317;
+        --surface-2: #191a1f;
+        --surface-active: #272932;
+        --border: #23252c;
+        --border-strong: #31343d;
+        --text: #ececf0;
+        --text-2: #a3a7b2;
+        --text-3: #6e7380;
+        --accent: #818cf8;
+        --accent-hover: #6366f1;
+        --accent-fg: #0b0c0f;
+        --accent-soft: rgb(129 140 248 / 0.14);
+        --success: #4ade80;
+        --danger: #f87171;
+        --stage: #07080a;
+        --stage-border: #1c1e24;
+        --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.4);
+        --shadow-md: 0 10px 30px -10px rgb(0 0 0 / 0.6);
+      }
+    }
+
+    *, *::before, *::after { box-sizing: border-box; }
+
+    html, body { height: 100%; }
 
     body {
-      font-family: 'Inter', system-ui, -apple-system, sans-serif;
-      background-color: var(--bg);
-      color: var(--text);
-      line-height: 1.5;
       margin: 0;
-      padding: 0;
+      font-family: var(--font);
+      font-size: 14px;
+      line-height: 1.5;
+      color: var(--text);
+      background: var(--bg);
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
     }
 
-    .app-container {
-      max-width: 1200px;
-      margin: 0 auto;
-      padding: 2rem;
+    a { color: inherit; }
+
+    button { font: inherit; color: inherit; }
+
+    [hidden] { display: none !important; }
+
+    :focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 2px;
     }
 
-    header {
+    .visually-hidden {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip: rect(0 0 0 0);
+      white-space: nowrap;
+    }
+
+    /* ---------- Top bar ---------- */
+
+    .topbar {
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      height: var(--topbar-h);
       display: flex;
-      justify-content: space-between;
       align-items: center;
-      margin-bottom: 2rem;
+      justify-content: space-between;
+      padding: 0 24px;
+      background: color-mix(in srgb, var(--bg) 82%, transparent);
+      -webkit-backdrop-filter: saturate(1.4) blur(12px);
+      backdrop-filter: saturate(1.4) blur(12px);
+      border-bottom: 1px solid var(--border);
     }
 
     .brand {
       display: flex;
       align-items: center;
-      gap: 12px;
+      gap: 10px;
+      text-decoration: none;
+      font-weight: 650;
+      font-size: 15px;
+      letter-spacing: -0.01em;
     }
 
     .brand img {
-      height: 48px;
+      width: 30px;
+      height: 30px;
+      display: block;
     }
 
-    .brand h1 {
-      font-size: 1.5rem;
-      font-weight: 800;
-      margin: 0;
-      letter-spacing: -0.025em;
+    .brand-tag {
+      padding: 2px 8px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      color: var(--text-2);
+      font-size: 11px;
+      font-weight: 550;
     }
 
-    .nav-links {
-      display: flex;
-      gap: 16px;
-    }
-
-    .btn-github {
+    .topnav {
       display: flex;
       align-items: center;
-      gap: 8px;
-      padding: 8px 16px;
-      background: #000;
-      color: white;
+      gap: 4px;
+    }
+
+    .topnav a {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      height: 32px;
+      padding: 0 10px;
+      border-radius: var(--radius-sm);
+      color: var(--text-2);
       text-decoration: none;
-      border-radius: var(--radius);
+      font-size: 13px;
       font-weight: 500;
-      font-size: 14px;
-      transition: opacity 0.2s;
+      transition: color 0.15s, background 0.15s;
     }
 
-    .btn-home {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      padding: 8px 16px;
-      background: var(--card-bg);
+    .topnav a:hover {
       color: var(--text);
-      text-decoration: none;
-      border-radius: var(--radius);
-      border: 1px solid var(--border);
-      font-weight: 500;
-      font-size: 14px;
-      transition: opacity 0.2s, border-color 0.2s;
+      background: var(--surface-2);
     }
 
-    .btn-home:hover {
-      border-color: var(--primary);
-      color: var(--primary);
-    }
+    .topnav svg { width: 16px; height: 16px; }
 
-    .grid {
+    /* ---------- Workspace ---------- */
+
+    .workspace {
       display: grid;
-      grid-template-columns: 1fr 1fr;
+      grid-template-columns: 340px minmax(0, 1fr);
       gap: 24px;
+      max-width: 1480px;
+      margin: 0 auto;
+      padding: 24px;
+      height: calc(100dvh - var(--topbar-h));
+      min-height: 620px;
     }
 
-    @media (max-width: 900px) {
-      .grid { grid-template-columns: 1fr; }
-    }
-
-    .card {
-      background: var(--card-bg);
-      border-radius: var(--radius);
-      box-shadow: var(--shadow);
-      padding: 1.5rem;
-      border: 1px solid var(--border);
+    .panel {
       display: flex;
       flex-direction: column;
+      gap: 24px;
+      min-height: 0;
+      overflow-y: auto;
+      margin: -4px;
+      padding: 4px;
+      scrollbar-width: thin;
     }
 
-    .card h2 {
-      margin-top: 0;
-      font-size: 1.1rem;
-      margin-bottom: 1.5rem;
-      display: flex;
-      align-items: center;
-      gap: 8px;
+    .intro h1 {
+      margin: 4px 0 8px;
+      font-size: 22px;
+      line-height: 1.25;
+      font-weight: 650;
+      letter-spacing: -0.022em;
     }
 
-    .drop-zone {
-      border: 2px dashed var(--border);
-      border-radius: var(--radius);
-      padding: 3rem 1rem;
-      text-align: center;
-      cursor: pointer;
-      transition: all 0.2s;
-      background: #fafafa;
-    }
-
-    .drop-zone:hover {
-      border-color: var(--primary);
-      background: #f5f3ff;
-    }
-
-    .drop-zone p {
+    .intro p {
       margin: 0;
-      color: var(--text-muted);
+      color: var(--text-2);
     }
 
-    .mode-switch {
-      margin-top: 12px;
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 8px;
-      background: #eef2ff;
-      padding: 6px;
-      border-radius: 999px;
-      border: 1px solid #e0e7ff;
+    .group {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
     }
 
-    .mode-chip {
-      border: none;
-      border-radius: 999px;
-      background: transparent;
-      color: var(--text-muted);
-      font-weight: 700;
-      font-size: 12px;
-      padding: 8px 10px;
-      cursor: pointer;
-      transition: all 0.2s;
-    }
-
-    .mode-chip.active {
-      background: #ffffff;
-      color: var(--primary);
-      box-shadow: 0 1px 2px rgb(15 23 42 / 0.18);
-    }
-
-    .mode-help {
-      margin: 10px 0 0;
-      color: var(--text-muted);
-      font-size: 12px;
-    }
-
-    .detector-bar {
-      position: relative;
+    .group-label {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      flex-wrap: wrap;
-      gap: 14px;
-      background: var(--card-bg);
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--text-3);
+    }
+
+    .group-label a {
+      text-transform: none;
+      letter-spacing: 0;
+      font-weight: 500;
+      font-size: 12px;
+      color: var(--text-2);
+      text-decoration: none;
+    }
+
+    .group-label a:hover { color: var(--accent); }
+
+    .hint {
+      margin: 0;
+      font-size: 12.5px;
+      color: var(--text-2);
+      min-height: 1.5em;
+      transition: color 0.2s;
+    }
+
+    .hint.is-loading { color: var(--accent); }
+    .hint.is-ready { color: var(--success); }
+    .hint.is-error { color: var(--danger); }
+
+    /* Segmented control */
+    .segmented {
+      position: relative;
+      display: grid;
+      grid-auto-flow: column;
+      grid-auto-columns: 1fr;
+      gap: 2px;
+      padding: 3px;
+      background: var(--surface-2);
       border: 1px solid var(--border);
-      border-radius: var(--radius);
-      padding: 14px 20px;
-      margin-bottom: 24px;
-      box-shadow: var(--shadow);
+      border-radius: 10px;
       overflow: hidden;
     }
 
-    .detector-bar-info {
-      display: flex;
-      flex-direction: column;
-      gap: 2px;
+    .segmented button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      height: 32px;
+      padding: 0 10px;
+      border: 0;
+      border-radius: 7px;
+      background: transparent;
+      color: var(--text-2);
+      font-size: 13px;
+      font-weight: 550;
+      cursor: pointer;
+      transition: color 0.15s, background 0.15s, box-shadow 0.15s;
     }
 
-    .detector-bar-info strong {
-      font-size: 0.95rem;
+    .segmented button:hover { color: var(--text); }
+
+    .segmented button.is-active {
+      background: var(--surface-active);
+      color: var(--text);
+      box-shadow: var(--shadow-sm), 0 0 0 1px var(--border);
     }
 
-    .detector-bar-info a {
-      color: var(--primary);
-      text-decoration: none;
-      font-size: 0.78rem;
-    }
+    .segmented button svg { width: 15px; height: 15px; }
 
-    .detector-bar-info a:hover {
-      text-decoration: underline;
-    }
-
-    .detector-bar-help {
-      margin: 0;
-      color: var(--text-muted);
-      font-size: 0.78rem;
-    }
-
-    .detector-switch {
-      margin-top: 0;
-      width: auto;
-      min-width: 260px;
-    }
-
-    .chip-badge {
-      display: inline-block;
-      margin-left: 6px;
+    .badge {
       padding: 1px 6px;
-      font-size: 9px;
-      font-weight: 800;
-      letter-spacing: 0.04em;
       border-radius: 999px;
-      background: linear-gradient(135deg, #6366f1, #8b5cf6);
-      color: #fff;
-      vertical-align: middle;
+      background: var(--accent-soft);
+      color: var(--accent);
+      font-size: 10px;
+      font-weight: 650;
+      letter-spacing: 0.02em;
     }
 
-    .detector-progress {
+    /* Indeterminate loading line under the detector switch */
+    .progress {
       position: absolute;
       left: 0;
       right: 0;
       bottom: 0;
-      height: 2.5px;
+      height: 2px;
       overflow: hidden;
       opacity: 0;
-      transition: opacity 0.25s ease;
+      transition: opacity 0.2s;
       pointer-events: none;
-      border-radius: 0 0 var(--radius) var(--radius);
     }
 
-    .detector-progress.active {
-      opacity: 1;
-    }
+    .progress.is-active { opacity: 1; }
 
-    .detector-progress::after {
+    .progress::after {
       content: '';
       position: absolute;
       top: 0;
       bottom: 0;
-      width: 35%;
-      background: linear-gradient(90deg, transparent, #6366f1, #8b5cf6, transparent);
-      animation: detector-progress-slide 1.15s ease-in-out infinite;
+      width: 40%;
+      background: linear-gradient(90deg, transparent, var(--accent), transparent);
+      animation: progress-slide 1.1s ease-in-out infinite;
     }
 
-    @keyframes detector-progress-slide {
-      0% { left: -35%; }
-      100% { left: 100%; }
+    @keyframes progress-slide {
+      from { left: -40%; }
+      to { left: 100%; }
     }
 
-    .detector-bar-help.is-ready {
-      color: var(--success);
+    /* Upload */
+    .dropzone {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 14px 16px;
+      border: 1px dashed var(--border-strong);
+      border-radius: var(--radius);
+      background: var(--surface);
+      cursor: pointer;
+      transition: border-color 0.15s, background 0.15s;
+    }
+
+    .dropzone:hover,
+    .dropzone:focus-within {
+      border-color: var(--accent);
+      background: color-mix(in srgb, var(--accent) 4%, var(--surface));
+    }
+
+    .dropzone-icon {
+      flex: none;
+      display: grid;
+      place-items: center;
+      width: 36px;
+      height: 36px;
+      border-radius: 10px;
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      color: var(--text-2);
+    }
+
+    .dropzone-icon svg { width: 18px; height: 18px; }
+
+    .dropzone-text strong {
+      display: block;
       font-weight: 600;
+      font-size: 13.5px;
     }
 
-    .detector-bar-help.is-loading {
-      color: var(--primary);
-    }
-
-    .detector-bar-help.is-error {
-      color: var(--danger);
+    .dropzone-text small {
+      display: block;
+      color: var(--text-3);
+      font-size: 12.5px;
     }
 
     .samples {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
-      gap: 12px;
-      margin-top: 20px;
-    }
-
-    .sample-img {
-      width: 100%;
-      aspect-ratio: 1;
-      object-fit: cover;
-      border-radius: 8px;
-      cursor: pointer;
-      border: 2px solid transparent;
-      transition: all 0.2s;
-    }
-
-    .sample-img:hover {
-      transform: translateY(-2px);
-      border-color: var(--primary);
-    }
-
-    .btn {
-      padding: 10px 20px;
-      border-radius: 8px;
-      border: none;
-      font-weight: 600;
-      cursor: pointer;
-      transition: all 0.2s;
-      display: inline-flex;
-      align-items: center;
+      grid-template-columns: repeat(4, 1fr);
       gap: 8px;
     }
 
-    .btn-primary { background: var(--primary); color: white; }
-    .btn-primary:hover { background: var(--primary-hover); }
-    .btn-secondary { background: var(--bg); color: var(--text); border: 1px solid var(--border); }
-    .btn-danger { background: var(--danger); color: white; }
-
-    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
-
-    canvas {
-      width: 100%;
-      height: auto;
-      border-radius: 8px;
-      background: #000;
-      margin-top: 1rem;
-    }
-
-    /* The <video> is the live preview; the canvas on top only holds the overlay. */
-    .live-view {
+    .sample {
       position: relative;
-      margin-top: 1rem;
+      padding: 0;
+      aspect-ratio: 1;
+      border: 0;
+      border-radius: var(--radius-sm);
+      overflow: hidden;
+      background: var(--surface-2);
+      cursor: pointer;
+      box-shadow: 0 0 0 1px var(--border);
+      transition: box-shadow 0.15s, transform 0.15s;
     }
-    .live-view video {
+
+    .sample img {
       display: block;
       width: 100%;
-      height: auto;
-      border-radius: 8px;
-      background: #000;
-    }
-    .live-view canvas {
-      position: absolute;
-      inset: 0;
       height: 100%;
-      margin-top: 0;
-      background: transparent;
-      pointer-events: none;
+      object-fit: cover;
+      transition: transform 0.3s ease;
     }
 
-    .stats {
-      margin-top: 1rem;
-      padding: 12px;
-      background: #f1f5f9;
-      border-radius: 8px;
-      font-family: ui-monospace, monospace;
-      font-size: 0.75rem;
-      display: grid;
-      grid-template-columns: 1fr 1fr;
+    .sample:hover img { transform: scale(1.06); }
+
+    .sample.is-active {
+      box-shadow: 0 0 0 2px var(--accent);
+    }
+
+    /* Camera controls */
+    .camera-actions {
+      display: flex;
       gap: 8px;
     }
 
-    .status-dot {
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
-      background: var(--text-muted);
-      display: inline-block;
+    /* Buttons */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+      height: 34px;
+      padding: 0 12px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      background: var(--surface);
+      color: var(--text);
+      font-size: 13px;
+      font-weight: 550;
+      white-space: nowrap;
+      cursor: pointer;
+      box-shadow: var(--shadow-sm);
+      transition: background 0.15s, border-color 0.15s, color 0.15s;
     }
 
-    .status-active { background: var(--success); box-shadow: 0 0 10px var(--success); }
+    .btn:hover {
+      background: var(--surface-2);
+      border-color: var(--border-strong);
+    }
 
-    .controls {
+    .btn svg { width: 15px; height: 15px; flex: none; }
+
+    .btn-primary {
+      background: var(--accent);
+      border-color: transparent;
+      color: var(--accent-fg);
+    }
+
+    .btn-primary:hover {
+      background: var(--accent-hover);
+      border-color: transparent;
+    }
+
+    .btn-block { width: 100%; height: 38px; }
+
+    /* Install snippet */
+    .install-cmd {
       display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-left: auto;
+      height: 32px;
+      padding: 0 3px 0 12px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      background: var(--surface);
+      font-family: var(--mono);
+      font-size: 12.5px;
+    }
+
+    .install-cmd code::before {
+      content: '$ ';
+      color: var(--text-3);
+    }
+
+    .icon-btn {
+      display: grid;
+      place-items: center;
+      width: 28px;
+      height: 28px;
+      border: 0;
+      border-radius: 6px;
+      background: transparent;
+      color: var(--text-2);
+      cursor: pointer;
+      transition: background 0.15s, color 0.15s;
+    }
+
+    .icon-btn:hover {
+      background: var(--surface-2);
+      color: var(--text);
+    }
+
+    .icon-btn svg { width: 15px; height: 15px; }
+
+    /* ---------- Stage ---------- */
+
+    .viewer {
+      display: flex;
+      flex-direction: column;
       gap: 12px;
-      margin-bottom: 1rem;
+      min-width: 0;
+      min-height: 0;
     }
 
-    .hidden { display: none; }
-
-    #extracted-container {
-      margin-top: 2rem;
-      border-top: 2px solid var(--border);
-      padding-top: 2rem;
+    .viewer-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      min-height: 38px;
     }
 
-    #extracted-container h2 {
-      margin-bottom: 0.25rem;
+    .viewer-title {
+      min-width: 0;
     }
 
-    .result-subtitle {
-      margin: 0 0 1rem;
-      color: var(--text-muted);
-      font-size: 0.9rem;
+    .viewer-title h2 {
+      margin: 0;
+      font-size: 15px;
+      font-weight: 620;
+      letter-spacing: -0.01em;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
 
-    #staticCanvas {
+    .viewer-title p {
+      margin: 0;
+      font-size: 12.5px;
+      color: var(--text-2);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .viewer-actions {
+      display: flex;
+      gap: 8px;
+      flex: none;
+    }
+
+    .stage {
+      position: relative;
+      flex: 1;
+      min-height: 0;
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+      background-color: var(--stage);
+      background-image: radial-gradient(rgb(255 255 255 / 0.07) 1px, transparent 1px);
+      background-size: 22px 22px;
+      background-position: 11px 11px;
+      border: 1px solid var(--stage-border);
+      box-shadow: var(--shadow-md);
+      color: #e8e9ee;
+      isolation: isolate;
+    }
+
+    .stage-layer {
+      position: absolute;
+      inset: 0;
+    }
+
+    .result-layer {
+      display: grid;
+      grid-template: minmax(0, 1fr) / minmax(0, 1fr);
+      place-items: center;
+      padding: 28px;
+    }
+
+    #resultCanvas {
+      display: block;
       max-width: 100%;
+      max-height: 100%;
+      width: auto;
       height: auto;
-      background: #eee;
+      border-radius: 4px;
+      box-shadow: 0 24px 60px -12px rgb(0 0 0 / 0.65), 0 0 0 1px rgb(255 255 255 / 0.06);
+      animation: result-in 0.35s cubic-bezier(0.2, 0.8, 0.2, 1);
+    }
+
+    @keyframes result-in {
+      from { opacity: 0; transform: scale(0.985); }
+      to { opacity: 1; transform: none; }
     }
 
     #cornerEditorHost {
+      position: absolute;
+      inset: 0;
+    }
+
+    #cornerEditorHost.scanic-corner-editor {
+      --scanic-accent: #818cf8;
+      --scanic-mask: rgb(7 8 10 / 0.6);
+      --scanic-surface: rgb(22 23 28 / 0.9);
+    }
+
+    .live-layer video,
+    .live-layer canvas {
+      position: absolute;
+      inset: 0;
       width: 100%;
-      min-height: 320px;
-      background: #0b1220;
-      border-radius: 10px;
-      border: 1px solid var(--border);
+      height: 100%;
+    }
+
+    .live-layer video { object-fit: contain; }
+
+    .live-layer canvas { pointer-events: none; }
+
+    /* Show exactly one layer per view */
+    .stage[data-view="empty"] :is(.result-layer, .editor-layer, .live-layer),
+    .stage[data-view="result"] :is(.empty-layer, .editor-layer, .live-layer),
+    .stage[data-view="editor"] :is(.empty-layer, .result-layer, .live-layer),
+    .stage[data-view="live"] :is(.empty-layer, .result-layer, .editor-layer) {
+      display: none;
+    }
+
+    /* Empty state */
+    .empty-layer {
+      display: grid;
+      place-items: center;
+      padding: 24px;
+      text-align: center;
+    }
+
+    .empty-art {
+      position: relative;
+      width: 132px;
+      height: 168px;
+      margin: 0 auto 24px;
+    }
+
+    .empty-page {
+      position: absolute;
+      inset: 16px;
+      border-radius: 6px;
+      background: linear-gradient(180deg, rgb(255 255 255 / 0.1), rgb(255 255 255 / 0.04));
+      border: 1px solid rgb(255 255 255 / 0.1);
       overflow: hidden;
-      margin-top: 1rem;
+    }
+
+    .empty-page i {
+      display: block;
+      height: 5px;
+      margin: 14px 14px 0;
+      border-radius: 3px;
+      background: rgb(255 255 255 / 0.12);
+    }
+
+    .empty-page i:nth-child(1) { width: 50%; height: 7px; background: rgb(255 255 255 / 0.2); }
+    .empty-page i:nth-child(3) { width: 70%; }
+    .empty-page i:nth-child(5) { width: 40%; }
+
+    .empty-page::after {
+      content: '';
+      position: absolute;
+      left: 0;
+      right: 0;
+      height: 40px;
+      background: linear-gradient(180deg, transparent, rgb(129 140 248 / 0.35));
+      border-bottom: 1.5px solid #a5b4fc;
+      animation: scan 2.6s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+    }
+
+    @keyframes scan {
+      0% { top: -40px; }
+      55%, 100% { top: 100%; }
+    }
+
+    .empty-art svg {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      color: #fff;
+    }
+
+    .empty-layer h3 {
+      margin: 0 0 6px;
+      font-size: 17px;
+      font-weight: 620;
+      letter-spacing: -0.01em;
+      color: #f4f4f6;
+    }
+
+    .empty-layer p {
+      margin: 0;
+      color: rgb(232 233 238 / 0.6);
+      font-size: 13.5px;
+    }
+
+    .privacy {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      margin-top: 20px;
+      padding: 5px 11px;
+      border-radius: 999px;
+      background: rgb(255 255 255 / 0.06);
+      border: 1px solid rgb(255 255 255 / 0.08);
+      color: rgb(232 233 238 / 0.7);
+      font-size: 12px;
+    }
+
+    .privacy svg { width: 13px; height: 13px; }
+
+    /* Floating stage chrome */
+    .pill {
+      position: absolute;
+      z-index: 5;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      height: 30px;
+      padding: 0 12px;
+      border-radius: 999px;
+      background: rgb(18 19 24 / 0.78);
+      -webkit-backdrop-filter: blur(10px);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgb(255 255 255 / 0.1);
+      color: #f1f2f5;
+      font-size: 12.5px;
+      font-weight: 550;
+    }
+
+    .busy {
+      top: 16px;
+      left: 50%;
+      transform: translateX(-50%);
+      animation: pill-in 0.2s ease;
+    }
+
+    @keyframes pill-in {
+      from { opacity: 0; transform: translate(-50%, -6px); }
+    }
+
+    .spinner {
+      width: 13px;
+      height: 13px;
+      border-radius: 50%;
+      border: 2px solid rgb(255 255 255 / 0.2);
+      border-top-color: #fff;
+      animation: spin 0.7s linear infinite;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .live-badge {
+      top: 16px;
+      left: 16px;
+      letter-spacing: 0.04em;
+      font-size: 11.5px;
+    }
+
+    .live-badge::before {
+      content: '';
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: #ef4444;
+      box-shadow: 0 0 0 0 rgb(239 68 68 / 0.6);
+      animation: rec 1.6s ease-out infinite;
+    }
+
+    @keyframes rec {
+      70% { box-shadow: 0 0 0 7px rgb(239 68 68 / 0); }
+      100% { box-shadow: 0 0 0 0 rgb(239 68 68 / 0); }
+    }
+
+    .live-status {
+      top: 16px;
+      right: 16px;
+      color: rgb(241 242 245 / 0.75);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .live-status.is-locked { color: #a5f3c0; }
+
+    .shutter {
+      position: absolute;
+      z-index: 5;
+      left: 50%;
+      bottom: 24px;
+      transform: translateX(-50%);
+      width: 68px;
+      height: 68px;
+      padding: 0;
+      border-radius: 50%;
+      border: 3px solid rgb(255 255 255 / 0.85);
+      background: transparent;
+      cursor: pointer;
+      transition: border-color 0.2s, transform 0.15s;
+    }
+
+    .shutter::after {
+      content: '';
+      position: absolute;
+      inset: 5px;
+      border-radius: 50%;
+      background: #fff;
+      transition: transform 0.15s, background 0.2s;
+    }
+
+    .shutter:hover::after { transform: scale(0.94); }
+    .shutter:active::after { transform: scale(0.86); }
+
+    .shutter.is-locked { border-color: #a5b4fc; }
+    .shutter.is-locked::after { background: #eef0ff; }
+
+    .flash {
+      position: absolute;
+      inset: 0;
+      z-index: 6;
+      background: #fff;
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .flash.is-on { animation: flash 0.45s ease-out; }
+
+    @keyframes flash {
+      from { opacity: 0.85; }
+      to { opacity: 0; }
+    }
+
+    .toast {
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      max-width: calc(100% - 32px);
+      height: auto;
+      min-height: 36px;
+      padding: 8px 14px;
+      border-radius: 12px;
+      text-align: center;
+      animation: toast-in 0.25s cubic-bezier(0.2, 0.8, 0.2, 1);
+    }
+
+    .toast.is-error { border-color: rgb(248 113 113 / 0.45); }
+
+    @keyframes toast-in {
+      from { opacity: 0; transform: translate(-50%, 8px); }
+    }
+
+    .drop-overlay {
+      position: absolute;
+      inset: 10px;
+      z-index: 8;
+      display: none;
+      place-items: center;
+      border: 1.5px dashed #a5b4fc;
+      border-radius: 12px;
+      background: rgb(99 102 241 / 0.16);
+      color: #fff;
+      font-size: 15px;
+      font-weight: 600;
+      pointer-events: none;
+    }
+
+    body.is-dragging .drop-overlay { display: grid; }
+
+    /* Stats */
+    .stats {
+      display: flex;
+      align-items: center;
+      gap: 6px 28px;
+      flex-wrap: wrap;
+      min-height: 40px;
+      padding: 0 4px;
+    }
+
+    .stat {
+      margin: 0;
+      display: flex;
+      align-items: baseline;
+      gap: 8px;
+    }
+
+    .stat dt {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--text-3);
+    }
+
+    .stat dd {
+      margin: 0;
+      font-family: var(--mono);
+      font-size: 12.5px;
+      font-variant-numeric: tabular-nums;
+      color: var(--text);
+    }
+
+    .stats-empty {
+      color: var(--text-3);
+      font-size: 12.5px;
+    }
+
+    /* ---------- Responsive ---------- */
+
+    @media (max-width: 960px) {
+      .topbar { padding: 0 16px; }
+
+      .topnav .label { display: none; }
+
+      .workspace {
+        grid-template-columns: minmax(0, 1fr);
+        height: auto;
+        min-height: 0;
+        padding: 16px;
+        gap: 20px;
+      }
+
+      .panel {
+        overflow: visible;
+        margin: 0;
+        padding: 0;
+        gap: 20px;
+      }
+
+      .intro h1 { font-size: 20px; }
+
+      /* A swipeable strip keeps the controls short on phones */
+      .samples {
+        grid-template-columns: none;
+        grid-auto-flow: column;
+        grid-auto-columns: 76px;
+        overflow-x: auto;
+        margin: -2px -16px;
+        padding: 2px 16px;
+        scroll-padding-inline: 16px;
+        scroll-snap-type: x mandatory;
+        scrollbar-width: none;
+      }
+
+      .samples::-webkit-scrollbar { display: none; }
+
+      .sample { scroll-snap-align: start; }
+
+      .install-cmd { margin-left: 0; }
+
+      .viewer { scroll-margin-top: calc(var(--topbar-h) + 12px); }
+
+      .viewer-head {
+        flex-wrap: wrap;
+        gap: 10px;
+      }
+
+      .stage {
+        flex: none;
+        height: min(72svh, 640px);
+        min-height: 360px;
+      }
+
+      .result-layer { padding: 16px; }
+    }
+
+    @media (max-width: 480px) {
+      .viewer-actions .btn .label { display: none; }
+      .stats { gap: 6px 18px; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+      }
     }
   </style>
 </head>
 <body>
-  <div class="app-container">
-    <header>
-      <div class="brand">
-        <img src="scanic-logo-bg.png" alt="Scanic">
-        <h1>Scanic Live</h1>
-      </div>
-      <div class="nav-links">
-        <a href="https://marquaye.github.io/scanic/" class="btn-home">
-          <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M9 22V12h6v10"/></svg>
-          Back to Site
-        </a>
-        <a href="https://github.com/marquaye/scanic" class="btn-github">
-          <svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/></svg>
-          GitHub
-        </a>
-      </div>
-    </header>
+  <header class="topbar">
+    <a class="brand" href="https://marquaye.github.io/scanic/">
+      <img src="scanic-icon.png" alt="">
+      Scanic
+      <span class="brand-tag">Demo</span>
+    </a>
+    <nav class="topnav">
+      <a href="https://marquaye.github.io/scanic/" aria-label="Docs">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/></svg>
+        <span class="label">Docs</span>
+      </a>
+      <a href="https://github.com/marquaye/scanic" aria-label="Scanic on GitHub">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/></svg>
+        <span class="label">GitHub</span>
+      </a>
+    </nav>
+  </header>
 
-    <div class="detector-bar">
-      <div class="detector-bar-info">
-        <strong>🧠 Detection Backend</strong>
-        <p class="detector-bar-help" id="detectorHelp">Classical geometry detector: fast, no download.</p>
-        <a href="https://marquaye.github.io/scanic/guide/ml-detection" target="_blank" rel="noopener">What's the ML detector?</a>
-      </div>
-      <div class="mode-switch detector-switch" id="detectorSwitch" role="tablist" aria-label="Detection backend">
-        <button class="mode-chip active" type="button" data-detector="classical">Classical</button>
-        <button class="mode-chip" type="button" data-detector="ml">ML (neural)<span class="chip-badge">NEW</span></button>
-      </div>
-      <div class="detector-progress" id="detectorProgress" aria-hidden="true"></div>
-    </div>
+  <main class="workspace">
+    <aside class="panel">
+      <section class="intro">
+        <h1>Document scanning, right in the browser.</h1>
+        <p>Find the page, fix the perspective, export a clean scan. It all runs on your device in JavaScript and WebAssembly.</p>
+      </section>
 
-    <div class="grid">
-      <!-- Upload Section -->
-      <div class="card">
-        <h2>📷 Static Image</h2>
-        <div class="drop-zone" id="dropZone">
-          <p>Drop document image here or click to upload</p>
-          <input type="file" id="fileInput" class="hidden" accept="image/*">
+      <section class="group">
+        <div class="group-label">Source</div>
+        <div class="segmented" id="sourceSwitch" role="group" aria-label="Source">
+          <button type="button" data-value="image">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.1-3.1a2 2 0 0 0-2.8 0L6 21"/></svg>
+            Image
+          </button>
+          <button type="button" data-value="camera">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg>
+            Camera
+          </button>
         </div>
 
-        <div class="mode-switch" id="staticModeSwitch" role="tablist" aria-label="Static processing mode">
-          <button class="mode-chip active" type="button" data-mode="detect">Detect Only</button>
-          <button class="mode-chip" type="button" data-mode="extract">Extract</button>
+        <div id="imagePane" class="group">
+          <label class="dropzone">
+            <span class="dropzone-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            </span>
+            <span class="dropzone-text">
+              <strong>Upload a photo</strong>
+              <small>or drop it anywhere on this page</small>
+            </span>
+            <input type="file" id="fileInput" class="visually-hidden" accept="image/*">
+          </label>
+          <div class="samples" id="samples" aria-label="Sample images"></div>
         </div>
-        <p class="mode-help" id="staticModeHelp">Detect mode shows a styled corner outline without cropping.</p>
-        
-        <div class="samples" id="samples">
+
+        <div id="cameraPane" class="group" hidden>
+          <div class="camera-actions">
+            <button type="button" class="btn btn-primary btn-block" id="btnStart">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg>
+              Start camera
+            </button>
+            <button type="button" class="btn btn-block" id="btnStop" hidden>
+              <svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>
+              Stop camera
+            </button>
+          </div>
+          <p class="hint">Hold a page in view and press the shutter once the corners lock on.</p>
+        </div>
+      </section>
+
+      <section class="group" id="outputGroup">
+        <div class="group-label">Output</div>
+        <div class="segmented" id="modeSwitch" role="group" aria-label="Output">
+          <button type="button" data-value="detect">Detect</button>
+          <button type="button" data-value="extract">Extract</button>
+        </div>
+        <p class="hint" id="modeHelp"></p>
+      </section>
+
+      <section class="group">
+        <div class="group-label">
+          Detector
+          <a href="https://marquaye.github.io/scanic/guide/ml-detection" target="_blank" rel="noopener">How it works</a>
+        </div>
+        <div class="segmented" id="detectorSwitch" role="group" aria-label="Detector">
+          <button type="button" data-value="classical">Classical</button>
+          <button type="button" data-value="ml">Neural <span class="badge">New</span></button>
+          <div class="progress" id="detectorProgress" aria-hidden="true"></div>
+        </div>
+        <p class="hint" id="detectorHelp" aria-live="polite"></p>
+      </section>
+
+    </aside>
+
+    <section class="viewer" id="viewer">
+      <div class="viewer-head">
+        <div class="viewer-title">
+          <h2 id="viewTitle">Preview</h2>
+          <p id="viewSubtitle">Pick a sample or upload a photo to start.</p>
+        </div>
+        <div class="viewer-actions">
+          <button type="button" class="btn" id="btnRetake" aria-label="Retake" hidden>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg>
+            <span class="label">Retake</span>
+          </button>
+          <button type="button" class="btn" id="btnAdjust" aria-label="Adjust corners" hidden>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8V5a2 2 0 0 1 2-2h3"/><path d="M16 3h3a2 2 0 0 1 2 2v3"/><path d="M21 16v3a2 2 0 0 1-2 2h-3"/><path d="M8 21H5a2 2 0 0 1-2-2v-3"/></svg>
+            <span class="label">Adjust corners</span>
+          </button>
+          <button type="button" class="btn btn-primary" id="btnDownload" aria-label="Download" hidden>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            <span class="label">Download</span>
+          </button>
         </div>
       </div>
 
-      <!-- Live Section -->
-      <div class="card">
-        <h2>
-          <span class="status-dot" id="streamDot"></span>
-          🎥 Live Scanner
-        </h2>
-        
-        <div class="controls">
-          <button class="btn btn-primary" id="btnStart">Start Camera</button>
-          <button class="btn btn-secondary hidden" id="btnStop">Stop</button>
-          <button class="btn btn-danger hidden" id="btnCapture">Capture</button>
+      <div class="stage" id="stage" data-view="empty">
+        <div class="stage-layer empty-layer">
+          <div>
+            <div class="empty-art" aria-hidden="true">
+              <div class="empty-page"><i></i><i></i><i></i><i></i><i></i></div>
+              <svg viewBox="0 0 132 168" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M4 26V4h22M106 4h22v22M128 142v22h-22M26 164H4v-22"/>
+              </svg>
+            </div>
+            <h3>Drop a photo of a document</h3>
+            <p>or pick one of the samples to see it in action</p>
+            <div class="privacy">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+              Processed locally. Nothing is uploaded.
+            </div>
+          </div>
         </div>
 
-        <div class="live-view">
+        <div class="stage-layer result-layer">
+          <canvas id="resultCanvas"></canvas>
+        </div>
+
+        <div class="stage-layer editor-layer">
+          <div id="cornerEditorHost"></div>
+        </div>
+
+        <div class="stage-layer live-layer">
           <video id="liveVideo" playsinline muted></video>
           <canvas id="liveCanvas"></canvas>
+          <span class="pill live-badge">LIVE</span>
+          <span class="pill live-status" id="liveStatus">Searching</span>
+          <button type="button" class="shutter" id="btnCapture" aria-label="Capture document"></button>
         </div>
 
-        <div class="stats">
-          <span>Resolution: <strong id="statRes">-</strong></span>
-          <span>Detection: <strong id="statDetect">-</strong></span>
-          <span>Processing: <strong id="statTime">0ms</strong></span>
-          <span>Status: <strong id="statStatus">Idle</strong></span>
+        <div class="flash" id="flash"></div>
+        <div class="pill busy" id="busy" hidden><span class="spinner"></span><span id="busyText"></span></div>
+        <div class="pill toast" id="toast" role="status" hidden></div>
+        <div class="drop-overlay">Drop to scan</div>
+      </div>
+
+      <div class="stats" id="stats">
+        <span class="stats-empty" id="statsEmpty">Results show up here: image size, processing time and confidence.</span>
+        <dl class="stat" hidden><dt>Size</dt><dd id="statRes"></dd></dl>
+        <dl class="stat" hidden><dt>Time</dt><dd id="statTime"></dd></dl>
+        <dl class="stat" hidden><dt>Confidence</dt><dd id="statConf"></dd></dl>
+        <dl class="stat" hidden><dt>Detector</dt><dd id="statDetector"></dd></dl>
+        <div class="install-cmd">
+          <code>npm install scanic</code>
+          <button type="button" class="icon-btn" id="btnCopy" aria-label="Copy install command">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+          </button>
         </div>
       </div>
-    </div>
-
-    <!-- Results Section -->
-    <div id="extracted-container" class="hidden">
-      <h2 id="resultTitle">✨ Result Preview</h2>
-      <p id="resultSubtitle" class="result-subtitle">Select detect for corner preview, or extract for perspective crop.</p>
-      <canvas id="staticCanvas"></canvas>
-      <div id="cornerEditorHost" class="hidden"></div>
-      <div style="margin-top: 1rem;">
-        <button class="btn btn-secondary hidden" id="btnAdjustCorners">Adjust Corners</button>
-        <button class="btn btn-primary hidden" id="btnApplyCorners">Apply</button>
-        <button class="btn btn-secondary hidden" id="btnCancelCorners">Cancel</button>
-        <button class="btn btn-secondary" id="btnDownload">Download PNG</button>
-        <button class="btn btn-secondary" onclick="document.getElementById('extracted-container').classList.add('hidden')">Close</button>
-      </div>
-    </div>
-  </div>
+    </section>
+  </main>
 
   <script type="module">
     import { Scanner, scanDocument, extractDocument, createCornerEditor } from './scanic.js';
@@ -523,54 +1141,141 @@
     // ahead of time; its initialize() lazy-loads the same code-split chunk
     // scanDocument()/scanner.scan() use when { detector: 'ml' } is passed.
     const mlScanner = new Scanner({ detector: 'ml' });
-    let isLive = false;
-    let stream = null;
-    let video = null;
-    let detectTimer = null;
-    // Bumped on every start. A scan still in flight from before a stop/start
-    // sees a newer session and ends its loop instead of running a second one.
-    let liveSession = 0;
 
     // About 10 detections per second. The preview itself is the <video>, which
     // the browser plays at full frame rate for free; running detection on every
     // frame (60-120 Hz) mostly burns battery without a visibly better overlay.
     const DETECT_INTERVAL_MS = 100;
+    const AUTO_EDITOR_CONFIDENCE_THRESHOLD = 0.6;
 
-    // DOM Elements
-    const liveCanvas = document.getElementById('liveCanvas');
-    const staticCanvas = document.getElementById('staticCanvas');
-    const extractedContainer = document.getElementById('extracted-container');
-    const ctx = liveCanvas.getContext('2d');
-    const btnStart = document.getElementById('btnStart');
-    const btnStop = document.getElementById('btnStop');
-    const btnCapture = document.getElementById('btnCapture');
-    const btnDownload = document.getElementById('btnDownload');
-    const streamDot = document.getElementById('streamDot');
-    const fileInput = document.getElementById('fileInput');
-    const dropZone = document.getElementById('dropZone');
-    const samplesContainer = document.getElementById('samples');
-    const staticModeSwitch = document.getElementById('staticModeSwitch');
-    const staticModeHelp = document.getElementById('staticModeHelp');
-    const resultTitle = document.getElementById('resultTitle');
-    const resultSubtitle = document.getElementById('resultSubtitle');
-    const cornerEditorHost = document.getElementById('cornerEditorHost');
-    const btnAdjustCorners = document.getElementById('btnAdjustCorners');
-    const btnApplyCorners = document.getElementById('btnApplyCorners');
-    const btnCancelCorners = document.getElementById('btnCancelCorners');
+    const SAMPLE_IMAGES = [
+      'test.png',
+      'test10.jpg',
+      'test3.jpg',
+      'test5.JPG',
+      '25_2.jpg',
+      'test4.JPG',
+      'test7.JPG',
+      'test9.jpg'
+    ];
 
-    let staticMode = 'detect';
+    const MODE_HELP = {
+      detect: 'Outlines the page on the original photo.',
+      extract: 'Crops the page and straightens its perspective.'
+    };
+    const DETECTOR_HELP = {
+      classical: 'Geometry based. Fast, nothing to download.',
+      ml: 'Neural network. Copes better with clutter and low contrast.'
+    };
+
+    const $ = (id) => document.getElementById(id);
+
+    const stage = $('stage');
+    const viewer = $('viewer');
+    const resultCanvas = $('resultCanvas');
+    const cornerEditorHost = $('cornerEditorHost');
+    const video = $('liveVideo');
+    const liveCanvas = $('liveCanvas');
+    const liveCtx = liveCanvas.getContext('2d');
+    const liveStatus = $('liveStatus');
+    const btnCapture = $('btnCapture');
+    const btnStart = $('btnStart');
+    const btnStop = $('btnStop');
+    const btnRetake = $('btnRetake');
+    const btnAdjust = $('btnAdjust');
+    const btnDownload = $('btnDownload');
+    const sourceSwitch = $('sourceSwitch');
+    const modeSwitch = $('modeSwitch');
+    const detectorSwitch = $('detectorSwitch');
+    const detectorHelp = $('detectorHelp');
+    const detectorProgress = $('detectorProgress');
+    const samplesContainer = $('samples');
+
+    let source = 'image'; // 'image' | 'camera'
+    let staticMode = 'detect'; // 'detect' | 'extract'
     let detectorBackend = 'classical'; // 'classical' | 'ml'
     let mlModelReady = false; // true once the ML model has been fetched once
     let mlLoadPromise = null; // in-flight preload, if any
+
+    let currentImage = null; // the still being shown (image or captured frame)
+    let currentCorners = null;
+    let currentFromCamera = false;
+    let resultHeading = null; // heading to restore when the editor is canceled
     let activeCornerEditor = null;
-    let currentStaticImage = null;
-    let currentDetectedCorners = null;
-    const AUTO_EDITOR_CONFIDENCE_THRESHOLD = 0.6;
-    const detectorSwitch = document.getElementById('detectorSwitch');
-    const detectorHelp = document.getElementById('detectorHelp');
-    const detectorProgress = document.getElementById('detectorProgress');
-    const ML_READY_TEXT = 'ML detector (DocCornerNet): better on cluttered backgrounds & low contrast.';
-    const CLASSICAL_TEXT = 'Classical geometry detector: fast, no download.';
+    let processToken = 0; // a newer scan wins over one still in flight
+
+    let stream = null;
+    let detectTimer = null;
+    // Bumped on every start, stop and capture. A scan still in flight from an
+    // older session sees the change and ends its loop instead of running twice.
+    let liveSession = 0;
+
+    // ---------- Small UI helpers ----------
+
+    function bindSegmented(el, onSelect) {
+      el.querySelectorAll('button[data-value]').forEach((button) => {
+        button.addEventListener('click', () => onSelect(button.dataset.value));
+      });
+    }
+
+    function markSegmented(el, value) {
+      el.querySelectorAll('button[data-value]').forEach((button) => {
+        const on = button.dataset.value === value;
+        button.classList.toggle('is-active', on);
+        button.setAttribute('aria-pressed', String(on));
+      });
+    }
+
+    function setHeading(title, subtitle = '') {
+      $('viewTitle').textContent = title;
+      $('viewSubtitle').textContent = subtitle;
+    }
+
+    function setView(view) {
+      stage.dataset.view = view;
+      const showingResult = view === 'result';
+      btnDownload.hidden = !showingResult;
+      btnAdjust.hidden = !showingResult || !currentImage;
+      btnRetake.hidden = !(showingResult || view === 'editor') || !currentFromCamera || !stream;
+    }
+
+    function setBusy(text) {
+      $('busy').hidden = !text;
+      $('busyText').textContent = text || '';
+    }
+
+    let toastTimer = null;
+    function showToast(message, tone) {
+      const toast = $('toast');
+      clearTimeout(toastTimer);
+      toast.textContent = message;
+      toast.classList.toggle('is-error', tone === 'error');
+      toast.hidden = false;
+      toastTimer = setTimeout(() => { toast.hidden = true; }, 3800);
+    }
+
+    function setStats({ size, time, confidence }) {
+      $('statsEmpty').hidden = true;
+      document.querySelectorAll('.stat').forEach((el) => { el.hidden = false; });
+      if (size !== undefined) $('statRes').textContent = size;
+      if (time !== undefined) $('statTime').textContent = `${Math.round(time)} ms`;
+      if (confidence !== undefined) $('statConf').textContent = confidence;
+      $('statDetector').textContent = detectorBackend === 'ml' ? 'Neural' : 'Classical';
+    }
+
+    function formatConfidence(result) {
+      const value = detectorBackend === 'ml' ? result.score : result.confidence;
+      return value == null ? 'n/a' : `${Math.round(value * 100)}%`;
+    }
+
+    function revealViewer() {
+      // On narrow screens the viewer sits below the controls.
+      if (window.matchMedia('(max-width: 960px)').matches) {
+        viewer.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    }
+
+    // ---------- Detector ----------
 
     function setDetectorHelp(text, state) {
       detectorHelp.textContent = text;
@@ -584,93 +1289,88 @@
       if (mlModelReady) return Promise.resolve();
       if (mlLoadPromise) return mlLoadPromise;
 
-      detectorProgress.classList.add('active');
-      setDetectorHelp('Loading neural network model (~2MB)…', 'is-loading');
+      detectorProgress.classList.add('is-active');
+      setDetectorHelp('Loading the neural model (about 2 MB, once)…', 'is-loading');
 
       mlLoadPromise = mlScanner.initialize()
         .then(() => {
           mlModelReady = true;
-          detectorProgress.classList.remove('active');
           if (detectorBackend === 'ml') {
-            setDetectorHelp('✓ Model ready. Instant neural detection.', 'is-ready');
+            setDetectorHelp('Model ready.', 'is-ready');
             setTimeout(() => {
-              if (detectorBackend === 'ml') setDetectorHelp(ML_READY_TEXT);
-            }, 2200);
+              if (detectorBackend === 'ml') setDetectorHelp(DETECTOR_HELP.ml);
+            }, 2000);
           }
         })
         .catch((err) => {
           console.error(err);
-          detectorProgress.classList.remove('active');
           if (detectorBackend === 'ml') {
-            setDetectorHelp('⚠️ Could not preload the model. It will retry on your next scan.', 'is-error');
+            setDetectorHelp('Could not load the model. It will retry on the next scan.', 'is-error');
           }
         })
         .finally(() => {
+          detectorProgress.classList.remove('is-active');
           mlLoadPromise = null;
         });
       return mlLoadPromise;
     }
 
     function setDetectorBackend(value) {
+      if (value === detectorBackend && detectorHelp.textContent) return;
       detectorBackend = value;
-      detectorSwitch.querySelectorAll('[data-detector]').forEach((button) => {
-        button.classList.toggle('active', button.dataset.detector === value);
-      });
+      markSegmented(detectorSwitch, value);
 
-      if (value === 'ml') {
-        if (mlModelReady) {
-          setDetectorHelp(ML_READY_TEXT);
-        } else {
-          preloadMlModel();
-        }
+      if (value === 'ml' && !mlModelReady) {
+        preloadMlModel();
       } else {
-        setDetectorHelp(CLASSICAL_TEXT);
+        setDetectorHelp(DETECTOR_HELP[value]);
       }
+      rescanCurrent();
     }
-
-    detectorSwitch.querySelectorAll('[data-detector]').forEach((button) => {
-      button.onclick = () => setDetectorBackend(button.dataset.detector);
-    });
 
     function withDetectorOption(opts) {
       if (detectorBackend === 'ml') opts.detector = 'ml';
       return opts;
     }
 
-    const sampleImageFiles = [
-      '25_2.jpg',
-      'test.png',
-      'test10.jpg',
-      'test2.png',
-      'test3.jpg',
-      'test4.JPG',
-      'test5.JPG',
-      'test6.JPG',
-      'test7.JPG',
-      'test8.JPG',
-      'test9.jpg'
-    ];
-
-    // Stats
-    const statRes = document.getElementById('statRes');
-    const statDetect = document.getElementById('statDetect');
-    const statTime = document.getElementById('statTime');
-    const statStatus = document.getElementById('statStatus');
+    // ---------- Mode and source ----------
 
     function setStaticMode(mode) {
+      if (mode === staticMode && $('modeHelp').textContent) return;
       staticMode = mode;
-      staticModeSwitch.querySelectorAll('[data-mode]').forEach((button) => {
-        button.classList.toggle('active', button.dataset.mode === mode);
-      });
+      markSegmented(modeSwitch, mode);
+      $('modeHelp').textContent = MODE_HELP[mode];
+      rescanCurrent();
+    }
 
-      if (mode === 'detect') {
-        staticModeHelp.textContent = 'Detect mode shows a styled corner outline without cropping.';
+    // Re-run the current still with new settings, so toggles feel instant.
+    function rescanCurrent() {
+      if (!currentImage || currentFromCamera) return;
+      if (stage.dataset.view !== 'result' && stage.dataset.view !== 'editor') return;
+      processImage(currentImage);
+    }
+
+    function setSource(value) {
+      if (value === source && sourceSwitch.querySelector('.is-active')) return;
+      source = value;
+      markSegmented(sourceSwitch, value);
+      $('imagePane').hidden = value !== 'image';
+      $('cameraPane').hidden = value !== 'camera';
+      // Captures are always extracted, so the output choice only applies to images.
+      $('outputGroup').hidden = value !== 'image';
+
+      if (value === 'camera') {
+        startCamera();
       } else {
-        staticModeHelp.textContent = 'Extract mode returns the perspective-corrected document crop.';
+        stopCamera();
       }
     }
 
-    function drawModernDetectionOverlay(targetCtx, corners, options = {}) {
+    // ---------- Overlay drawing ----------
+
+    // `unit` is how many canvas pixels make one screen pixel, so the outline
+    // looks the same on a 4000px photo as on a small preview.
+    function drawDetectionOverlay(ctx, corners, { unit = 1, bounds = null } = {}) {
       if (!corners) return;
 
       // topLeft → topRight → bottomRight → bottomLeft
@@ -681,69 +1381,212 @@
         Math.hypot(pts[1].x - pts[0].x, pts[1].y - pts[0].y),
         Math.hypot(pts[3].x - pts[0].x, pts[3].y - pts[0].y)
       );
-      const arm = Math.max(16, Math.min(minSide * 0.18, 56));
+      const arm = Math.max(14 * unit, Math.min(minSide * 0.18, 48 * unit));
 
-      targetCtx.save();
+      ctx.save();
 
-      // 1. Near-invisible interior fill
-      targetCtx.beginPath();
-      targetCtx.moveTo(pts[0].x, pts[0].y);
-      pts.slice(1).forEach(p => targetCtx.lineTo(p.x, p.y));
-      targetCtx.closePath();
-      targetCtx.fillStyle = 'rgba(255, 255, 255, 0.06)';
-      targetCtx.fill();
+      const tracePage = () => {
+        ctx.moveTo(pts[0].x, pts[0].y);
+        pts.slice(1).forEach((p) => ctx.lineTo(p.x, p.y));
+        ctx.closePath();
+      };
 
-      // 2. Hairline full border
-      targetCtx.lineWidth = 1.25;
-      targetCtx.strokeStyle = 'rgba(255, 255, 255, 0.45)';
-      targetCtx.shadowBlur = 0;
-      targetCtx.stroke();
+      // 1. Dim everything outside the page so it reads as a spotlight
+      if (bounds) {
+        ctx.beginPath();
+        ctx.rect(bounds.x, bounds.y, bounds.width, bounds.height);
+        tracePage();
+        ctx.fillStyle = 'rgba(7, 8, 12, 0.42)';
+        ctx.fill('evenodd');
+      }
 
-      // 3. Corner bracket L-marks
-      // For each corner: draw two arms pointing along the two adjacent edges
+      // 2. Faint tint and hairline border on the page itself
+      ctx.beginPath();
+      tracePage();
+      ctx.fillStyle = 'rgba(129, 140, 248, 0.08)';
+      ctx.fill();
+      ctx.lineWidth = 1.25 * unit;
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.55)';
+      ctx.stroke();
+
+      // 3. Corner bracket L-marks along the two adjacent edges
       const cornerDefs = [
-        [pts[0], pts[1], pts[3]],   // TL → along top, along left
-        [pts[1], pts[0], pts[2]],   // TR → along top, along right
-        [pts[2], pts[1], pts[3]],   // BR → along right, along bottom
-        [pts[3], pts[0], pts[2]],   // BL → along left, along bottom
+        [pts[0], pts[1], pts[3]],
+        [pts[1], pts[0], pts[2]],
+        [pts[2], pts[1], pts[3]],
+        [pts[3], pts[0], pts[2]]
       ];
 
-      targetCtx.lineCap = 'round';
-      targetCtx.lineJoin = 'round';
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
 
       cornerDefs.forEach(([pt, n1, n2]) => {
-        // Unit vectors along each arm direction
         const u1x = n1.x - pt.x, u1y = n1.y - pt.y, m1 = Math.hypot(u1x, u1y) || 1;
         const u2x = n2.x - pt.x, u2y = n2.y - pt.y, m2 = Math.hypot(u2x, u2y) || 1;
 
         const ax = pt.x + (u1x / m1) * arm, ay = pt.y + (u1y / m1) * arm;
         const bx = pt.x + (u2x / m2) * arm, by = pt.y + (u2y / m2) * arm;
 
-        // Soft glow pass
-        targetCtx.beginPath();
-        targetCtx.moveTo(ax, ay);
-        targetCtx.lineTo(pt.x, pt.y);
-        targetCtx.lineTo(bx, by);
-        targetCtx.lineWidth = 8;
-        targetCtx.strokeStyle = 'rgba(250, 250, 250, 0.14)';
-        targetCtx.shadowColor = 'transparent';
-        targetCtx.stroke();
-
-        // Crisp white bracket
-        targetCtx.beginPath();
-        targetCtx.moveTo(ax, ay);
-        targetCtx.lineTo(pt.x, pt.y);
-        targetCtx.lineTo(bx, by);
-        targetCtx.lineWidth = 3;
-        targetCtx.strokeStyle = '#ffffff';
-        targetCtx.shadowColor = 'rgba(200, 230, 255, 0.55)';
-        targetCtx.shadowBlur = 8;
-        targetCtx.stroke();
-        targetCtx.shadowBlur = 0;
+        ctx.beginPath();
+        ctx.moveTo(ax, ay);
+        ctx.lineTo(pt.x, pt.y);
+        ctx.lineTo(bx, by);
+        ctx.lineWidth = 3.5 * unit;
+        ctx.strokeStyle = '#ffffff';
+        ctx.shadowColor = 'rgba(129, 140, 248, 0.9)';
+        ctx.shadowBlur = 10 * unit;
+        ctx.stroke();
+        ctx.shadowBlur = 0;
       });
 
-      targetCtx.restore();
+      ctx.restore();
     }
+
+    // ---------- Stills: upload, samples, results ----------
+
+    function loadSampleImages() {
+      samplesContainer.innerHTML = '';
+
+      SAMPLE_IMAGES.forEach((fileName, index) => {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'sample';
+        button.title = fileName;
+        button.setAttribute('aria-label', `Sample ${index + 1}`);
+
+        const img = document.createElement('img');
+        img.src = `testImages/${encodeURIComponent(fileName)}`;
+        img.alt = '';
+        img.loading = 'lazy';
+        img.decoding = 'async';
+        img.onerror = () => button.remove();
+
+        button.appendChild(img);
+        button.onclick = () => {
+          markSample(button);
+          processUrl(img.src);
+        };
+        samplesContainer.appendChild(button);
+      });
+    }
+
+    function markSample(active) {
+      samplesContainer.querySelectorAll('.sample').forEach((el) => {
+        el.classList.toggle('is-active', el === active);
+      });
+    }
+
+    function processUrl(url) {
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = () => processImage(img);
+      img.onerror = () => showToast('Could not load this image.', 'error');
+      img.src = url;
+    }
+
+    function processFile(file) {
+      if (!file) return;
+      if (!file.type.startsWith('image/')) {
+        showToast('That file is not an image.', 'error');
+        return;
+      }
+      if (source !== 'image') setSource('image');
+      markSample(null);
+      const url = URL.createObjectURL(file);
+      const img = new Image();
+      img.onload = () => {
+        URL.revokeObjectURL(url);
+        processImage(img);
+      };
+      img.onerror = () => {
+        URL.revokeObjectURL(url);
+        showToast('This image could not be decoded.', 'error');
+      };
+      img.src = url;
+    }
+
+    async function processImage(image, { fromCamera = false } = {}) {
+      const token = ++processToken;
+      const usingMl = detectorBackend === 'ml';
+      // Captures always crop; uploads follow the Output switch.
+      const mode = fromCamera ? 'extract' : staticMode;
+      const width = image.naturalWidth || image.width;
+      const height = image.naturalHeight || image.height;
+
+      currentImage = image;
+      currentCorners = null;
+      currentFromCamera = fromCamera;
+      setBusy(usingMl && !mlModelReady ? 'Loading neural model…' : 'Detecting…');
+
+      let result;
+      const t0 = performance.now();
+      try {
+        result = await scanDocument(image, withDetectorOption({ mode }));
+      } catch (err) {
+        console.error(err);
+        if (token !== processToken) return;
+        setBusy(null);
+        showToast('Something went wrong while scanning this image.', 'error');
+        return;
+      }
+      if (token !== processToken) return;
+      const elapsed = performance.now() - t0;
+      if (usingMl) mlModelReady = true;
+
+      closeCornerEditor();
+      setBusy(null);
+
+      const ctx = resultCanvas.getContext('2d');
+      currentCorners = result.success ? result.corners || null : null;
+
+      if (result.success && mode === 'extract') {
+        resultCanvas.width = result.output.width;
+        resultCanvas.height = result.output.height;
+        ctx.drawImage(result.output, 0, 0);
+        resultHeading = ['Extracted page', `${result.output.width} × ${result.output.height}, perspective corrected`];
+      } else {
+        resultCanvas.width = width;
+        resultCanvas.height = height;
+        ctx.drawImage(image, 0, 0);
+        resultHeading = result.success
+          ? ['Detected page', 'Switch Output to Extract to crop it.']
+          : ['No document found', 'Try the neural detector, or set the corners by hand.'];
+      }
+
+      setHeading(...resultHeading);
+      setView('result');
+      restartResultAnimation();
+
+      if (result.success && mode === 'detect' && currentCorners) {
+        // The canvas is laid out now, so its on-screen scale is known.
+        const unit = Math.max(1, resultCanvas.width / Math.max(1, resultCanvas.clientWidth));
+        drawDetectionOverlay(ctx, currentCorners, {
+          unit,
+          bounds: { x: 0, y: 0, width: resultCanvas.width, height: resultCanvas.height }
+        });
+      }
+
+      setStats({
+        size: `${width} × ${height}`,
+        time: elapsed,
+        confidence: result.success ? formatConfidence(result) : 'none'
+      });
+
+      const confidence = usingMl ? result.score : result.confidence;
+      if (currentCorners && confidence != null && confidence < AUTO_EDITOR_CONFIDENCE_THRESHOLD) {
+        openCornerEditor(`Low confidence (${Math.round(confidence * 100)}%)`);
+      }
+
+      revealViewer();
+    }
+
+    function restartResultAnimation() {
+      resultCanvas.style.animation = 'none';
+      void resultCanvas.offsetWidth;
+      resultCanvas.style.animation = '';
+    }
+
+    // ---------- Corner editor ----------
 
     function closeCornerEditor() {
       if (activeCornerEditor) {
@@ -751,270 +1594,187 @@
         activeCornerEditor = null;
       }
       cornerEditorHost.innerHTML = '';
-      cornerEditorHost.classList.add('hidden');
-      btnApplyCorners.classList.add('hidden');
-      btnCancelCorners.classList.add('hidden');
     }
 
-    function showCanvasView() {
+    function openCornerEditor(reason) {
+      if (!currentImage) return;
       closeCornerEditor();
-      staticCanvas.classList.remove('hidden');
-      btnDownload.classList.remove('hidden');
+      setView('editor');
+      setHeading('Adjust corners', `${reason ? `${reason}. ` : ''}Drag the handles, then press Apply.`);
+
+      activeCornerEditor = createCornerEditor({
+        container: cornerEditorHost,
+        image: currentImage,
+        // Without detected corners the editor starts from an inset frame.
+        corners: currentCorners || undefined,
+        nudges: { enabled: true, steps: [1, 5] },
+        magnifier: { enabled: true, zoom: 2, size: 110 },
+        onConfirm: async (nextCorners) => {
+          try {
+            currentCorners = nextCorners;
+            await applyManualCorners(nextCorners);
+          } catch (err) {
+            console.error(err);
+            showToast('Could not extract with these corners.', 'error');
+          }
+        },
+        onCancel: () => {
+          closeCornerEditor();
+          setView('result');
+          if (resultHeading) setHeading(...resultHeading);
+        }
+      });
     }
 
-    async function applyManualCorners(image, corners) {
-      const extracted = await extractDocument(image, corners, { output: 'canvas' });
+    async function applyManualCorners(corners) {
+      const extracted = await extractDocument(currentImage, corners, { output: 'canvas' });
       if (!extracted.success || !extracted.output) {
         throw new Error(extracted.message || 'Manual extraction failed');
       }
 
-      const staticCtx = staticCanvas.getContext('2d');
-      staticCanvas.width = extracted.output.width;
-      staticCanvas.height = extracted.output.height;
-      staticCtx.drawImage(extracted.output, 0, 0);
-
-      resultTitle.textContent = '✨ Manually Adjusted Extraction';
-      resultSubtitle.textContent = 'Corners were adjusted and applied successfully.';
-      statStatus.textContent = 'Manual correction applied';
-      showCanvasView();
-      extractedContainer.scrollIntoView({ behavior: 'smooth' });
-    }
-
-    function openCornerEditorForImage(image, corners, reasonLabel = 'Adjust corners') {
       closeCornerEditor();
-
-      staticCanvas.classList.add('hidden');
-      btnDownload.classList.add('hidden');
-      cornerEditorHost.classList.remove('hidden');
-      btnApplyCorners.classList.remove('hidden');
-      btnCancelCorners.classList.remove('hidden');
-
-      resultTitle.textContent = '🎯 Manual Corner Adjustment';
-      resultSubtitle.textContent = `${reasonLabel}. Drag corner handles, then tap Apply.`;
-
-      activeCornerEditor = createCornerEditor({
-        container: cornerEditorHost,
-        image,
-        corners,
-        nudges: {
-          enabled: true,
-          steps: [1, 5]
-        },
-        magnifier: {
-          enabled: true,
-          zoom: 2,
-          size: 110
-        },
-        onConfirm: async (nextCorners) => {
-          try {
-            currentDetectedCorners = nextCorners;
-            await applyManualCorners(image, nextCorners);
-          } catch (err) {
-            console.error(err);
-            statStatus.textContent = 'Manual extraction failed';
-          }
-        },
-        onCancel: () => {
-          resultSubtitle.textContent = 'Manual adjustment canceled.';
-          showCanvasView();
-        }
-      });
+      resultCanvas.width = extracted.output.width;
+      resultCanvas.height = extracted.output.height;
+      resultCanvas.getContext('2d').drawImage(extracted.output, 0, 0);
+      resultHeading = ['Extracted page', 'Corners adjusted by hand'];
+      setHeading(...resultHeading);
+      setView('result');
+      restartResultAnimation();
     }
 
-    // --- Static Scanner Logic ---
-    dropZone.onclick = () => fileInput.click();
-    fileInput.onchange = (e) => processFile(e.target.files[0]);
-    staticModeSwitch.querySelectorAll('[data-mode]').forEach((button) => {
-      button.onclick = () => setStaticMode(button.dataset.mode);
-    });
+    // ---------- Live camera ----------
 
-    function loadSampleImages() {
-      samplesContainer.innerHTML = '';
-
-      sampleImageFiles.forEach((fileName, index) => {
-        const img = document.createElement('img');
-        img.src = `testImages/${encodeURIComponent(fileName)}`;
-        img.className = 'sample-img';
-        img.title = fileName;
-        img.alt = `Sample ${index + 1}`;
-        img.onclick = () => processUrl(img.src);
-        img.onerror = () => img.remove();
-        samplesContainer.appendChild(img);
-      });
-    }
-
-    async function processUrl(url) {
-      const img = new Image();
-      img.crossOrigin = "anonymous";
-      img.onload = () => processImage(img);
-      img.src = url;
-    }
-
-    async function processFile(file) {
-      if (!file) return;
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const img = new Image();
-        img.onload = () => processImage(img);
-        img.src = e.target.result;
-      };
-      reader.readAsDataURL(file);
-    }
-
-    async function processImage(img) {
-      closeCornerEditor();
-      extractedContainer.classList.remove('hidden');
-      const usingMl = detectorBackend === 'ml';
-      statStatus.textContent = usingMl && !mlModelReady
-        ? 'Loading ML model (~2MB)...'
-        : 'Processing static image...';
-      currentStaticImage = img;
-      currentDetectedCorners = null;
-      btnAdjustCorners.classList.add('hidden');
-
-      const result = await scanDocument(img, withDetectorOption({ mode: staticMode }));
-      if (usingMl) mlModelReady = true;
-      const detectorTag = usingMl ? ' (ML)' : '';
-      if (result.success) {
-        const staticCtx = staticCanvas.getContext('2d');
-        currentDetectedCorners = result.corners || null;
-        btnAdjustCorners.classList.toggle('hidden', !currentDetectedCorners);
-
-        // Classical: geometry confidence varies by image quality and is a
-        // useful signal. ML: the sigmoid score is ~100% for clear photos, so
-        // only surface it when it dips below near-certain.
-        const scoreText = !usingMl && result.confidence != null
-          ? `Confidence ${(result.confidence * 100).toFixed(1)}%`
-          : usingMl && result.score != null && result.score < 0.99
-            ? `Score ${(result.score * 100).toFixed(1)}%`
-            : 'Corners detected';
-        const lowConfidence = (!usingMl && result.confidence != null && result.confidence < AUTO_EDITOR_CONFIDENCE_THRESHOLD)
-          || (usingMl && result.score != null && result.score < AUTO_EDITOR_CONFIDENCE_THRESHOLD);
-
-        if (staticMode === 'detect') {
-          staticCanvas.width = img.width;
-          staticCanvas.height = img.height;
-          staticCtx.drawImage(img, 0, 0);
-          if (result.corners) {
-            drawModernDetectionOverlay(staticCtx, result.corners);
-          }
-          resultTitle.textContent = `📐 Detection Preview${detectorTag}`;
-          resultSubtitle.textContent = `${scoreText}. Switch to Extract mode to crop the document.`;
-
-          if (result.corners && lowConfidence) {
-            openCornerEditorForImage(img, result.corners, `Low confidence (${scoreText})`);
-          } else {
-            showCanvasView();
-          }
-        } else {
-          staticCanvas.width = result.output.width;
-          staticCanvas.height = result.output.height;
-          staticCtx.drawImage(result.output, 0, 0);
-          resultTitle.textContent = `✨ Extracted Document${detectorTag}`;
-          resultSubtitle.textContent = `${scoreText}. Perspective-corrected output ready to download.`;
-
-          if (result.corners && lowConfidence) {
-            openCornerEditorForImage(img, result.corners, `Low confidence (${scoreText})`);
-          } else {
-            showCanvasView();
-          }
-        }
-
-        extractedContainer.scrollIntoView({ behavior: 'smooth' });
-        statStatus.textContent = 'Processed static image';
-      } else {
-        resultTitle.textContent = '⚠️ No Document Detected';
-        resultSubtitle.textContent = 'Try a clearer image or switch mode.';
-        statStatus.textContent = 'No document detected';
-        showCanvasView();
-      }
-    }
-
-    btnAdjustCorners.onclick = () => {
-      if (!currentStaticImage || !currentDetectedCorners) return;
-      openCornerEditorForImage(currentStaticImage, currentDetectedCorners, 'Manual adjustment requested');
-    };
-
-    btnApplyCorners.onclick = () => {
-      if (!activeCornerEditor) return;
-      activeCornerEditor.confirm();
-    };
-
-    btnCancelCorners.onclick = () => {
-      if (!activeCornerEditor) return;
-      activeCornerEditor.cancel();
-    };
-
-    // --- Live Scanner Logic ---
-    btnStart.onclick = async () => {
+    async function startCamera() {
+      if (stream) return;
+      btnStart.hidden = true;
+      setBusy('Starting camera…');
       try {
-        statStatus.textContent = 'Initializing WASM...';
         await scanner.initialize();
-        
-        stream = await navigator.mediaDevices.getUserMedia({ 
-          video: { facingMode: 'environment', width: { ideal: 1280 } } 
+        const nextStream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: 'environment', width: { ideal: 1280 } }
         });
-        
-        video = document.getElementById('liveVideo');
+        // The user may have switched back to Image while we waited.
+        if (source !== 'camera') {
+          nextStream.getTracks().forEach((t) => t.stop());
+          return;
+        }
+        stream = nextStream;
         video.srcObject = stream;
-        
         await video.play();
-        
-        liveCanvas.width = video.videoWidth;
-        liveCanvas.height = video.videoHeight;
-        statRes.textContent = `${video.videoWidth}x${video.videoHeight}`;
-        
-        isLive = true;
-        btnStart.classList.add('hidden');
-        btnStop.classList.remove('hidden');
-        btnCapture.classList.remove('hidden');
-        streamDot.classList.add('status-active');
-        statStatus.textContent = 'Scanning...';
-        
-        detectLoop(++liveSession);
+        btnStop.hidden = false;
+        enterLive();
       } catch (err) {
         console.error(err);
-        alert('Camera access denied or unavailable');
-        statStatus.textContent = 'Camera Error';
+        stopCamera();
+        showToast('Camera access was denied or no camera is available.', 'error');
+      } finally {
+        setBusy(null);
       }
-    };
+    }
 
-    btnStop.onclick = () => {
-      isLive = false;
-      if (stream) stream.getTracks().forEach(t => t.stop());
+    function stopCamera() {
+      liveSession++;
       clearTimeout(detectTimer);
-      ctx.clearRect(0, 0, liveCanvas.width, liveCanvas.height);
-      btnStart.classList.remove('hidden');
-      btnStop.classList.add('hidden');
-      btnCapture.classList.add('hidden');
-      streamDot.classList.remove('status-active');
-      statStatus.textContent = 'Idle';
-    };
+      if (stream) stream.getTracks().forEach((t) => t.stop());
+      stream = null;
+      video.srcObject = null;
+      clearLiveOverlay();
+      btnStart.hidden = source !== 'camera';
+      btnStop.hidden = true;
+
+      if (stage.dataset.view === 'live') {
+        if (currentImage) {
+          setView('result');
+          if (resultHeading) setHeading(...resultHeading);
+        } else {
+          setView('empty');
+          setHeading('Preview', 'Pick a sample or upload a photo to start.');
+        }
+      } else {
+        setView(stage.dataset.view);
+      }
+    }
+
+    function enterLive() {
+      closeCornerEditor();
+      setView('live');
+      setHeading('Live camera', 'Point at a page. The outline follows it in real time.');
+      setStats({ size: `${video.videoWidth} × ${video.videoHeight}`, confidence: 'searching' });
+      setLiveLocked(false);
+      sizeLiveCanvas();
+      revealViewer();
+      detectLoop(++liveSession);
+    }
+
+    function setLiveLocked(locked, label) {
+      liveStatus.textContent = locked ? `Locked ${label}` : 'Searching';
+      liveStatus.classList.toggle('is-locked', locked);
+      btnCapture.classList.toggle('is-locked', locked);
+    }
+
+    function sizeLiveCanvas() {
+      const dpr = window.devicePixelRatio || 1;
+      const width = Math.round(liveCanvas.clientWidth * dpr);
+      const height = Math.round(liveCanvas.clientHeight * dpr);
+      if (liveCanvas.width !== width) liveCanvas.width = width;
+      if (liveCanvas.height !== height) liveCanvas.height = height;
+    }
+
+    function clearLiveOverlay() {
+      liveCtx.setTransform(1, 0, 0, 1, 0, 0);
+      liveCtx.clearRect(0, 0, liveCanvas.width, liveCanvas.height);
+    }
+
+    // The video is letterboxed with object-fit: contain, so map corners from
+    // video pixels into the rectangle it actually occupies on screen.
+    function drawLiveOverlay(corners) {
+      const dpr = window.devicePixelRatio || 1;
+      const cw = liveCanvas.clientWidth;
+      const ch = liveCanvas.clientHeight;
+      const vw = video.videoWidth;
+      const vh = video.videoHeight;
+      const s = Math.min(cw / vw, ch / vh);
+      const ox = (cw - vw * s) / 2;
+      const oy = (ch - vh * s) / 2;
+
+      clearLiveOverlay();
+      liveCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+      const map = (p) => ({ x: ox + p.x * s, y: oy + p.y * s });
+      drawDetectionOverlay(liveCtx, {
+        topLeft: map(corners.topLeft),
+        topRight: map(corners.topRight),
+        bottomRight: map(corners.bottomRight),
+        bottomLeft: map(corners.bottomLeft)
+      }, { bounds: { x: ox, y: oy, width: vw * s, height: vh * s } });
+    }
 
     async function detectLoop(session) {
-      if (!isLive || session !== liveSession) return;
+      if (session !== liveSession || stage.dataset.view !== 'live') return;
       const t0 = performance.now();
 
       // Skip the work while the tab is hidden; the timer keeps ticking cheaply.
       if (!document.hidden) {
         const usingMl = detectorBackend === 'ml';
         // The video goes in directly: no drawImage + getImageData copy at full
-        // resolution first.
-        const result = await scanner.scan(video, withDetectorOption({ mode: 'detect' }));
-        if (!isLive || session !== liveSession) return;
+        // resolution first. The confidence floor keeps the overlay from locking
+        // onto table or rug edges when no document is in view.
+        const result = await scanner.scan(
+          video,
+          withDetectorOption({ mode: 'detect', minDetectionConfidence: 0.5 })
+        );
+        if (session !== liveSession || stage.dataset.view !== 'live') return;
         if (usingMl) mlModelReady = true;
-        statTime.textContent = `${Math.round(performance.now() - t0)}ms`;
 
-        ctx.clearRect(0, 0, liveCanvas.width, liveCanvas.height);
         if (result.success && result.corners) {
-          const scorePercent = usingMl
-            ? (result.score != null ? `${Math.round(result.score * 100)}%` : '')
-            : (result.confidence != null ? `${Math.round(result.confidence * 100)}%` : '');
-          const tag = usingMl ? ' ML' : '';
-          statDetect.textContent = scorePercent ? `YES${tag} ${scorePercent}` : `YES${tag}`;
-          drawModernDetectionOverlay(ctx, result.corners, { pulseSeed: performance.now() });
+          const confidence = formatConfidence(result);
+          drawLiveOverlay(result.corners);
+          setLiveLocked(true, confidence);
+          setStats({ time: performance.now() - t0, confidence });
         } else {
-          statDetect.textContent = 'NO';
+          clearLiveOverlay();
+          setLiveLocked(false);
+          setStats({ time: performance.now() - t0, confidence: 'searching' });
         }
       }
 
@@ -1023,31 +1783,95 @@
       detectTimer = setTimeout(() => detectLoop(session), Math.max(0, DETECT_INTERVAL_MS - elapsed));
     }
 
-    btnCapture.onclick = async () => {
-      statStatus.textContent = 'Extracting...';
-      const result = await scanner.scan(video, withDetectorOption({ mode: 'extract' }));
-      if (result.success) {
-        extractedContainer.classList.remove('hidden');
-        staticCanvas.width = result.output.width;
-        staticCanvas.height = result.output.height;
-        staticCanvas.getContext('2d').drawImage(result.output, 0, 0);
-        extractedContainer.scrollIntoView({ behavior: 'smooth' });
-        statStatus.textContent = 'Captured!';
-        setTimeout(() => statStatus.textContent = 'Scanning...', 2000);
+    async function capture() {
+      if (!stream || !video.videoWidth) return;
+
+      // Freeze the current frame so corners can still be adjusted afterwards.
+      const frame = document.createElement('canvas');
+      frame.width = video.videoWidth;
+      frame.height = video.videoHeight;
+      frame.getContext('2d').drawImage(video, 0, 0);
+
+      const flash = $('flash');
+      flash.classList.remove('is-on');
+      void flash.offsetWidth;
+      flash.classList.add('is-on');
+
+      liveSession++;
+      clearTimeout(detectTimer);
+      clearLiveOverlay();
+      await processImage(frame, { fromCamera: true });
+    }
+
+    // ---------- Wiring ----------
+
+    bindSegmented(sourceSwitch, setSource);
+    bindSegmented(modeSwitch, setStaticMode);
+    bindSegmented(detectorSwitch, setDetectorBackend);
+
+    $('fileInput').onchange = (e) => {
+      processFile(e.target.files[0]);
+      e.target.value = '';
+    };
+
+    btnStart.onclick = startCamera;
+    btnStop.onclick = stopCamera;
+    btnCapture.onclick = capture;
+    btnRetake.onclick = () => { if (stream) enterLive(); };
+    btnAdjust.onclick = () => openCornerEditor(currentCorners ? '' : 'No corners were found');
+
+    btnDownload.onclick = () => {
+      resultCanvas.toBlob((blob) => {
+        if (!blob) return;
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.download = 'scanic-document.png';
+        link.href = url;
+        link.click();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+      }, 'image/png');
+    };
+
+    $('btnCopy').onclick = async () => {
+      try {
+        await navigator.clipboard.writeText('npm install scanic');
+        showToast('Copied to clipboard.');
+      } catch {
+        showToast('Copy failed. Select the text instead.', 'error');
       }
     };
 
-    btnDownload.onclick = () => {
-      const link = document.createElement('a');
-      link.download = 'scanic-document.png';
-      link.href = staticCanvas.toDataURL();
-      link.click();
-    };
+    // Drop an image anywhere on the page.
+    let dragDepth = 0;
+    const hasFiles = (e) => Array.from(e.dataTransfer?.types || []).includes('Files');
+    document.addEventListener('dragenter', (e) => {
+      if (!hasFiles(e)) return;
+      e.preventDefault();
+      dragDepth++;
+      document.body.classList.add('is-dragging');
+    });
+    document.addEventListener('dragover', (e) => {
+      if (hasFiles(e)) e.preventDefault();
+    });
+    document.addEventListener('dragleave', () => {
+      dragDepth = Math.max(0, dragDepth - 1);
+      if (!dragDepth) document.body.classList.remove('is-dragging');
+    });
+    document.addEventListener('drop', (e) => {
+      if (!hasFiles(e)) return;
+      e.preventDefault();
+      dragDepth = 0;
+      document.body.classList.remove('is-dragging');
+      processFile(e.dataTransfer.files[0]);
+    });
 
+    new ResizeObserver(() => {
+      if (stage.dataset.view === 'live') sizeLiveCanvas();
+    }).observe(stage);
+
+    setSource('image');
     setStaticMode('detect');
     setDetectorBackend('classical');
-
-    // Init sample gallery
     loadSampleImages();
   </script>
 </body>

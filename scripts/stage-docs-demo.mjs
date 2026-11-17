@@ -14,18 +14,6 @@ import path from 'path';
 const root = process.cwd();
 const target = path.join(root, 'docs', 'public', 'demo');
 
-function copyRecursive(src, dest) {
-  const stats = fs.statSync(src);
-  if (stats.isDirectory()) {
-    fs.mkdirSync(dest, { recursive: true });
-    for (const child of fs.readdirSync(src)) {
-      copyRecursive(path.join(src, child), path.join(dest, child));
-    }
-  } else {
-    fs.copyFileSync(src, dest);
-  }
-}
-
 function copyFile(src, dest) {
   if (!fs.existsSync(src)) {
     console.warn(`  ! skipped (missing): ${src}`);
@@ -56,14 +44,22 @@ try {
     }
   }
   // Assets the demo references
-  copyFile(path.join(root, 'public', 'scanic-logo-bg.png'), path.join(target, 'scanic-logo-bg.png'));
+  copyFile(path.join(root, 'public', 'scanic-icon.png'), path.join(target, 'scanic-icon.png'));
   copyFile(path.join(root, 'public', 'favicon.ico'), path.join(target, 'favicon.ico'));
 
-  // Sample images used by the demo gallery
-  if (fs.existsSync(path.join(root, 'testImages'))) {
-    copyRecursive(path.join(root, 'testImages'), path.join(target, 'testImages'));
-    console.log('  - testImages/ copied');
+  // Only the sample images the demo gallery lists. testImages/ also holds
+  // fixtures for the test suite that the demo does not show.
+  const demoHtml = fs.readFileSync(path.join(root, 'demo.html'), 'utf8');
+  const sampleList = demoHtml.match(/const SAMPLE_IMAGES = \[([^\]]*)\]/);
+  if (!sampleList) {
+    throw new Error('SAMPLE_IMAGES not found in demo.html');
   }
+  const samples = [...sampleList[1].matchAll(/'([^']+)'/g)].map((m) => m[1]);
+  fs.rmSync(path.join(target, 'testImages'), { recursive: true, force: true });
+  for (const name of samples) {
+    copyFile(path.join(root, 'testImages', name), path.join(target, 'testImages', name));
+  }
+  console.log(`  - ${samples.length} sample images copied`);
 
   console.log('✅ Demo staged at docs/public/demo/');
 } catch (err) {
