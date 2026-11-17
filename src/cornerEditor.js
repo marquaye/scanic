@@ -3,6 +3,7 @@ import {
   cornersAreFiniteAndDistinct,
   isConvexQuadrilateral
 } from './geometry.js';
+import { getImageSize, isImageData } from './imageSource.js';
 
 function cloneCorners(corners) {
   return {
@@ -42,21 +43,9 @@ function normalizeImageToCanvas(image) {
     throw new Error('No image provided');
   }
 
-  const isImageData = image && typeof image.width === 'number' && typeof image.height === 'number' && image.data;
-  let width = 0;
-  let height = 0;
-
-  if (isImageData) {
-    width = image.width;
-    height = image.height;
-  } else {
-    width = image.width || image.naturalWidth;
-    height = image.height || image.naturalHeight;
-  }
-
-  if (!width || !height) {
-    throw new Error('Image must be loaded before creating the corner editor');
-  }
+  // Intrinsic size, the same one detection uses: an <img> scaled by CSS reports
+  // its rendered size in .width, which would not match the detected corners.
+  const { width, height } = getImageSize(image);
 
   const canvas = document.createElement('canvas');
   canvas.width = width;
@@ -66,7 +55,7 @@ function normalizeImageToCanvas(image) {
     throw new Error('Failed to create 2D canvas context for source image');
   }
 
-  if (isImageData) {
+  if (isImageData(image)) {
     ctx.putImageData(image, 0, 0);
   } else {
     ctx.drawImage(image, 0, 0, width, height);

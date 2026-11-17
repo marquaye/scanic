@@ -9,8 +9,10 @@
  * third chunk that the published package does not ship.
  */
 
+// `data` must be the pixel array itself: a @napi-rs/canvas Canvas also has
+// width, height and a data() method, and is drawn like any other canvas.
 export function isImageData(image) {
-  return !!image && typeof image.width === 'number' && typeof image.height === 'number' && !!image.data;
+  return !!image && typeof image.width === 'number' && typeof image.height === 'number' && ArrayBuffer.isView(image.data);
 }
 
 /**

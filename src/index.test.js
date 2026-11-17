@@ -3,7 +3,7 @@
  */
 import { describe, it, expect } from 'vitest';
 import { scanDocument, extractDocument, Scanner, createCornerEditor } from './index.js';
-import { createCanvas, loadImage } from 'canvas';
+import { createCanvas, loadImage } from '@napi-rs/canvas';
 import path from 'path';
 import { fileURLToPath } from 'url';
 

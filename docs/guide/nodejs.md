@@ -1,23 +1,28 @@
 # Node.js
 
 Scanic runs on the server too. Because it relies on the Canvas API and a few DOM
-globals, you provide a canvas implementation ([`canvas`](https://www.npmjs.com/package/canvas),
-aka node-canvas) and a DOM environment ([`jsdom`](https://www.npmjs.com/package/jsdom)).
+globals, you provide a canvas implementation
+([`@napi-rs/canvas`](https://www.npmjs.com/package/@napi-rs/canvas)) and a DOM
+environment ([`jsdom`](https://www.npmjs.com/package/jsdom)).
+
+`@napi-rs/canvas` ships prebuilt binaries, so there is nothing to compile, and it
+is the canvas backend jsdom 31 and newer use for `<canvas>` elements. It is built
+on Skia like Chrome, so detection results match the browser closely.
 
 ## Install
 
 ::: code-group
 
 ```sh [npm]
-npm install scanic canvas jsdom
+npm install scanic @napi-rs/canvas jsdom
 ```
 
 ```sh [pnpm]
-pnpm add scanic canvas jsdom
+pnpm add scanic @napi-rs/canvas jsdom
 ```
 
 ```sh [yarn]
-yarn add scanic canvas jsdom
+yarn add scanic @napi-rs/canvas jsdom
 ```
 
 :::
@@ -28,7 +33,7 @@ Wire up the globals Scanic expects, then call it as usual:
 
 ```js
 import { scanDocument } from 'scanic'
-import { loadImage } from 'canvas'
+import { loadImage } from '@napi-rs/canvas'
 import { JSDOM } from 'jsdom'
 
 // Provide a minimal DOM environment
@@ -41,17 +46,16 @@ const result = await scanDocument(img, { mode: 'extract', output: 'imagedata' })
 
 if (result.success) {
   console.log('Corners:', result.corners)
-  // result.output is ImageData; draw it onto a node-canvas to save it
+  // result.output is ImageData; draw it onto a canvas to save it
 }
 ```
 
 ## Saving the result to a file
 
-Use `output: 'canvas'`-style data by drawing the returned `ImageData` onto a
-node-canvas and writing a PNG:
+Draw the returned `ImageData` onto a canvas and write it as a PNG:
 
 ```js
-import { createCanvas } from 'canvas'
+import { createCanvas } from '@napi-rs/canvas'
 import { writeFileSync } from 'node:fs'
 
 const out = result.output // ImageData

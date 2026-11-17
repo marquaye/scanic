@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **A `@napi-rs/canvas` Canvas passed as input crashed** with "parameter 1 is not of type 'ImageData'": it has a `data()` method, so it was mistaken for `ImageData`. ImageData is now recognised by its pixel array.
+- **The corner editor sized itself from an `<img>`'s rendered width** when the image was scaled by CSS, so it did not match the detected corners. It now uses the intrinsic size, like detection does.
+
+### Changed
+- **The Node.js guide uses `@napi-rs/canvas` instead of `canvas`**: it ships prebuilt binaries, is what jsdom 31 and newer use for `<canvas>`, and is built on Skia like Chrome. The test suite runs on it too, with jsdom 31, and the classical baseline was regenerated: results now match Chrome exactly on 12 of the 17 test images.
+
 ## [1.8.0] - 2026-11-17
 
 ### Added
