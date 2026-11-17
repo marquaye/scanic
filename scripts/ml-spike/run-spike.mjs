@@ -17,7 +17,7 @@
  * Usage: node scripts/ml-spike/run-spike.mjs <path-to-model.onnx>
  */
 import ort from 'onnxruntime-web';
-import { loadImage, createCanvas } from 'canvas';
+import { loadImage, createCanvas } from '@napi-rs/canvas';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';

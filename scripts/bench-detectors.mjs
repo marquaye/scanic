@@ -68,7 +68,7 @@ function mlOptionsFor(config) {
 
 // ── Worker: measures one config in this (fresh) process ──────────────────────
 async function runWorker(config) {
-  const { createCanvas, loadImage, ImageData } = await import('canvas');
+  const { createCanvas, loadImage, ImageData } = await import('@napi-rs/canvas');
   const { scanDocument } = await import('../src/index.js');
 
   if (typeof globalThis.ImageData === 'undefined') globalThis.ImageData = ImageData;

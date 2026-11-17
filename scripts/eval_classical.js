@@ -2,7 +2,7 @@
 // Produce scanic classical-detector predictions + per-image latency over a
 // shared GT set (/tmp/evalN.json). Python (unified_benchmark.py) scores them.
 import fs from 'fs';
-import { createCanvas, loadImage, ImageData } from 'canvas';
+import { createCanvas, loadImage, ImageData } from '@napi-rs/canvas';
 
 globalThis.ImageData = ImageData;
 globalThis.document = {

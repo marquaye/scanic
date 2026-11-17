@@ -207,8 +207,9 @@ function preprocess(image, width, height) {
   ctx.imageSmoothingEnabled = true;
   ctx.imageSmoothingQuality = 'medium';
 
+  // `data` must be the pixel array: a @napi-rs/canvas Canvas has a data() method.
   const isImageData =
-    image && typeof image.width === 'number' && typeof image.height === 'number' && image.data;
+    image && typeof image.width === 'number' && typeof image.height === 'number' && ArrayBuffer.isView(image.data);
   if (isImageData) {
     const tmp = useOffscreen
       ? new OffscreenCanvas(image.width, image.height)

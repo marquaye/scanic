@@ -3,7 +3,7 @@
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath, pathToFileURL } from 'url';
-import { createCanvas, loadImage, ImageData } from 'canvas';
+import { createCanvas, loadImage, ImageData } from '@napi-rs/canvas';
 import { scanDocument } from '../src/index.js';
 import { computeIoU, cornerErrors } from './lib/polygonMetrics.mjs';
 

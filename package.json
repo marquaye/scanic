@@ -69,8 +69,8 @@
   ],
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@napi-rs/canvas": "^1.1.1",
     "@vitest/coverage-v8": "^5.0.3",
-    "canvas": "^3.2.0",
     "eslint": "^10.5.0",
     "globals": "^17.6.0",
     "jsdom": "^31.0.1",

@@ -1,5 +1,6 @@
 // @vitest-environment node
 import { describe, it, expect } from 'vitest';
+import { createCanvas } from '@napi-rs/canvas';
 import { getImageSize, isImageData } from './imageSource.js';
 
 describe('getImageSize', () => {
@@ -36,5 +37,11 @@ describe('isImageData', () => {
     expect(isImageData({ width: 1, height: 1, data: new Uint8ClampedArray(4) })).toBe(true);
     expect(isImageData({ width: 1, height: 1 })).toBe(false);
     expect(isImageData(null)).toBe(false);
+  });
+
+  it('does not mistake a canvas with a data() method for ImageData', () => {
+    // @napi-rs/canvas: Canvas has width, height and a data() method.
+    expect(isImageData(createCanvas(4, 4))).toBe(false);
+    expect(isImageData({ width: 4, height: 4, data() {} })).toBe(false);
   });
 });

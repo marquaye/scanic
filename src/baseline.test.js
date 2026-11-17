@@ -9,7 +9,7 @@
  */
 import { describe, it, expect, beforeAll } from 'vitest';
 import { scanDocument } from './index.js';
-import { loadImage, ImageData as CanvasImageData, createCanvas } from 'canvas';
+import { loadImage, ImageData as CanvasImageData, createCanvas } from '@napi-rs/canvas';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
